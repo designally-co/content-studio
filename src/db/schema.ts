@@ -57,12 +57,11 @@ export const DEFAULT_LOGO_OVERLAY: LogoOverlay = {
 export const brandProfiles = pgTable("brand_profiles", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
+  /** Legacy profile-image fields retained temporarily for migration fallback. */
   profileImageUrl: text("profile_image_url").notNull().default(""),
-  /** Uploaded image bytes, base64-encoded. Empty = no uploaded image. */
   profileImageData: text("profile_image_data").notNull().default(""),
-  /** MIME type of the uploaded image, e.g. "image/png". */
   profileImageMime: text("profile_image_mime").notNull().default(""),
-  /** Brand logo bytes (base64) for overlaying on generated images. Empty = none. */
+  /** Single identity image used as the brand avatar and generated-image logo. */
   logoData: text("logo_data").notNull().default(""),
   logoMime: text("logo_mime").notNull().default(""),
   /** Default overlay placement/style, reused as the starting point per image. */

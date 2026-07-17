@@ -85,14 +85,32 @@ export function FinalizeStage({
   anthropicReady: boolean;
   brandLogo: BrandLogo;
 }) {
+  const [tab, setTab] = useState<"content" | "images" | "complete">("content");
+
   return (
     <StageShell
       title="Finalize"
-      description="Review the content, generate companion images, copy for your CMS, and record the approval outcome."
+      description="Prepare the article for handoff. Images are optional; completion records the outcome and cost."
       wide
     >
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="space-y-6">
+      <nav className="mb-6 flex overflow-x-auto border-b border-line" aria-label="Finalize sections">
+        {(["content", "images", "complete"] as const).map((item, index) => (
+          <button
+            key={item}
+            type="button"
+            onClick={() => setTab(item)}
+            aria-current={tab === item ? "page" : undefined}
+            className={`min-h-11 shrink-0 border-b-2 px-5 py-2 text-sm font-medium capitalize transition-colors ${
+              tab === item ? "border-accent text-accent-ink" : "border-transparent text-ink-3 hover:text-ink"
+            }`}
+          >
+            <span className="mr-2 text-xs">{index + 1}</span>{item}
+          </button>
+        ))}
+      </nav>
+
+      {tab !== "complete" ? (
+        <div className="mx-auto max-w-5xl">
           <ArticlePanel
             projectId={projectId}
             draftId={draftId}
@@ -105,14 +123,24 @@ export function FinalizeStage({
             options={options}
             anthropicReady={anthropicReady}
             brandLogo={brandLogo}
+            tab={tab}
+            onNext={() => setTab(tab === "content" ? "images" : "complete")}
+            onBack={() => setTab("content")}
           />
         </div>
-
-        <div className="space-y-6">
-          <CostPanel cost={cost} />
-          <ApprovalPanel projectId={projectId} current={approvalOutcome} />
+      ) : (
+        <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+          <section className="rounded-2xl border border-line bg-surface p-6 sm:p-8">
+            <p className="text-xs font-semibold uppercase tracking-[var(--tracking-caps)] text-accent-ink">Ready to complete</p>
+            <h3 className="mt-2 text-[length:var(--text-h2)] text-ink">Record the article outcome</h3>
+            <p className="mt-3 max-w-[60ch] text-sm leading-(--leading-body) text-ink-3">
+              The article is saved automatically. Choose the outcome that best describes this version; you can still return to Content or Images before recording it.
+            </p>
+            <div className="mt-7"><ApprovalPanel projectId={projectId} current={approvalOutcome} /></div>
+          </section>
+          <div className="space-y-4"><CostPanel cost={cost} /><button type="button" onClick={() => setTab("images")} className="cs-btn w-full">Back to images</button></div>
         </div>
-      </div>
+      )}
     </StageShell>
   );
 }
@@ -129,6 +157,9 @@ function ArticlePanel({
   options,
   anthropicReady,
   brandLogo,
+  tab,
+  onNext,
+  onBack,
 }: {
   projectId: string;
   draftId: string;
@@ -141,6 +172,9 @@ function ArticlePanel({
   options: ImageModelOption[];
   anthropicReady: boolean;
   brandLogo: BrandLogo;
+  tab: "content" | "images";
+  onNext: () => void;
+  onBack: () => void;
 }) {
   if (!draftMd) {
     return (
@@ -156,8 +190,16 @@ function ArticlePanel({
   }
 
   return (
-    <>
+    <div className="space-y-5">
+      {tab === "content" ? (
+        <>
       <ContentPanel draftId={draftId} draftMd={draftMd} longForm={longForm} />
+          <div className="sticky bottom-0 flex justify-end border-t border-line bg-bg/95 py-4 backdrop-blur">
+            <button type="button" onClick={onNext} className="cs-btn-primary">Continue to images</button>
+          </div>
+        </>
+      ) : (
+        <>
       <ImagePanel
         projectId={projectId}
         existing={images}
@@ -168,7 +210,13 @@ function ArticlePanel({
         anthropicReady={anthropicReady}
         brandLogo={brandLogo}
       />
-    </>
+          <div className="sticky bottom-0 flex flex-col-reverse gap-2 border-t border-line bg-bg/95 py-4 backdrop-blur sm:flex-row sm:justify-between">
+            <button type="button" onClick={onBack} className="cs-btn">Back to content</button>
+            <button type="button" onClick={onNext} className="cs-btn-primary">Continue without more images</button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 

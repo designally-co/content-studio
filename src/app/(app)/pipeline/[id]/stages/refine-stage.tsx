@@ -1,21 +1,20 @@
 "use client";
 
-import { useState, useRef, useEffect, useTransition } from "react";
-import { StageShell, ApiNotReady } from "./stage-shell";
+import { useEffect, useState, useTransition } from "react";
 import { Markdown } from "@/components/markdown";
+import { IconArrowRight, IconCheck, IconSpark } from "@/components/icons";
 import { streamNdjson } from "@/lib/ndjson-client";
-import { goToFinalizeAction } from "../actions";
-import { fmtUsd } from "@/lib/format";
-import { IconArrowRight, IconSpark } from "@/components/icons";
-
-type ChatItem = { role: "user" | "system"; text: string; costUsd?: number };
+import { ApiNotReady, StageShell } from "./stage-shell";
+import { goToFinalizeAction, saveDraftContentAction } from "../actions";
 
 const SUGGESTIONS = [
-  "Make the intro shorter",
-  "Make it more formal",
-  "Add a section about pricing",
-  "Tighten the CTA",
+  "Make the introduction shorter",
+  "Use a more confident tone",
+  "Add practical examples",
+  "Tighten the final call to action",
 ];
+
+type Revision = { id: string; userMessage: string; resultMd: string };
 
 export function RefineStage({
   projectId,
@@ -25,191 +24,149 @@ export function RefineStage({
 }: {
   projectId: string;
   draft: { id: string; contentMd: string } | null;
-  refinements: { id: string; userMessage: string; costUsd: number }[];
+  refinements: Revision[];
   anthropicReady: boolean;
 }) {
   const [content, setContent] = useState(draft?.contentMd ?? "");
-  const [messages, setMessages] = useState<ChatItem[]>(
-    refinements.map((r) => ({ role: "user", text: r.userMessage, costUsd: r.costUsd }))
-  );
+  const [revisions, setRevisions] = useState(refinements);
   const [input, setInput] = useState("");
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [content]);
+    if (!dirty || !draft) return;
+    const timer = setTimeout(() => {
+      startTransition(() => saveDraftContentAction(draft.id, content));
+      setDirty(false);
+    }, 900);
+    return () => clearTimeout(timer);
+  }, [content, dirty, draft]);
 
-  async function send(message: string) {
-    const msg = message.trim();
-    if (!msg || streaming) return;
+  async function revise(message: string) {
+    const instruction = message.trim();
+    if (!instruction || streaming) return;
     setInput("");
     setError(null);
-    setMessages((m) => [...m, { role: "user", text: msg }]);
     setStreaming(true);
     try {
-      let acc = "";
-      for await (const ev of streamNdjson<{
-        t: string;
-        d?: string;
-        costUsd?: number;
-        m?: string;
-      }>(`/api/pipeline/${projectId}/refine`, { message: msg })) {
-        if (ev.t === "delta" && ev.d) {
-          acc += ev.d;
-          setContent(acc);
-        } else if (ev.t === "done") {
-          setMessages((m) => {
-            const copy = [...m];
-            const last = copy[copy.length - 1];
-            if (last && last.role === "user") last.costUsd = ev.costUsd;
-            return copy;
-          });
-          setMessages((m) => [
-            ...m,
-            { role: "system", text: "Draft updated." },
+      let nextContent = "";
+      for await (const event of streamNdjson<{ t: string; d?: string; m?: string }>(
+        `/api/pipeline/${projectId}/refine`,
+        { message: instruction }
+      )) {
+        if (event.t === "delta" && event.d) {
+          nextContent += event.d;
+          setContent(nextContent);
+        } else if (event.t === "done") {
+          setRevisions((current) => [
+            ...current,
+            { id: crypto.randomUUID(), userMessage: instruction, resultMd: nextContent },
           ]);
-        } else if (ev.t === "error") {
-          setError(ev.m ?? "Refinement failed");
+        } else if (event.t === "error") {
+          setError(event.m ?? "Revision failed.");
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Refinement failed");
+      setError(err instanceof Error ? err.message : "Revision failed.");
     } finally {
       setStreaming(false);
     }
   }
 
+  function restore(revision: Revision) {
+    if (!draft) return;
+    setContent(revision.resultMd);
+    startTransition(() => saveDraftContentAction(draft.id, revision.resultMd));
+  }
+
   function finalize() {
-    const fd = new FormData();
-    fd.set("projectId", projectId);
-    startTransition(() => goToFinalizeAction(fd));
+    const formData = new FormData();
+    formData.set("projectId", projectId);
+    startTransition(() => goToFinalizeAction(formData));
   }
 
   if (!draft) {
-    return (
-      <StageShell title="Refine">
-        <p className="text-sm text-ink-2">
-          No draft selected yet. Go back to the Drafts stage and pick a variation.
-        </p>
-      </StageShell>
-    );
+    return <StageShell title="Review"><p className="text-sm text-ink-2">Choose a draft before starting review.</p></StageShell>;
   }
 
-  const totalCost =
-    refinements.reduce((s, r) => s + r.costUsd, 0) +
-    messages
-      .filter((m) => m.role === "user")
-      .reduce((s, m, i) => (i >= refinements.length ? s + (m.costUsd ?? 0) : s), 0);
-
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:p-8">
-      <div className="mb-6">
-        <h2 className="text-lg font-semibold tracking-tight text-ink">Refine</h2>
-        <p className="mt-1 max-w-[68ch] text-sm leading-(--leading-body) text-ink-2">
-          Chat to iterate on the selected draft. Each change updates the live
-          draft and adds to the running cost.
-        </p>
-      </div>
-
+    <StageShell
+      title="Review"
+      description="Read the article as a complete document. Open revisions only when you want to change something."
+      wide
+    >
       {!anthropicReady ? (
         <ApiNotReady />
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
-          {/* chat panel */}
-          <div className="flex h-[32rem] flex-col rounded-xl border border-line bg-surface sm:h-[36rem]">
-            <div className="flex-1 space-y-3 overflow-y-auto p-4">
-              {messages.length === 0 && (
-                <p className="py-6 text-center text-sm text-ink-3">
-                  Ask for changes in plain language.
-                </p>
-              )}
-              {messages.map((m, i) =>
-                m.role === "user" ? (
-                  <div key={i} className="ml-6 rounded-lg rounded-br-sm bg-accent-soft px-3 py-2">
-                    <p className="text-sm text-accent-ink">{m.text}</p>
-                    {m.costUsd != null && (
-                      <p className="num mt-1 text-xs text-accent-ink/70">
-                        +{fmtUsd(m.costUsd)}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <p key={i} className="mr-6 text-xs text-ink-3">
-                    {m.text}
-                  </p>
-                )
-              )}
-              {streaming && (
-                <p className="mr-6 text-xs text-accent-ink" aria-live="polite">Applying change…</p>
-              )}
-              {error && <p className="text-sm text-danger" role="alert">{error}</p>}
-            </div>
-
-            <div className="border-t border-line p-3">
-              <div className="mb-2 flex flex-wrap gap-1.5">
-                {SUGGESTIONS.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => send(s)}
-                    disabled={streaming}
-                    className="min-h-9 rounded-full border border-line bg-bg px-2.5 py-1 text-xs text-ink-2 hover:bg-sunken disabled:opacity-50 [@media(pointer:coarse)]:min-h-11"
-                  >
-                    {s}
-                  </button>
-                ))}
+        <div className={`grid items-start gap-5 ${drawerOpen ? "lg:grid-cols-[minmax(0,1fr)_20rem]" : ""}`}>
+          <article className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3 sm:px-7">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-semibold uppercase tracking-[var(--tracking-caps)] text-accent-ink">Article</span>
+                <span className="text-xs text-ink-3" aria-live="polite">{streaming ? "Applying revision…" : dirty || pending ? "Saving…" : "Saved"}</span>
               </div>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  send(input);
-                }}
-                className="flex gap-2"
-              >
-                <input
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  disabled={streaming}
-                  placeholder="e.g. make the second section shorter"
-                  className="cs-input flex-1"
-                />
-                <button
-                  type="submit"
-                  disabled={streaming || !input.trim()}
-                  className="cs-btn-primary !px-3"
-                  aria-label="Send"
-                >
-                  <IconSpark width={16} height={16} />
-                </button>
-              </form>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => setEditing((value) => !value)} className="cs-btn">{editing ? "Preview" : "Edit article"}</button>
+                <button type="button" onClick={() => setDrawerOpen((value) => !value)} className="cs-btn" aria-expanded={drawerOpen}>{drawerOpen ? "Close revisions" : `Revisions${revisions.length ? ` (${revisions.length})` : ""}`}</button>
+              </div>
             </div>
-          </div>
 
-          {/* live draft */}
-          <div className="flex h-[32rem] flex-col rounded-xl border border-line bg-surface sm:h-[36rem]">
-            <div className="flex items-center justify-between border-b border-line px-5 py-2.5">
-              <span className="text-sm font-medium text-ink">Live draft</span>
-              <span className="num text-xs text-ink-3">
-                Refine cost: {fmtUsd(totalCost)}
-              </span>
+            {editing ? (
+              <div className="p-5 sm:p-8">
+                <textarea value={content} onChange={(event) => { setContent(event.target.value); setDirty(true); }} className="cs-textarea min-h-[38rem] text-sm leading-relaxed" />
+              </div>
+            ) : (
+              <div className="mx-auto min-h-[38rem] max-w-[76ch] px-5 py-8 sm:px-8 sm:py-12">
+                <Markdown>{content}</Markdown>
+                {streaming && <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-accent align-text-bottom" />}
+              </div>
+            )}
+
+            <div className="sticky bottom-0 flex justify-end border-t border-line bg-surface/95 px-5 py-4 backdrop-blur sm:px-7">
+              <button onClick={finalize} disabled={pending || streaming || dirty} className="cs-btn-primary">Continue to finalize <IconArrowRight width={16} height={16} /></button>
             </div>
-            <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
-              <Markdown>{content}</Markdown>
-              {streaming && (
-                <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-accent align-text-bottom" />
+          </article>
+
+          {drawerOpen && (
+            <aside className="rounded-2xl border border-line bg-surface lg:sticky lg:top-5" aria-label="Revision controls">
+              <div className="border-b border-line px-5 py-4">
+                <h3 className="font-semibold text-ink">Revise article</h3>
+                <p className="mt-1 text-xs text-ink-3">Describe one change at a time.</p>
+              </div>
+              <div className="space-y-4 p-4">
+                <div className="flex flex-wrap gap-2">
+                  {SUGGESTIONS.map((suggestion) => (
+                    <button key={suggestion} onClick={() => revise(suggestion)} disabled={streaming} className="rounded-full border border-line bg-bg px-3 py-2 text-xs text-ink-2 hover:border-accent hover:text-accent-ink disabled:opacity-50">{suggestion}</button>
+                  ))}
+                </div>
+                <form onSubmit={(event) => { event.preventDefault(); void revise(input); }} className="space-y-2">
+                  <label htmlFor="revision-instruction" className="cs-label">Revision instruction</label>
+                  <textarea id="revision-instruction" value={input} onChange={(event) => setInput(event.target.value)} className="cs-textarea min-h-24 text-sm" placeholder="e.g. make section two more practical" />
+                  <button type="submit" disabled={streaming || !input.trim()} className="cs-btn-primary w-full"><IconSpark width={16} height={16} />{streaming ? "Applying…" : "Apply revision"}</button>
+                </form>
+                {error && <p className="text-sm text-danger" role="alert">{error}</p>}
+              </div>
+              {revisions.length > 0 && (
+                <div className="border-t border-line px-4 py-4">
+                  <h4 className="text-xs font-semibold uppercase tracking-[var(--tracking-caps)] text-ink-3">History</h4>
+                  <ol className="mt-3 space-y-2">
+                    {[...revisions].reverse().map((revision) => (
+                      <li key={revision.id} className="rounded-lg bg-sunken px-3 py-3">
+                        <p className="text-sm text-ink-2">{revision.userMessage}</p>
+                        <button onClick={() => restore(revision)} disabled={pending || !revision.resultMd} className="mt-2 inline-flex min-h-9 items-center gap-1 text-xs font-medium text-accent-ink hover:underline"><IconCheck width={13} height={13} />Restore this version</button>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
               )}
-            </div>
-            <div className="flex justify-end border-t border-line px-5 py-3">
-              <button onClick={finalize} disabled={pending || streaming} className="cs-btn-primary">
-                Finalize
-                <IconArrowRight width={16} height={16} />
-              </button>
-            </div>
-          </div>
+            </aside>
+          )}
         </div>
       )}
-    </div>
+    </StageShell>
   );
 }

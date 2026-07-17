@@ -81,16 +81,22 @@ export default async function SettingsPage() {
     db.select().from(appSettings),
     listApiKeys("fal"),
   ]);
-  // Don't ship the image/logo bytes to the client; expose booleans and load
-  // them via /api/brand-image/[id] and /api/brand-logo.
-  const { profileImageData, profileImageMime, logoData, logoMime, ...brandCols } =
-    brandRow;
+  // Don't ship image bytes to the client; expose one logo flag and load it
+  // through /api/brand-logo.
+  const {
+    profileImageUrl,
+    profileImageData,
+    profileImageMime,
+    logoData,
+    logoMime,
+    ...brandCols
+  } = brandRow;
+  void profileImageUrl;
   void profileImageMime;
   void logoMime;
   const brand = {
     ...brandCols,
-    hasImage: profileImageData !== "",
-    hasLogo: logoData !== "",
+    hasLogo: logoData !== "" || profileImageData !== "",
   };
   const settings = Object.fromEntries(settingsRows.map((row) => [row.key, row.value]));
   const textModels = Array.from(

@@ -137,29 +137,7 @@ function parseTags(form: FormData, key: string): string[] {
   }
 }
 
-/**
- * Resolve the uploaded-image columns to write. Returns `undefined` for a field
- * that should be left untouched (no new file, no removal), so existing bytes
- * survive an edit that doesn't change the picture.
- */
-async function resolveImageUpdate(
-  form: FormData
-): Promise<{ profileImageData: string; profileImageMime: string } | undefined> {
-  const file = form.get("profileImage");
-  if (file instanceof File && file.size > 0) {
-    if (!file.type.startsWith("image/") || file.size > MAX_IMAGE_BYTES) {
-      return undefined; // client blocks these; server-side guard
-    }
-    const base64 = Buffer.from(await file.arrayBuffer()).toString("base64");
-    return { profileImageData: base64, profileImageMime: file.type };
-  }
-  if (String(form.get("removeImage") ?? "") === "1") {
-    return { profileImageData: "", profileImageMime: "" };
-  }
-  return undefined;
-}
-
-/** Same as resolveImageUpdate, for the brand logo (logo/removeLogo fields). */
+/** Resolve the single brand identity image used in the UI and on generated images. */
 async function resolveLogoUpdate(
   form: FormData
 ): Promise<{ logoData: string; logoMime: string } | undefined> {
@@ -214,7 +192,6 @@ export async function saveBrandAction(formData: FormData) {
     (l): l is "th" | "en" => l === "th" || l === "en"
   );
 
-  const image = await resolveImageUpdate(formData);
   const logo = await resolveLogoUpdate(formData);
 
   await db
@@ -222,7 +199,6 @@ export async function saveBrandAction(formData: FormData) {
     .set({
       name,
       logoOverlay: parseLogoOverlay(formData),
-      profileImageUrl: String(formData.get("profileImageUrl") ?? "").trim(),
       description: String(formData.get("description") ?? "").trim(),
       languages: languages.length ? languages : (["en"] as ("th" | "en")[]),
       tone: {
@@ -239,7 +215,6 @@ export async function saveBrandAction(formData: FormData) {
         hashtags: String(formData.get("hashtags") ?? "").trim(),
       },
       guidelineText: String(formData.get("guidelineText") ?? "").trim(),
-      ...(image ?? {}),
       ...(logo ?? {}),
     })
     .where(eq(brandProfiles.id, id));

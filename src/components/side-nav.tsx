@@ -18,7 +18,6 @@ const NAV = [
   { href: "/", label: "Dashboard", icon: IconDashboard, exact: true },
   { href: "/new", label: "New content", icon: IconNew, exact: false },
   { href: "/library", label: "Library", icon: IconLibrary, exact: false },
-  { href: "/settings", label: "Settings", icon: IconSettings, exact: false },
 ];
 
 export function SideNav({ user }: { user: { name: string; email: string } }) {
@@ -43,8 +42,7 @@ export function SideNav({ user }: { user: { name: string; email: string } }) {
 
   return (
     <>
-      <header className="sticky top-0 z-(--z-sticky) flex h-16 items-center justify-between border-b border-line bg-surface px-4 lg:hidden">
-        <MobileBrand />
+      <header className="sticky top-0 z-(--z-sticky) flex h-16 items-center gap-2 border-b border-line bg-surface px-2 lg:hidden">
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -55,6 +53,7 @@ export function SideNav({ user }: { user: { name: string; email: string } }) {
         >
           <Menu className="size-5" />
         </button>
+        <MobileBrand />
       </header>
 
       {open && (
@@ -85,12 +84,12 @@ export function SideNav({ user }: { user: { name: string; email: string } }) {
               </button>
             </div>
             <NavLinks pathname={pathname} onNavigate={() => setOpen(false)} />
-            <UserFooter user={user} />
+            <UserFooter user={user} pathname={pathname} onNavigate={() => setOpen(false)} />
           </aside>
         </div>
       )}
 
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-line bg-surface lg:flex">
+      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col self-start border-r border-line bg-surface lg:flex">
       <div className="flex items-center gap-3 px-5 pb-8 pt-6">
         <Image src="/logo.png" alt="" width={36} height={36} priority />
         <div className="min-w-0">
@@ -104,7 +103,7 @@ export function SideNav({ user }: { user: { name: string; email: string } }) {
       </div>
 
         <NavLinks pathname={pathname} />
-        <UserFooter user={user} />
+        <UserFooter user={user} pathname={pathname} />
       </aside>
     </>
   );
@@ -151,22 +150,43 @@ function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
   );
 }
 
-function UserFooter({ user }: { user: { name: string; email: string } }) {
+function UserFooter({
+  user,
+  pathname,
+  onNavigate,
+}: {
+  user: { name: string; email: string };
+  pathname: string;
+  onNavigate?: () => void;
+}) {
+  const active = pathname === "/settings" || pathname.startsWith("/settings/");
+
   return (
     <div className="border-t border-line p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <div className="flex items-center gap-2.5 px-2 py-1.5">
+        <div className={`flex items-center gap-1 rounded-lg transition-colors ${active ? "bg-accent-soft" : "hover:bg-sunken"}`}>
+          <Link
+            href="/settings"
+            onClick={onNavigate}
+            aria-current={active ? "page" : undefined}
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-2 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+          >
           <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-accent-soft text-xs font-semibold text-accent-ink">
             {user.name.slice(0, 2).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-ink">{user.name}</p>
-            <p className="truncate text-xs text-ink-3">{user.email}</p>
+            <p className={`truncate text-sm font-medium ${active ? "text-accent-ink" : "text-ink"}`}>
+              Account &amp; Settings
+            </p>
+            <p className="truncate text-xs text-ink-3">{user.name} · {user.email}</p>
           </div>
+          <IconSettings className={active ? "text-accent" : "text-ink-3"} width={17} height={17} />
+          </Link>
           <form action={logoutAction}>
             <button
               type="submit"
               aria-label="Sign out"
-              className="grid size-11 place-items-center rounded-lg text-ink-3 hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+              title="Sign out"
+              className="grid size-11 place-items-center rounded-lg text-ink-3 hover:bg-surface hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
             >
               <IconLogout width={16} height={16} />
             </button>

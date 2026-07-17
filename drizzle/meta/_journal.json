@@ -68,22 +68,29 @@
     {
       "idx": 9,
       "version": "7",
-      "when": 1784269832355,
+      "when": 1784276000000,
       "tag": "0009_remove_content_types",
       "breakpoints": true
     },
     {
       "idx": 10,
       "version": "7",
-      "when": 1784271000000,
+      "when": 1784277000000,
       "tag": "0010_remove_unused_image_providers",
       "breakpoints": true
     },
     {
       "idx": 11,
       "version": "7",
-      "when": 1784272000000,
+      "when": 1784278000000,
       "tag": "0011_anthropic_env_only",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1784364400000,
+      "tag": "0012_unify_brand_identity_image",
       "breakpoints": true
     }
   ]

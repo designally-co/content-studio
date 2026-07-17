@@ -1,15 +1,9 @@
 import Link from "next/link";
-import { and, eq, desc, sql, asc } from "drizzle-orm";
+import { and, eq, desc, asc } from "drizzle-orm";
 import { getDb } from "@/db";
-import {
-  projects,
-  categories,
-  apiUsageLog,
-  images,
-} from "@/db/schema";
+import { projects, categories } from "@/db/schema";
 import { StatusBadge } from "@/components/status-badge";
 import { FilterBar } from "./filter-bar";
-import { fmtUsd } from "@/lib/format";
 import { IconNew, IconArrowRight } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
@@ -49,30 +43,6 @@ export default async function LibraryPage({
     .leftJoin(categories, eq(projects.categoryId, categories.id))
     .where(conds.length ? and(...conds) : undefined)
     .orderBy(desc(projects.updatedAt));
-
-  // cost per project (text + image)
-  const [usageRows, imageRows] = await Promise.all([
-    db
-      .select({
-        projectId: apiUsageLog.projectId,
-        cost: sql<string>`sum(${apiUsageLog.costUsd})`,
-      })
-      .from(apiUsageLog)
-      .groupBy(apiUsageLog.projectId),
-    db
-      .select({
-        projectId: images.projectId,
-        cost: sql<string>`sum(${images.costUsd})`,
-      })
-      .from(images)
-      .groupBy(images.projectId),
-  ]);
-  const costMap = new Map<string, number>();
-  for (const r of usageRows)
-    if (r.projectId) costMap.set(r.projectId, Number(r.cost));
-  for (const r of imageRows)
-    if (r.projectId)
-      costMap.set(r.projectId, (costMap.get(r.projectId) ?? 0) + Number(r.cost));
 
   return (
     <div className="mx-auto flex max-w-[760px] flex-col gap-6 px-4 pb-16 pt-8 sm:px-6 sm:pb-20 sm:pt-12 lg:px-8 lg:pb-24 lg:pt-16">
@@ -124,8 +94,7 @@ export default async function LibraryPage({
                     {r.topic?.title || "Untitled project"}
                   </div>
                   <div className="mt-1 truncate text-[length:var(--text-sm)] text-ink-3">
-                    {meta.join(" · ")} ·{" "}
-                    <span className="num">{fmtUsd(costMap.get(r.id) ?? 0)}</span>
+                    {meta.join(" · ")}
                   </div>
                 </div>
                 <StatusBadge status={r.status} stage={r.stage} outcome={r.approvalOutcome} />

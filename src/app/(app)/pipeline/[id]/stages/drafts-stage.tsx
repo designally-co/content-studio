@@ -5,7 +5,6 @@ import { StageShell, ApiNotReady } from "./stage-shell";
 import { Markdown } from "@/components/markdown";
 import { streamNdjson } from "@/lib/ndjson-client";
 import { selectDraftAction } from "../actions";
-import { fmtUsd } from "@/lib/format";
 import { IconArrowRight, IconCheck } from "@/components/icons";
 
 type DraftView = {
@@ -13,7 +12,6 @@ type DraftView = {
   variationNo: number;
   contentMd: string;
   isSelected: boolean;
-  costUsd: number;
   metricLabel?: string;
   streaming: boolean;
   error?: string | null;
@@ -33,7 +31,6 @@ export function DraftsStage({
     variationNo: number;
     contentMd: string;
     isSelected: boolean;
-    costUsd: number;
   }[];
   targetLength: string;
   anthropicReady: boolean;
@@ -47,7 +44,6 @@ export function DraftsStage({
           variationNo: n,
           contentMd: "",
           isSelected: false,
-          costUsd: 0,
           streaming: false,
           error: null,
         };
@@ -70,7 +66,6 @@ export function DraftsStage({
         t: string;
         d?: string;
         draftId?: string;
-        costUsd?: number;
         metricLabel?: string;
         m?: string;
       }>(`/api/pipeline/${projectId}/draft`, { variation: n })) {
@@ -80,7 +75,6 @@ export function DraftsStage({
         } else if (ev.t === "done") {
           patch(n, {
             id: ev.draftId ?? null,
-            costUsd: ev.costUsd ?? 0,
             metricLabel: ev.metricLabel,
             streaming: false,
           });
@@ -126,22 +120,39 @@ export function DraftsStage({
 
   return (
     <StageShell
-      title="Draft generation"
-      description="The first angle is written for you automatically. If it misses, generate one of the other two angles — each shows its own token cost. Pick one to refine; the others stay viewable."
+      title="Draft"
+      description="Read the recommended first draft at a comfortable width. Alternative approaches stay out of the way until you need them."
       wide
     >
       {!anthropicReady ? (
         <ApiNotReady />
       ) : (
         <>
-          <div className="mb-5 flex flex-wrap items-center justify-end gap-3">
-            <p className="text-xs text-ink-3">
+          <div className="mx-auto max-w-4xl">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-[var(--tracking-caps)] text-accent-ink">
+                Recommended draft
+              </p>
+              <p className="text-xs text-ink-3">
               Target length: <span className="text-ink-2">{targetLength}</span>
-            </p>
-          </div>
+              </p>
+            </div>
+            <DraftCard
+              view={views[0]}
+              label={VARIATION_LABEL[0]}
+              selectedId={selectedId}
+              onRegenerate={() => streamOne(1)}
+              onSelect={() => select(views[0].id)}
+              busy={pending}
+              primary
+            />
 
-          <div className="grid gap-5 lg:grid-cols-3">
-            {views.map((v) => (
+            <details className="mt-5 rounded-xl border border-line bg-surface">
+              <summary className="cursor-pointer px-5 py-4 text-sm font-medium text-ink-2 hover:text-ink">
+                Try 2 alternative approaches
+              </summary>
+              <div className="grid gap-4 border-t border-line p-4 lg:grid-cols-2">
+                {views.slice(1).map((v) => (
               <DraftCard
                 key={v.variationNo}
                 view={v}
@@ -152,6 +163,8 @@ export function DraftsStage({
                 busy={pending}
               />
             ))}
+              </div>
+            </details>
           </div>
         </>
       )}
@@ -166,6 +179,7 @@ function DraftCard({
   onRegenerate,
   onSelect,
   busy,
+  primary = false,
 }: {
   view: DraftView;
   label: string;
@@ -173,6 +187,7 @@ function DraftCard({
   onRegenerate: () => void;
   onSelect: () => void;
   busy: boolean;
+  primary?: boolean;
 }) {
   const isSelected = view.id != null && view.id === selectedId;
   return (
@@ -195,7 +210,7 @@ function DraftCard({
         ) : null}
       </div>
 
-      <div className="max-h-[28rem] min-h-[8rem] overflow-y-auto px-4 py-3">
+      <div className={`${primary ? "min-h-[22rem] px-5 py-6 sm:px-8 sm:py-8" : "max-h-[24rem] min-h-[8rem] overflow-y-auto px-4 py-3"}`}>
         {view.error ? (
           <p className="text-sm text-danger" role="alert">{view.error}</p>
         ) : view.contentMd ? (
@@ -212,10 +227,7 @@ function DraftCard({
         )}
       </div>
 
-      <div className="mt-auto flex items-center justify-between gap-2 border-t border-line px-4 py-2.5">
-        <span className="num text-xs text-ink-3">
-          {view.costUsd > 0 ? fmtUsd(view.costUsd) : "—"}
-        </span>
+      <div className={`mt-auto flex items-center justify-end border-t border-line ${primary ? "px-5 py-4 sm:px-8" : "px-4 py-2.5"}`}>
         <div className="flex flex-wrap items-center justify-end gap-1.5">
           <button
             onClick={onRegenerate}
@@ -239,7 +251,7 @@ function DraftCard({
               </>
             ) : (
               <>
-                Select <IconArrowRight width={13} height={13} />
+                {primary ? "Continue with this draft" : "Use this draft"} <IconArrowRight width={13} height={13} />
               </>
             )}
           </button>

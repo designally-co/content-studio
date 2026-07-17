@@ -3,10 +3,7 @@ import { loadProject, costSummary } from "@/lib/projects";
 import { isAnthropicConfigured } from "@/lib/anthropic";
 import { imageGenerationOptions } from "@/lib/image/registry";
 import { Stepper } from "@/components/stepper";
-import { fmtUsd } from "@/lib/cost";
-import { SetupSummary } from "./stages/setup-summary";
-import { TopicsStage } from "./stages/topics-stage";
-import { OutlineStage } from "./stages/outline-stage";
+import { DirectionStage } from "./stages/direction-stage";
 import { DraftsStage } from "./stages/drafts-stage";
 import { RefineStage } from "./stages/refine-stage";
 import { FinalizeStage } from "./stages/finalize-stage";
@@ -42,7 +39,7 @@ export default async function PipelinePage({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-surface px-4 py-4 sm:px-6 lg:px-8">
+      <header className="border-b border-line bg-surface px-4 py-4 sm:px-6 lg:px-8">
         <div className="min-w-0">
           <h1 className="truncate text-lg font-semibold tracking-tight text-ink">
             {title || `Untitled project · ${loaded.brand.name}`}
@@ -52,38 +49,17 @@ export default async function PipelinePage({
             {loaded.category ? ` · ${loaded.category.name}` : ""}
           </p>
         </div>
-        <div className="flex min-h-10 items-center gap-2 rounded-full border border-line bg-bg px-3 py-1.5">
-          <span className="text-xs text-ink-3">Project cost</span>
-          <span className="num text-sm font-semibold text-ink">
-            {fmtUsd(cost.totalCostUsd)}
-          </span>
-        </div>
       </header>
 
       <Stepper projectId={id} current={current} reached={reached} />
 
       <div className="flex-1">
-        {current === 1 && (
-          <SetupSummary
-            projectId={id}
-            brandName={loaded.brand.name}
-            categoryName={loaded.category?.name ?? "Suggest for me"}
-            language={LANG_LABEL[loaded.project.language]}
-            inputs={loaded.project.inputs}
-          />
-        )}
-        {current === 2 && (
-          <TopicsStage
+        {current <= 3 && (
+          <DirectionStage
             projectId={id}
             suggestions={loaded.project.topicSuggestions ?? []}
             selected={loaded.project.selectedTopic ?? null}
-            hasBrief={Boolean(loaded.project.inputs.brief)}
-            anthropicReady={anthropicReady}
-          />
-        )}
-        {current === 3 && (
-          <OutlineStage
-            projectId={id}
+            brief={loaded.project.inputs.brief ?? ""}
             markdown={loaded.project.outline?.markdown ?? ""}
             longForm={loaded.articleRules.longForm}
             anthropicReady={anthropicReady}
@@ -97,7 +73,6 @@ export default async function PipelinePage({
               variationNo: d.variationNo,
               contentMd: d.contentMd,
               isSelected: d.isSelected,
-              costUsd: Number(d.costUsd),
             }))}
             targetLength={loaded.articleRules.length}
             anthropicReady={anthropicReady}
@@ -113,7 +88,7 @@ export default async function PipelinePage({
             refinements={loaded.refinements.map((r) => ({
               id: r.id,
               userMessage: r.userMessage,
-              costUsd: Number(r.costUsd),
+              resultMd: r.resultMd,
             }))}
             anthropicReady={anthropicReady}
           />

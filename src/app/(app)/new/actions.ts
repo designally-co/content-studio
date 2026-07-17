@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { projects, categories } from "@/db/schema";
-import type { ProjectInputs, Language } from "@/db/schema";
+import type { ProjectInputs, Language, SelectedTopic } from "@/db/schema";
 import { requireUser } from "@/lib/session";
 import { parseGscInsights } from "@/lib/gsc";
 import { fetchReadableText } from "@/lib/fetch-url";
@@ -47,6 +47,8 @@ export async function createProjectAction(formData: FormData) {
   const competitorUrl = String(formData.get("competitorUrl") ?? "").trim();
   const gscRaw = String(formData.get("gsc") ?? "").trim();
   const extraGuidelines = String(formData.get("extraGuidelines") ?? "").trim();
+  const startMode = String(formData.get("startMode") ?? "brief");
+  const exactTopic = String(formData.get("exactTopic") ?? "").trim();
 
   const inputs: ProjectInputs = {
     keyword: keyword || undefined,
@@ -86,17 +88,25 @@ export async function createProjectAction(formData: FormData) {
     }
   }
 
+  let selectedTopic: SelectedTopic | null = null;
+  if (startMode === "topic" && exactTopic) {
+    selectedTopic = { title: exactTopic, source: "custom" };
+  } else if (startMode === "brief" && brief) {
+    selectedTopic = { title: "Article from brief", angle: brief, source: "brief" };
+  }
+
   const [project] = await db
     .insert(projects)
     .values({
       categoryId,
       language,
       status: "in_pipeline",
-      stage: 2,
+      stage: selectedTopic ? 3 : 2,
       inputs,
+      selectedTopic,
       createdBy: user.id,
     })
     .returning();
 
-  redirect(`/pipeline/${project.id}`);
+  redirect(`/pipeline/${project.id}?stage=${selectedTopic ? 3 : 2}`);
 }

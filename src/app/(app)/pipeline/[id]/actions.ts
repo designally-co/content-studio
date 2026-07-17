@@ -52,8 +52,6 @@ export async function generateTopicsAction(projectId: string): Promise<SelectedT
       properties: {
         topics: {
           type: "array",
-          minItems: 5,
-          maxItems: 8,
           items: {
             type: "object",
             properties: {
@@ -76,13 +74,23 @@ export async function generateTopicsAction(projectId: string): Promise<SelectedT
     stage: "topics",
   });
 
-  const topics = (data.topics ?? []).map((t) => ({
-    title: t.title,
-    angle: t.angle,
-    whyTimely: t.whyTimely,
-    searchIntent: t.searchIntent,
-    source: "suggested" as const,
-  }));
+  // Anthropic structured outputs only support a restricted subset of JSON
+  // Schema array cardinality. The task asks for 5–8; enforce the usable upper
+  // bound here instead of sending unsupported minItems/maxItems constraints.
+  const topics = (data.topics ?? [])
+    .filter((t) => t.title?.trim())
+    .slice(0, 8)
+    .map((t) => ({
+      title: t.title.trim(),
+      angle: t.angle,
+      whyTimely: t.whyTimely,
+      searchIntent: t.searchIntent,
+      source: "suggested" as const,
+    }));
+
+  if (topics.length === 0) {
+    throw new Error("No usable directions were returned. Please try again.");
+  }
 
   const db = await getDb();
   await db
@@ -109,11 +117,22 @@ export async function selectTopicAction(formData: FormData) {
   };
   await db
     .update(projects)
-    .set({ selectedTopic: topic, updatedAt: new Date() })
+    .set({ selectedTopic: topic, outline: null, updatedAt: new Date() })
     .where(eq(projects.id, projectId));
   await bumpStage(projectId, 3);
   revalidatePath(`/pipeline/${projectId}`);
   redirect(`/pipeline/${projectId}?stage=3`);
+}
+
+export async function clearDirectionAction(projectId: string) {
+  await ctxFor(projectId);
+  const db = await getDb();
+  await db
+    .update(projects)
+    .set({ selectedTopic: null, outline: null, updatedAt: new Date() })
+    .where(eq(projects.id, projectId));
+  revalidatePath(`/pipeline/${projectId}`);
+  redirect(`/pipeline/${projectId}?stage=2`);
 }
 
 // ---- Stage 3: outline ----
