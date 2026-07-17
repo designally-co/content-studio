@@ -21,11 +21,9 @@ function supabase() {
   return { url, key, bucket };
 }
 
-function supabaseHeaders(key: string, mimeType: string): HeadersInit {
+function supabaseAuthHeaders(key: string): Record<string, string> {
   const headers: Record<string, string> = {
     apikey: key,
-    "content-type": mimeType,
-    "x-upsert": "true",
   };
   // Legacy service-role keys are JWTs and are accepted as Bearer tokens. New
   // sb_secret_* keys are API keys, not JWTs, and must only use `apikey`.
@@ -33,6 +31,14 @@ function supabaseHeaders(key: string, mimeType: string): HeadersInit {
     headers.authorization = `Bearer ${key}`;
   }
   return headers;
+}
+
+function supabaseUploadHeaders(key: string, mimeType: string): HeadersInit {
+  return {
+    ...supabaseAuthHeaders(key),
+    "content-type": mimeType,
+    "x-upsert": "true",
+  };
 }
 
 export async function saveImage(img: GeneratedImage): Promise<StoredRef> {
@@ -44,7 +50,7 @@ export async function saveImage(img: GeneratedImage): Promise<StoredRef> {
       `${sb.url}/storage/v1/object/${sb.bucket}/${filename}`,
       {
         method: "POST",
-        headers: supabaseHeaders(sb.key, img.mimeType),
+        headers: supabaseUploadHeaders(sb.key, img.mimeType),
         body: new Uint8Array(img.data),
       }
     );
@@ -62,10 +68,10 @@ export async function saveImage(img: GeneratedImage): Promise<StoredRef> {
   return { storagePath: `local:${filename}` };
 }
 
-/** Resolve a stored path back into bytes (or a redirect URL for Supabase). */
+/** Resolve a stored path back into bytes. */
 export async function resolveImage(
   storagePath: string
-): Promise<{ kind: "bytes"; data: Buffer; mimeType: string } | { kind: "redirect"; url: string } | null> {
+): Promise<{ kind: "bytes"; data: Buffer; mimeType: string } | null> {
   if (storagePath.startsWith("local:")) {
     const filename = storagePath.slice("local:".length);
     // guard against traversal
@@ -84,9 +90,15 @@ export async function resolveImage(
     const sb = supabase();
     if (!sb) return null;
     const rel = storagePath.slice("supabase:".length); // bucket/filename
+    const response = await fetch(`${sb.url}/storage/v1/object/${rel}`, {
+      headers: supabaseAuthHeaders(sb.key),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!response.ok) return null;
     return {
-      kind: "redirect",
-      url: `${sb.url}/storage/v1/object/public/${rel}`,
+      kind: "bytes",
+      data: Buffer.from(await response.arrayBuffer()),
+      mimeType: response.headers.get("content-type") ?? "image/png",
     };
   }
   return null;
@@ -96,11 +108,5 @@ export async function resolveImage(
 export async function loadStoredImage(storagePath: string): Promise<{ data: Buffer; mimeType: string } | null> {
   const resolved = await resolveImage(storagePath);
   if (!resolved) return null;
-  if (resolved.kind === "bytes") return { data: resolved.data, mimeType: resolved.mimeType };
-  const response = await fetch(resolved.url, { signal: AbortSignal.timeout(30000) });
-  if (!response.ok) return null;
-  return {
-    data: Buffer.from(await response.arrayBuffer()),
-    mimeType: response.headers.get("content-type") ?? "image/png",
-  };
+  return { data: resolved.data, mimeType: resolved.mimeType };
 }

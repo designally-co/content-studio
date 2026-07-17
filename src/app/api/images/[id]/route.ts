@@ -22,9 +22,6 @@ export async function GET(
   const resolved = await resolveImage(row.storagePath);
   if (!resolved) return new Response("Image unavailable", { status: 404 });
 
-  if (resolved.kind === "redirect") {
-    return Response.redirect(resolved.url, 302);
-  }
   return new Response(new Uint8Array(resolved.data), {
     headers: {
       "content-type": resolved.mimeType,

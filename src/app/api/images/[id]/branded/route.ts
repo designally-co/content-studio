@@ -13,10 +13,7 @@ export const runtime = "nodejs";
 async function baseBytes(storagePath: string): Promise<Buffer | null> {
   const resolved = await resolveImage(storagePath);
   if (!resolved) return null;
-  if (resolved.kind === "bytes") return resolved.data;
-  const res = await fetch(resolved.url);
-  if (!res.ok) return null;
-  return Buffer.from(await res.arrayBuffer());
+  return resolved.data;
 }
 
 /**
