@@ -131,6 +131,12 @@ The app uses the standard Node runtime and Supabase only — no Vercel-exclusive
 features (Edge-only APIs, KV, Blob) — so it runs unchanged on Vercel now and on a
 self-hosted server later.
 
+### Staging deployments
+
+The private GitHub repository is connected to the dedicated Vercel staging
+project. Pushing to `main` automatically updates the stable staging deployment;
+other branches and pull requests receive isolated preview deployments.
+
 ## Docker / self-hosting
 
 A `Dockerfile` and `docker-compose.yml` are provided from day one.
