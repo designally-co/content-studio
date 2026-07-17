@@ -1,0 +1,94 @@
+import "server-only";
+import path from "node:path";
+import fs from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import type { GeneratedImage } from "./providers";
+
+/**
+ * Persist a generated image. Uses Supabase Storage when configured, otherwise
+ * the local filesystem (self-host friendly). Returns a storage path that the
+ * /api/images/[id] route resolves back to bytes.
+ */
+export type StoredRef = { storagePath: string };
+
+const LOCAL_DIR = path.join(process.cwd(), "data", "images");
+
+function supabase() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const bucket = process.env.SUPABASE_STORAGE_BUCKET || "content-studio-images";
+  if (!url || !key) return null;
+  return { url, key, bucket };
+}
+
+export async function saveImage(img: GeneratedImage): Promise<StoredRef> {
+  const sb = supabase();
+  const filename = `${randomUUID()}.${img.ext}`;
+
+  if (sb) {
+    const res = await fetch(
+      `${sb.url}/storage/v1/object/${sb.bucket}/${filename}`,
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${sb.key}`,
+          "content-type": img.mimeType,
+          "x-upsert": "true",
+        },
+        body: new Uint8Array(img.data),
+      }
+    );
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw new Error(`Supabase storage upload failed: ${detail.slice(0, 200)}`);
+    }
+    return { storagePath: `supabase:${sb.bucket}/${filename}` };
+  }
+
+  await fs.mkdir(LOCAL_DIR, { recursive: true });
+  await fs.writeFile(path.join(LOCAL_DIR, filename), img.data);
+  return { storagePath: `local:${filename}` };
+}
+
+/** Resolve a stored path back into bytes (or a redirect URL for Supabase). */
+export async function resolveImage(
+  storagePath: string
+): Promise<{ kind: "bytes"; data: Buffer; mimeType: string } | { kind: "redirect"; url: string } | null> {
+  if (storagePath.startsWith("local:")) {
+    const filename = storagePath.slice("local:".length);
+    // guard against traversal
+    const safe = path.basename(filename);
+    const full = path.join(LOCAL_DIR, safe);
+    try {
+      const data = await fs.readFile(full);
+      const mimeType = safe.endsWith(".jpg") ? "image/jpeg" : "image/png";
+      return { kind: "bytes", data, mimeType };
+    } catch {
+      return null;
+    }
+  }
+
+  if (storagePath.startsWith("supabase:")) {
+    const sb = supabase();
+    if (!sb) return null;
+    const rel = storagePath.slice("supabase:".length); // bucket/filename
+    return {
+      kind: "redirect",
+      url: `${sb.url}/storage/v1/object/public/${rel}`,
+    };
+  }
+  return null;
+}
+
+/** Resolve any stored image to bytes for sending to an upstream model. */
+export async function loadStoredImage(storagePath: string): Promise<{ data: Buffer; mimeType: string } | null> {
+  const resolved = await resolveImage(storagePath);
+  if (!resolved) return null;
+  if (resolved.kind === "bytes") return { data: resolved.data, mimeType: resolved.mimeType };
+  const response = await fetch(resolved.url, { signal: AbortSignal.timeout(30000) });
+  if (!response.ok) return null;
+  return {
+    data: Buffer.from(await response.arrayBuffer()),
+    mimeType: response.headers.get("content-type") ?? "image/png",
+  };
+}

@@ -1,0 +1,527 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+/*
+  ---break---
+*/
+@custom-variant dark (&:is(.dark *));
+
+/*
+  Draft design system — Designally Content Studio
+  Light theme. Flat white pages, warm brown-leaning neutrals, one loud brand
+  orange used sparingly. Ported from the Draft design system project.
+*/
+:root {
+  /* brand ramp */
+  --orange-700: #c03e21;
+  --orange-600: #e14e2d;
+  --orange-500: #f66341;
+  --orange-400: #ff7d5c;
+  --orange-300: #ffa78f;
+  --orange-200: #ffd0c2;
+  --orange-100: #ffe8e0;
+  --orange-50: #fff4f0;
+
+  /* warm neutral ramp */
+  --ink-900: #241f1c;
+  --ink-700: #4a423d;
+  --ink-500: #7a6e66;
+  --ink-400: #a2968d;
+  --ink-300: #c9bfb7;
+  --ink-200: #e6dfd9;
+  --ink-100: #f2ede8;
+  --ink-50: #faf7f4;
+  --white: #ffffff;
+
+  /* semantic ramps */
+  --green-500: #3f9e6c;
+  --green-100: #ddf2e6;
+  --amber-500: #e8a23c;
+  --amber-100: #fbeed7;
+  --red-500: #dd4747;
+  --red-100: #fbe2e2;
+  --blue-500: #4a7dd6;
+  --blue-100: #e1eafa;
+
+  /* surfaces */
+  --bg: var(--white);
+  --surface: var(--white);
+  --surface-sunken: var(--ink-50);
+  --surface-deep: var(--ink-100);
+  --border: var(--ink-200);
+  --border-strong: var(--ink-300);
+
+  /* ink */
+  --ink: var(--ink-900);
+  --ink-secondary: var(--ink-700);
+  --ink-faint: var(--ink-500);
+
+  /* accent — brand orange */
+  --accent: var(--orange-500);
+  --accent-hover: var(--orange-600);
+  --accent-press: var(--orange-700);
+  --accent-soft: var(--orange-100);
+  --accent-tint: var(--orange-50);
+  --accent-ink: var(--orange-700);
+
+  /* status */
+  --ok: var(--green-500);
+  --ok-soft: var(--green-100);
+  --ok-ink: #2c7350;
+  --warn: var(--amber-500);
+  --warn-soft: var(--amber-100);
+  --danger: var(--red-500);
+  --danger-soft: var(--red-100);
+  --danger-ink: #b23030;
+  --danger-hover: #c53c3c;
+  --info: var(--blue-500);
+  --info-soft: var(--blue-100);
+
+  /* type scale */
+  --text-hero: 28px;
+  --text-h1: 28px;
+  --text-h2: 22px;
+  --text-h3: 18px;
+  --text-h4: 16px;
+  --text-lg: 16px;
+  --text-md: 16px;
+  --text-sm: 14px;
+  --text-xs: 12px;
+  --leading-tight: 1.15;
+  --leading-snug: 1.35;
+  --leading-body: 1.6;
+  --tracking-heading: -0.01em;
+  --tracking-caps: 0.08em;
+
+  /* space scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+  --container-max: 1080px;
+  --content-max: 680px;
+
+  /* effects */
+  --shadow-card: 0 1px 2px rgba(36, 31, 28, 0.05), 0 4px 12px rgba(36, 31, 28, 0.06);
+  --shadow-pop: 0 4px 8px rgba(36, 31, 28, 0.08), 0 12px 32px rgba(36, 31, 28, 0.12);
+  --shadow-focus: 0 0 0 3px var(--orange-200);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+
+  --radius: 12px;
+
+  --background: var(--bg);
+
+  --foreground: var(--ink);
+
+  --card: var(--surface);
+
+  --card-foreground: var(--ink);
+
+  --popover: var(--surface);
+
+  --popover-foreground: var(--ink);
+
+  --primary: var(--accent);
+
+  --primary-foreground: var(--white);
+
+  --secondary: var(--surface-sunken);
+
+  --secondary-foreground: var(--ink);
+
+  --muted: var(--surface-sunken);
+
+  --muted-foreground: var(--ink-faint);
+
+  --accent-foreground: var(--white);
+
+  --destructive: var(--danger);
+
+  --input: var(--border);
+
+  --ring: var(--accent);
+
+  --chart-1: var(--orange-500);
+
+  --chart-2: var(--orange-300);
+
+  --chart-3: var(--ink-400);
+
+  --chart-4: var(--ink-300);
+
+  --chart-5: var(--ink-200);
+
+  --sidebar: var(--surface);
+
+  --sidebar-foreground: var(--ink);
+
+  --sidebar-primary: var(--accent);
+
+  --sidebar-primary-foreground: var(--white);
+
+  --sidebar-accent: var(--accent-soft);
+
+  --sidebar-accent-foreground: var(--accent-ink);
+
+  --sidebar-border: var(--border);
+
+  --sidebar-ring: var(--accent);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-sunken: var(--surface-sunken);
+  --color-deep: var(--surface-deep);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-secondary);
+  --color-ink-3: var(--ink-faint);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-press: var(--accent-press);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-tint: var(--accent-tint);
+  --color-accent-ink: var(--accent-ink);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-ok-ink: var(--ok-ink);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-ink: var(--danger-ink);
+  --color-danger-hover: var(--danger-hover);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --font-sans: var(--font-instrument), var(--font-plex-thai), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-spline-mono), ui-monospace, "SF Mono", monospace;
+  --font-heading: var(--font-gabarito), var(--font-plex-thai), ui-sans-serif, system-ui, sans-serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  /* Draft radii. rounded-lg lands on inputs, rounded-xl on cards,
+     rounded-4xl on badges; buttons opt into rounded-full directly. */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  --radius-3xl: 24px;
+  --radius-4xl: 999px;
+}
+
+/* semantic z-scale */
+:root {
+  --z-dropdown: 30;
+  --z-sticky: 40;
+  --z-backdrop: 50;
+  --z-modal: 60;
+  --z-toast: 70;
+}
+
+/* Component classes live in @layer components: call sites pair them with
+   utilities (min-h-[24rem], text-xs, h-12), and unlayered rules would win. */
+@layer components {
+  .prose-draft {
+    max-width: 68ch;
+    font-size: var(--text-lg);
+    line-height: 1.7;
+    text-wrap: pretty;
+  }
+.prose-draft h1 {
+  font-size: var(--text-h2);
+  margin: 1.5em 0 0.5em;
+}
+.prose-draft h2 {
+  font-size: var(--text-h3);
+  margin: 1.4em 0 0.5em;
+}
+.prose-draft h3 {
+  font-size: var(--text-h4);
+  margin: 1.2em 0 0.4em;
+}
+.prose-draft p {
+  margin: 0.75em 0;
+}
+.prose-draft ul,
+.prose-draft ol {
+  margin: 0.75em 0;
+  padding-left: 1.4em;
+}
+.prose-draft ul {
+  list-style: disc;
+}
+.prose-draft ol {
+  list-style: decimal;
+}
+.prose-draft li {
+  margin: 0.3em 0;
+}
+.prose-draft blockquote {
+  border-left: 2px solid var(--orange-200);
+  padding-left: 1em;
+  color: var(--ink-faint);
+  margin: 1em 0;
+}
+.prose-draft a {
+  color: var(--accent-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose-draft strong {
+  font-weight: 600;
+  color: var(--ink);
+}
+.prose-draft code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--surface-sunken);
+  padding: 0.1em 0.35em;
+  border-radius: var(--radius-sm);
+}
+.prose-draft table {
+  border-collapse: collapse;
+  margin: 1em 0;
+  font-size: 0.925em;
+}
+.prose-draft th,
+.prose-draft td {
+  border: 1px solid var(--border);
+  padding: 0.4em 0.7em;
+  text-align: left;
+}
+
+/* numeric data (word counts, costs) */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+/* ---- reusable component classes ---- */
+.cs-input,
+.cs-textarea,
+.cs-select {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.6rem 1rem;
+  font-size: var(--text-md);
+  color: var(--ink);
+  transition: border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+.cs-input,
+.cs-select {
+  height: 44px;
+  padding-block: 0;
+}
+.cs-textarea {
+  min-height: 5.5rem;
+  resize: vertical;
+  line-height: var(--leading-body);
+}
+.cs-input::placeholder,
+.cs-textarea::placeholder {
+  color: var(--ink-faint);
+}
+.cs-input:focus,
+.cs-textarea:focus,
+.cs-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--shadow-focus);
+}
+.cs-input:disabled,
+.cs-textarea:disabled,
+.cs-select:disabled {
+  background: var(--surface-deep);
+  color: var(--ink-faint);
+  cursor: not-allowed;
+}
+
+.cs-btn-primary,
+.cs-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 40px;
+  padding: 0 1.25rem;
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+.cs-btn-primary:active:not(:disabled),
+.cs-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.cs-btn-primary:focus-visible,
+.cs-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+.cs-btn-primary:disabled,
+.cs-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.cs-btn-primary {
+  background: var(--accent);
+  color: var(--white);
+  border: 1px solid transparent;
+}
+.cs-btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.cs-btn-primary:active:not(:disabled) {
+  background: var(--accent-press);
+}
+
+.cs-btn {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--border-strong);
+}
+.cs-btn:hover:not(:disabled) {
+  background: var(--surface-sunken);
+}
+
+.cs-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+}
+
+.cs-label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.cs-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 32px;
+  padding: 0 0.875rem;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-secondary);
+  border: 1px solid var(--border);
+  font-size: var(--text-sm);
+}
+} /* @layer components */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (pointer: coarse) {
+  .cs-btn,
+  .cs-btn-primary,
+  .cs-chip {
+    min-height: 44px;
+  }
+
+  [data-slot="button"],
+  [data-slot="select-trigger"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+/*
+  ---break---
+*/
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+  }
+  /* Element defaults live in @layer base so Tailwind utilities still win —
+     unlayered rules would outrank every font/color utility on a heading. */
+  body {
+    background: var(--bg);
+    color: var(--ink-secondary);
+    font-family: var(--font-sans);
+    font-size: var(--text-md);
+    line-height: var(--leading-body);
+    font-kerning: normal;
+    font-optical-sizing: auto;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-heading);
+    color: var(--ink);
+    font-weight: 700;
+    letter-spacing: var(--tracking-heading);
+    line-height: var(--leading-tight);
+    text-wrap: balance;
+  }
+  h1 { font-size: var(--text-h1); }
+  h2 { font-size: var(--text-h2); }
+  h3 { font-size: var(--text-h3); }
+  h4 { font-size: var(--text-h4); }
+}

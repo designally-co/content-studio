@@ -1,0 +1,267 @@
+import {
+  pgTable,
+  text,
+  integer,
+  boolean,
+  timestamp,
+  jsonb,
+  numeric,
+  uuid,
+} from "drizzle-orm/pg-core";
+
+/** Languages a project can target. "both" generates paired TH + EN versions. */
+export type Language = "th" | "en" | "both";
+export type ProjectStatus = "draft" | "in_pipeline" | "finalized" | "rejected";
+export type ApprovalOutcome = "approved_first" | "approved_edited" | "rejected";
+
+export const users = pgTable("users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  name: text("name").notNull(),
+  role: text("role").notNull().default("member"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type BrandDefaults = {
+  cta?: string;
+  links?: string;
+  hashtags?: string;
+};
+
+export type LogoPosition =
+  | "top-left"
+  | "top-right"
+  | "bottom-left"
+  | "bottom-right"
+  | "center";
+
+/** How the brand logo is overlaid onto a generated image. */
+export type LogoOverlay = {
+  position: LogoPosition;
+  /** logo width as a percentage of the image width (1–60) */
+  sizePct: number;
+  /** 0–1 */
+  opacity: number;
+  /** subtle drop-shadow behind the logo for legibility */
+  shadow: boolean;
+};
+
+export const DEFAULT_LOGO_OVERLAY: LogoOverlay = {
+  position: "bottom-right",
+  sizePct: 15,
+  opacity: 1,
+  shadow: true,
+};
+
+export const brandProfiles = pgTable("brand_profiles", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  profileImageUrl: text("profile_image_url").notNull().default(""),
+  /** Uploaded image bytes, base64-encoded. Empty = no uploaded image. */
+  profileImageData: text("profile_image_data").notNull().default(""),
+  /** MIME type of the uploaded image, e.g. "image/png". */
+  profileImageMime: text("profile_image_mime").notNull().default(""),
+  /** Brand logo bytes (base64) for overlaying on generated images. Empty = none. */
+  logoData: text("logo_data").notNull().default(""),
+  logoMime: text("logo_mime").notNull().default(""),
+  /** Default overlay placement/style, reused as the starting point per image. */
+  logoOverlay: jsonb("logo_overlay_json")
+    .$type<LogoOverlay>()
+    .notNull()
+    .default(DEFAULT_LOGO_OVERLAY),
+  description: text("description").notNull().default(""),
+  languages: jsonb("languages").$type<("th" | "en")[]>().notNull().default(["en"]),
+  tone: jsonb("tone_json")
+    .$type<{ descriptors: string[]; freeText: string }>()
+    .notNull()
+    .default({ descriptors: [], freeText: "" }),
+  terminology: jsonb("terminology_json").$type<string[]>().notNull().default([]),
+  dos: jsonb("dos_json").$type<string[]>().notNull().default([]),
+  donts: jsonb("donts_json").$type<string[]>().notNull().default([]),
+  audience: text("audience").notNull().default(""),
+  defaults: jsonb("defaults_json").$type<BrandDefaults>().notNull().default({}),
+  guidelineText: text("guideline_text").notNull().default(""),
+  createdBy: uuid("created_by").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const categories = pgTable("categories", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  nameTh: text("name_th").notNull().default(""),
+  active: boolean("active").notNull().default(true),
+});
+
+export type FormatRules = {
+  /** Authoritative generation instructions for the single article template. */
+  prompt?: string;
+  /** e.g. "800-1500 words" or "under 280 characters" */
+  length: string;
+  structure: string;
+  hashtags: string;
+  headings: string;
+  /** true for blog/newsletter; false = compact plan (hook/body/CTA) */
+  longForm: boolean;
+};
+
+export type ProjectInputs = {
+  keyword?: string;
+  brief?: string;
+  competitorUrl?: string;
+  competitorSummary?: string;
+  gscInsights?: string;
+  extraGuidelines?: string;
+  imageProvider?: string;
+  imageCount?: number;
+  imageAspectRatio?: string;
+  /** Selected saved image-provider key; unset uses that provider's default/env key. */
+  imageApiKeyId?: string;
+};
+
+export type SelectedTopic = {
+  title: string;
+  angle?: string;
+  whyTimely?: string;
+  searchIntent?: string;
+  source: "suggested" | "edited" | "custom" | "brief";
+};
+
+export type Outline = {
+  /** markdown outline for long-form; compact plan fields for short-form */
+  markdown: string;
+  approved: boolean;
+};
+
+export const projects = pgTable("projects", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  // The system is single-brand (Designally). The brand is a singleton loaded
+  // via getBrand(); projects no longer carry a per-project brand reference.
+  categoryId: uuid("category_id").references(() => categories.id),
+  language: text("language").$type<Language>().notNull().default("en"),
+  status: text("status").$type<ProjectStatus>().notNull().default("draft"),
+  stage: integer("stage").notNull().default(1),
+  inputs: jsonb("inputs_json").$type<ProjectInputs>().notNull().default({}),
+  topicSuggestions: jsonb("topic_suggestions_json")
+    .$type<SelectedTopic[]>()
+    .default([]),
+  selectedTopic: jsonb("selected_topic_json").$type<SelectedTopic | null>(),
+  outline: jsonb("outline_json").$type<Outline | null>(),
+  approvalOutcome: text("approval_outcome").$type<ApprovalOutcome | null>(),
+  publishedTo: jsonb("published_to_json").$type<Record<string, string>>(), // reserved for Phase 2
+  createdBy: uuid("created_by").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const drafts = pgTable("drafts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  variationNo: integer("variation_no").notNull(),
+  contentMd: text("content_md").notNull(),
+  isSelected: boolean("is_selected").notNull().default(false),
+  tokensIn: integer("tokens_in").notNull().default(0),
+  tokensOut: integer("tokens_out").notNull().default(0),
+  costUsd: numeric("cost_usd", { precision: 12, scale: 6 }).notNull().default("0"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const refinements = pgTable("refinements", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  draftId: uuid("draft_id")
+    .notNull()
+    .references(() => drafts.id, { onDelete: "cascade" }),
+  userMessage: text("user_message").notNull(),
+  resultMd: text("result_md").notNull(),
+  tokensIn: integer("tokens_in").notNull().default(0),
+  tokensOut: integer("tokens_out").notNull().default(0),
+  costUsd: numeric("cost_usd", { precision: 12, scale: 6 }).notNull().default("0"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const images = pgTable("images", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  provider: text("provider").notNull(),
+  model: text("model").notNull(),
+  prompt: text("prompt").notNull(),
+  aspectRatio: text("aspect_ratio").notNull().default("1:1"),
+  width: integer("width"),
+  height: integer("height"),
+  variationNo: integer("variation_no").notNull().default(1),
+  referenceIds: jsonb("reference_ids_json").$type<string[]>().notNull().default([]),
+  storagePath: text("storage_path").notNull(),
+  costUsd: numeric("cost_usd", { precision: 12, scale: 6 }).notNull().default("0"),
+  /** Article image-slot index this image fills (null = standalone/companion). */
+  position: integer("position"),
+  /** Per-image brand-logo overlay settings; null = no branding applied. */
+  branding: jsonb("branding_json").$type<LogoOverlay | null>(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** User-uploaded source images that may guide one or more image generations. */
+export const imageReferences = pgTable("image_references", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  storagePath: text("storage_path").notNull(),
+  mimeType: text("mime_type").notNull(),
+  originalName: text("original_name").notNull(),
+  width: integer("width").notNull(),
+  height: integer("height").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const apiUsageLog = pgTable("api_usage_log", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id, {
+    onDelete: "set null",
+  }),
+  stage: text("stage").notNull(),
+  model: text("model").notNull(),
+  tokensIn: integer("tokens_in").notNull().default(0),
+  tokensOut: integer("tokens_out").notNull().default(0),
+  costUsd: numeric("cost_usd", { precision: 12, scale: 6 }).notNull().default("0"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type PricingUnit = "mtok_in" | "mtok_out" | "image";
+
+export const pricing = pgTable("pricing", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  provider: text("provider").notNull(),
+  model: text("model").notNull(),
+  unit: text("unit").$type<PricingUnit>().notNull(),
+  priceUsd: numeric("price_usd", { precision: 12, scale: 6 }).notNull(),
+  effectiveFrom: timestamp("effective_from", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+/** App-level settings stored as key/value (e.g. selected drafting model). */
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+});
+
+/**
+ * User-supplied API keys, encrypted at rest (see src/lib/crypto.ts). Multiple
+ * Fal.ai keys can be saved for image generation. Anthropic is environment-only.
+ * generation time. If a provider has no saved rows, its env var is used
+ * instead — see src/lib/secrets.ts.
+ */
+export const apiKeys = pgTable("api_keys", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  provider: text("provider").notNull(),
+  label: text("label").notNull(),
+  encryptedValue: text("encrypted_value").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

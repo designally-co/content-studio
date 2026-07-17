@@ -1,0 +1,19 @@
+# Local dependencies and build output
+node_modules
+.next
+out
+build
+coverage
+
+# Local runtime data and logs
+data
+*.log
+
+# Local agent and editor tooling
+.agents
+.codex
+.impeccable
+
+# Local secrets and Vercel link metadata
+.env*
+.vercel
