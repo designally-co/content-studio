@@ -96,6 +96,7 @@ export async function runJson<T>(params: {
   model: string;
   system: string;
   task: string;
+  schema: Record<string, unknown>;
   maxTokens: number;
   webSearch?: boolean;
   projectId: string | null;
@@ -111,6 +112,12 @@ export async function runJson<T>(params: {
         : {}),
       system: `${params.system}\n\n${JSON_CONTRACT}`,
       ...(params.webSearch ? { tools: [WEB_SEARCH_TOOL] } : {}),
+      output_config: {
+        format: {
+          type: "json_schema",
+          schema: params.schema,
+        },
+      },
       messages: [
         { role: "user", content: extra ? `${params.task}\n\n${extra}` : params.task },
       ],
@@ -118,30 +125,21 @@ export async function runJson<T>(params: {
     return msg;
   };
 
-  let msg = await attempt();
+  const msg = await attempt();
   await logUsage({
     projectId: params.projectId,
     stage: params.stage,
     model: params.model,
     usage: msg.usage,
   });
-  let parsed = extractJson<T>(textOf(msg.content));
+  const parsed = extractJson<T>(textOf(msg.content));
 
   if (parsed === null) {
-    msg = await attempt(
-      "Your previous reply could not be parsed as JSON. Reply again with ONLY the valid JSON object — no code fences, no prose."
+    throw new Error(
+      msg.stop_reason === "max_tokens"
+        ? "Structured response exceeded the output token limit."
+        : "Model did not return the required structured response."
     );
-    await logUsage({
-      projectId: params.projectId,
-      stage: `${params.stage}:retry`,
-      model: params.model,
-      usage: msg.usage,
-    });
-    parsed = extractJson<T>(textOf(msg.content));
-  }
-
-  if (parsed === null) {
-    throw new Error("Model did not return parseable JSON after one retry.");
   }
   return { data: parsed, usage: msg.usage };
 }

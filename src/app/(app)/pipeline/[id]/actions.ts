@@ -47,6 +47,29 @@ export async function generateTopicsAction(projectId: string): Promise<SelectedT
     model: research,
     system: buildSystemPrompt(ctx),
     task: topicsTask({ categoryName, language: ctx.language }),
+    schema: {
+      type: "object",
+      properties: {
+        topics: {
+          type: "array",
+          minItems: 5,
+          maxItems: 8,
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              angle: { type: "string" },
+              whyTimely: { type: "string" },
+              searchIntent: { type: "string" },
+            },
+            required: ["title", "angle", "whyTimely", "searchIntent"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["topics"],
+      additionalProperties: false,
+    },
     maxTokens: 3500,
     webSearch: true,
     projectId,
@@ -106,6 +129,41 @@ export async function generateOutlineAction(projectId: string): Promise<string> 
     model: drafting,
     system: buildSystemPrompt(ctx),
     task: outlineTask({ topicTitle, longForm }),
+    schema: longForm
+      ? {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            introAngle: { type: "string" },
+            sections: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  heading: { type: "string" },
+                  points: { type: "array", items: { type: "string" } },
+                },
+                required: ["heading", "points"],
+                additionalProperties: false,
+              },
+            },
+            cta: { type: "string" },
+          },
+          required: ["title", "introAngle", "sections", "cta"],
+          additionalProperties: false,
+        }
+      : {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            hook: { type: "string" },
+            bodyAngle: { type: "string" },
+            cta: { type: "string" },
+            hashtags: { type: "array", items: { type: "string" } },
+          },
+          required: ["title", "hook", "bodyAngle", "cta", "hashtags"],
+          additionalProperties: false,
+        },
     maxTokens: 2000,
     projectId,
     stage: "outline",

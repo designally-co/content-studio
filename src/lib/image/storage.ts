@@ -21,6 +21,20 @@ function supabase() {
   return { url, key, bucket };
 }
 
+function supabaseHeaders(key: string, mimeType: string): HeadersInit {
+  const headers: Record<string, string> = {
+    apikey: key,
+    "content-type": mimeType,
+    "x-upsert": "true",
+  };
+  // Legacy service-role keys are JWTs and are accepted as Bearer tokens. New
+  // sb_secret_* keys are API keys, not JWTs, and must only use `apikey`.
+  if (!key.startsWith("sb_secret_") && !key.startsWith("sb_publishable_")) {
+    headers.authorization = `Bearer ${key}`;
+  }
+  return headers;
+}
+
 export async function saveImage(img: GeneratedImage): Promise<StoredRef> {
   const sb = supabase();
   const filename = `${randomUUID()}.${img.ext}`;
@@ -30,17 +44,15 @@ export async function saveImage(img: GeneratedImage): Promise<StoredRef> {
       `${sb.url}/storage/v1/object/${sb.bucket}/${filename}`,
       {
         method: "POST",
-        headers: {
-          authorization: `Bearer ${sb.key}`,
-          "content-type": img.mimeType,
-          "x-upsert": "true",
-        },
+        headers: supabaseHeaders(sb.key, img.mimeType),
         body: new Uint8Array(img.data),
       }
     );
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
-      throw new Error(`Supabase storage upload failed: ${detail.slice(0, 200)}`);
+      throw new Error(
+        `Supabase storage upload failed (${res.status}): ${detail.slice(0, 200)}`
+      );
     }
     return { storagePath: `supabase:${sb.bucket}/${filename}` };
   }
