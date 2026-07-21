@@ -92,6 +92,20 @@
       "when": 1784364400000,
       "tag": "0012_unify_brand_identity_image",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1784545200000,
+      "tag": "0013_creative_editorial_scope",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1784631600000,
+      "tag": "0014_api_usage_telemetry",
+      "breakpoints": true
     }
   ]
 }

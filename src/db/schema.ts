@@ -105,6 +105,17 @@ export type FormatRules = {
 };
 
 export type ProjectInputs = {
+  articleMode?: import("@/lib/editorial").ArticleMode;
+  editorialFormat?: import("@/lib/editorial").EditorialFormat;
+  editorialPeriod?: string;
+  editorialReader?: string;
+  editorialEntryCount?: number;
+  editorialCandidates?: import("@/lib/editorial").EditorialCandidate[];
+  selectedEditorialCandidateIds?: string[];
+  moment?: import("@/lib/designally-strategy").MomentOfChange;
+  audienceSegment?: import("@/lib/designally-strategy").AudienceSegment;
+  messagePillar?: import("@/lib/designally-strategy").MessagePillar;
+  articleObjective?: import("@/lib/designally-strategy").ArticleObjective;
   keyword?: string;
   brief?: string;
   competitorUrl?: string;
@@ -123,6 +134,7 @@ export type SelectedTopic = {
   angle?: string;
   whyTimely?: string;
   searchIntent?: string;
+  researchSources?: { name: string; url: string }[];
   source: "suggested" | "edited" | "custom" | "brief";
 };
 
@@ -228,7 +240,15 @@ export const apiUsageLog = pgTable("api_usage_log", {
   model: text("model").notNull(),
   tokensIn: integer("tokens_in").notNull().default(0),
   tokensOut: integer("tokens_out").notNull().default(0),
+  /** Cache-write tokens (~1.25x rate) and cache-read tokens (~0.1x rate). */
+  cacheCreationTokens: integer("cache_creation_tokens").notNull().default(0),
+  cacheReadTokens: integer("cache_read_tokens").notNull().default(0),
   costUsd: numeric("cost_usd", { precision: 12, scale: 6 }).notNull().default("0"),
+  /** Prompt revision (PROMPT_VERSION) this call ran under; correlates prompt edits to outcomes. */
+  promptVersion: text("prompt_version"),
+  latencyMs: integer("latency_ms"),
+  /** How many times structured-output validation retried before succeeding (0 = first try). */
+  schemaRetryCount: integer("schema_retry_count").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

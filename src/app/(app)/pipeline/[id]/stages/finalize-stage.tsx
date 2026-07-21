@@ -1,28 +1,39 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Markdown } from "@/components/markdown";
 import { CopyButton } from "@/components/copy-button";
 import { LogoOverlayControls, LogoOverlayPreview } from "@/components/logo-overlay";
 import { StageShell } from "./stage-shell";
-import { fmtUsd } from "@/lib/format";
 import { countMetrics } from "@/lib/text";
 import { markdownToPlainText } from "@/lib/plain";
 import {
   generateImagePromptAction,
+  reviewBrandAlignmentAction,
   finalizeProjectAction,
   saveDraftContentAction,
 } from "../actions";
 import {
   generateImagesAction,
+  deleteGeneratedImageAction,
   setImageBrandingAction,
   uploadImageReferenceAction,
   type GeneratedImageView,
   type UploadedReferenceView,
 } from "../image-actions";
-import { IconSpark, IconDownload, IconCheck } from "@/components/icons";
-import type { ApprovalOutcome, LogoOverlay } from "@/db/schema";
+import { IconSpark, IconDownload, IconCheck, IconTrash } from "@/components/icons";
+import { MenuSelect } from "@/components/ui/menu-select";
+import type { LogoOverlay } from "@/db/schema";
 import type { ImageAspectRatio } from "@/lib/image/providers";
+import type { BrandReviewResult } from "@/lib/brand-review";
+import {
+  ART_DIRECTION_PRESETS,
+  IMAGE_DIRECTIONS,
+  type ArticleVisualBrief,
+  type ArtDirectionSelection,
+  type ImageDirection,
+} from "@/lib/image/visual-brief";
 
 type ImageModelOption = {
   optionId: string;
@@ -42,22 +53,6 @@ type ImageModelOption = {
 
 type BrandLogo = { hasLogo: boolean; defaultOverlay: LogoOverlay };
 
-type CostSummary = {
-  byStage: { stage: string; tokensIn: number; tokensOut: number; costUsd: number }[];
-  tokensIn: number;
-  tokensOut: number;
-  textCostUsd: number;
-  imageCostUsd: number;
-  totalCostUsd: number;
-  imageCount: number;
-};
-
-const OUTCOMES: { value: ApprovalOutcome; label: string; desc: string }[] = [
-  { value: "approved_first", label: "Approved as-is", desc: "First draft approved without edits" },
-  { value: "approved_edited", label: "Approved after edits", desc: "Approved after refinement" },
-  { value: "rejected", label: "Rejected", desc: "Not usable" },
-];
-
 export function FinalizeStage({
   projectId,
   draftId,
@@ -66,8 +61,8 @@ export function FinalizeStage({
   images,
   imageConfig,
   options,
-  cost,
-  approvalOutcome,
+  finalized,
+  initialView,
   anthropicReady,
   brandLogo,
 }: {
@@ -80,37 +75,29 @@ export function FinalizeStage({
   images: GeneratedImageView[];
   imageConfig: { optionId: string; count: number; aspectRatio: string };
   options: ImageModelOption[];
-  cost: CostSummary;
-  approvalOutcome: ApprovalOutcome | null;
+  finalized: boolean;
+  initialView: "images" | "complete";
   anthropicReady: boolean;
   brandLogo: BrandLogo;
 }) {
-  const [tab, setTab] = useState<"content" | "images" | "complete">("content");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedView = searchParams.get("view");
+  const showCompletion = requestedView === "complete" || (!requestedView && initialView === "complete");
+
+  function show(view: "images" | "complete") {
+    router.replace(`/pipeline/${projectId}?stage=6&view=${view}`, { scroll: false });
+  }
 
   return (
     <StageShell
-      title="Finalize"
-      description="Prepare the article for handoff. Images are optional; completion records the outcome and cost."
+      title="Generate images"
+      description="Create optional companion images for the finished article."
       wide
+      hideHeader={showCompletion}
     >
-      <nav className="mb-6 flex overflow-x-auto border-b border-line" aria-label="Finalize sections">
-        {(["content", "images", "complete"] as const).map((item, index) => (
-          <button
-            key={item}
-            type="button"
-            onClick={() => setTab(item)}
-            aria-current={tab === item ? "page" : undefined}
-            className={`min-h-11 shrink-0 border-b-2 px-5 py-2 text-sm font-medium capitalize transition-colors ${
-              tab === item ? "border-accent text-accent-ink" : "border-transparent text-ink-3 hover:text-ink"
-            }`}
-          >
-            <span className="mr-2 text-xs">{index + 1}</span>{item}
-          </button>
-        ))}
-      </nav>
-
-      {tab !== "complete" ? (
-        <div className="mx-auto max-w-5xl">
+      {!showCompletion ? (
+        <div>
           <ArticlePanel
             projectId={projectId}
             draftId={draftId}
@@ -123,22 +110,14 @@ export function FinalizeStage({
             options={options}
             anthropicReady={anthropicReady}
             brandLogo={brandLogo}
-            tab={tab}
-            onNext={() => setTab(tab === "content" ? "images" : "complete")}
-            onBack={() => setTab("content")}
+            tab="images"
+            onNext={() => show("complete")}
           />
         </div>
       ) : (
-        <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-          <section className="rounded-2xl border border-line bg-surface p-6 sm:p-8">
-            <p className="text-xs font-semibold uppercase tracking-[var(--tracking-caps)] text-accent-ink">Ready to complete</p>
-            <h3 className="mt-2 text-[length:var(--text-h2)] text-ink">Record the article outcome</h3>
-            <p className="mt-3 max-w-[60ch] text-sm leading-(--leading-body) text-ink-3">
-              The article is saved automatically. Choose the outcome that best describes this version; you can still return to Content or Images before recording it.
-            </p>
-            <div className="mt-7"><ApprovalPanel projectId={projectId} current={approvalOutcome} /></div>
-          </section>
-          <div className="space-y-4"><CostPanel cost={cost} /><button type="button" onClick={() => setTab("images")} className="cs-btn w-full">Back to images</button></div>
+        <div>
+          <FinalizePanel projectId={projectId} finalized={finalized} />
+          <BrandReviewPanel projectId={projectId} anthropicReady={anthropicReady} />
         </div>
       )}
     </StageShell>
@@ -159,7 +138,6 @@ function ArticlePanel({
   brandLogo,
   tab,
   onNext,
-  onBack,
 }: {
   projectId: string;
   draftId: string;
@@ -174,7 +152,6 @@ function ArticlePanel({
   brandLogo: BrandLogo;
   tab: "content" | "images";
   onNext: () => void;
-  onBack: () => void;
 }) {
   if (!draftMd) {
     return (
@@ -210,9 +187,8 @@ function ArticlePanel({
         anthropicReady={anthropicReady}
         brandLogo={brandLogo}
       />
-          <div className="sticky bottom-0 flex flex-col-reverse gap-2 border-t border-line bg-bg/95 py-4 backdrop-blur sm:flex-row sm:justify-between">
-            <button type="button" onClick={onBack} className="cs-btn">Back to content</button>
-            <button type="button" onClick={onNext} className="cs-btn-primary">Continue without more images</button>
+          <div className="sticky bottom-0 flex justify-end border-t border-line bg-bg/95 py-4 backdrop-blur">
+            <button type="button" onClick={onNext} className="cs-btn-primary">Review &amp; finalize</button>
           </div>
         </>
       )}
@@ -325,6 +301,9 @@ function ImagePanel({
     ? requestedInitialRatio
     : initialOption?.capabilities.aspectRatios[0] ?? "1:1";
   const [prompt, setPrompt] = useState("");
+  const [direction, setDirection] = useState<ImageDirection>("auto");
+  const [artDirection, setArtDirection] = useState<ArtDirectionSelection>("auto");
+  const [visualBrief, setVisualBrief] = useState<ArticleVisualBrief | null>(null);
   const [optionId, setOptionId] = useState(initialOptionId);
   const [count, setCount] = useState(
     Math.min(Math.max(defaultCount, 1), initialOption?.capabilities.maxVariations ?? 1)
@@ -340,7 +319,6 @@ function ImagePanel({
     () => options.find((option) => option.optionId === optionId) ?? options[0],
     [optionId, options]
   );
-  const estimatedImageCost = (selectedOption?.indicativePricePerImage ?? 0) * count;
 
   function selectModel(nextOptionId: string) {
     const next = options.find((option) => option.optionId === nextOptionId);
@@ -372,11 +350,15 @@ function ImagePanel({
     setBusy("prompt");
     setError(null);
     try {
-      setPrompt(await generateImagePromptAction(projectId, {
+      const result = await generateImagePromptAction(projectId, {
         model: selectedOption?.model,
         aspectRatio,
         hasReferenceImage: Boolean(reference),
-      }));
+        direction,
+        artDirection,
+      });
+      setPrompt(result.prompt);
+      setVisualBrief(result.brief);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to draft prompt.");
     } finally {
@@ -415,20 +397,62 @@ function ImagePanel({
       ) : (
         <>
           <div className="mt-3 space-y-3">
+            <p className="text-sm leading-relaxed text-ink-2">
+              Visual style and composition are matched automatically to the finished article. Draft the prompt, review it, then generate.
+            </p>
             <div className="space-y-1.5">
               <label htmlFor="image-model" className="text-xs font-medium text-ink-2">Image model</label>
-              <select
+              <MenuSelect
                 id="image-model"
+                ariaLabel="Image model"
+                className="w-full text-sm"
                 value={optionId}
-                onChange={(e) => selectModel(e.target.value)}
-                className="cs-select w-full text-sm"
-              >
-                {options.map((o) => (
-                  <option key={o.optionId} value={o.optionId}>{o.label}</option>
-                ))}
-              </select>
+                onChange={selectModel}
+                options={options.map((o) => ({ value: o.optionId, label: o.label }))}
+              />
               {selectedOption && <p className="text-xs text-ink-3">{selectedOption.strengths}</p>}
             </div>
+
+            <details className="rounded-lg border border-line bg-sunken px-4 py-3 text-sm">
+              <summary className="cursor-pointer font-medium text-ink-2">
+                Advanced controls
+                {(artDirection !== "auto" || direction !== "auto") && <span className="ml-2 font-normal text-accent-ink">Customized</span>}
+              </summary>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label htmlFor="art-direction" className="text-xs font-medium text-ink-2">Visual style override</label>
+                  <MenuSelect
+                    id="art-direction"
+                    ariaLabel="Visual style override"
+                    className="w-full text-sm"
+                    value={artDirection}
+                    onChange={(value) => {
+                      setArtDirection(value as ArtDirectionSelection);
+                      setVisualBrief(null);
+                      setPrompt("");
+                    }}
+                    options={ART_DIRECTION_PRESETS.map((item) => ({ value: item.value, label: item.label }))}
+                  />
+                  <p className="text-xs text-ink-3">{ART_DIRECTION_PRESETS.find((item) => item.value === artDirection)?.description}</p>
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="image-direction" className="text-xs font-medium text-ink-2">Composition override</label>
+                  <MenuSelect
+                    id="image-direction"
+                    ariaLabel="Composition override"
+                    className="w-full text-sm"
+                    value={direction}
+                    onChange={(value) => {
+                      setDirection(value as ImageDirection);
+                      setVisualBrief(null);
+                      setPrompt("");
+                    }}
+                    options={IMAGE_DIRECTIONS.map((item) => ({ value: item.value, label: item.label }))}
+                  />
+                  <p className="text-xs text-ink-3">{IMAGE_DIRECTIONS.find((item) => item.value === direction)?.description}</p>
+                </div>
+              </div>
+            </details>
 
             <div className="space-y-1.5">
               <p id="reference-image-label" className="text-xs font-medium text-ink-2">
@@ -438,7 +462,8 @@ function ImagePanel({
                 </span>
               </p>
               {selectedOption?.capabilities.referenceImages ? (
-                reference ? (
+                <div className="space-y-3">
+                  {reference ? (
                   <div className="flex items-center gap-3 rounded-lg border border-line bg-sunken p-2">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -458,7 +483,7 @@ function ImagePanel({
                       if (fileInputRef.current) fileInputRef.current.value = "";
                     }}>Remove</button>
                   </div>
-                ) : (
+                  ) : (
                   <label className="flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-line-strong bg-sunken px-4 py-4 text-sm text-ink-2 hover:border-accent hover:text-accent-ink">
                     {uploading ? "Uploading…" : "Upload PNG, JPEG, or WebP · max 2 MB"}
                     <input
@@ -474,7 +499,8 @@ function ImagePanel({
                       }}
                     />
                   </label>
-                )
+                  )}
+                </div>
               ) : (
                 <p className="rounded-lg bg-sunken px-3 py-2 text-xs text-ink-3">This model supports text-to-image only.</p>
               )}
@@ -498,17 +524,17 @@ function ImagePanel({
             <div className="flex flex-wrap items-end gap-3">
               <div className="space-y-1.5">
                 <label htmlFor="image-variations" className="text-xs font-medium text-ink-2">Variations</label>
-                <select
+                <MenuSelect
                   id="image-variations"
-                  aria-label="Number of variations"
-                  value={count}
-                  onChange={(e) => setCount(Number(e.target.value))}
-                  className="cs-select !w-auto text-sm"
-                >
-                  {Array.from({ length: selectedOption?.capabilities.maxVariations ?? 1 }, (_, index) => index + 1).map((value) => (
-                    <option key={value} value={value}>{value} variation{value > 1 ? "s" : ""}</option>
-                  ))}
-                </select>
+                  ariaLabel="Number of variations"
+                  className="!w-auto text-sm"
+                  value={String(count)}
+                  onChange={(value) => setCount(Number(value))}
+                  options={Array.from(
+                    { length: selectedOption?.capabilities.maxVariations ?? 1 },
+                    (_, index) => index + 1
+                  ).map((value) => ({ value: String(value), label: `${value} variation${value > 1 ? "s" : ""}` }))}
+                />
               </div>
               <button
                 onClick={draftPrompt}
@@ -533,6 +559,19 @@ function ImagePanel({
               placeholder="Describe the image, or auto-draft one from the article…"
               className="cs-textarea min-h-[5rem] text-sm"
             />
+            {visualBrief && (
+              <details className="rounded-lg bg-sunken px-4 py-3 text-sm">
+                <summary className="cursor-pointer font-medium text-ink-2">Article-aware visual brief</summary>
+                <dl className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
+                  <div><dt className="font-medium text-ink">Main subject</dt><dd className="mt-1 text-ink-3">{visualBrief.mainSubject}</dd></div>
+                  <div><dt className="font-medium text-ink">Visual style</dt><dd className="mt-1 text-ink-3">{ART_DIRECTION_PRESETS.find((item) => item.value === visualBrief.artDirection)?.label ?? visualBrief.artDirection}</dd></div>
+                  <div className="sm:col-span-2"><dt className="font-medium text-ink">Why this style</dt><dd className="mt-1 text-ink-3">{visualBrief.artDirectionReason}</dd></div>
+                  <div><dt className="font-medium text-ink">Image role</dt><dd className="mt-1 text-ink-3">{visualBrief.imageRole}</dd></div>
+                  <div><dt className="font-medium text-ink">Composition</dt><dd className="mt-1 text-ink-3">{visualBrief.composition}</dd></div>
+                  <div><dt className="font-medium text-ink">Reference guidance</dt><dd className="mt-1 text-ink-3">{visualBrief.referenceGuidance}</dd></div>
+                </dl>
+              </details>
+            )}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <button
                 onClick={generate}
@@ -542,14 +581,11 @@ function ImagePanel({
                   !optionId ||
                   Boolean(selectedOption?.capabilities.referenceImagesRequired && !reference)
                 }
-                aria-describedby={selectedOption?.capabilities.referenceImagesRequired && !reference ? "generate-requirement" : "image-cost-estimate"}
+                aria-describedby={selectedOption?.capabilities.referenceImagesRequired && !reference ? "generate-requirement" : undefined}
                 className="cs-btn-primary"
               >
                 {busy === "gen" ? "Generating…" : `Generate ${count} variation${count > 1 ? "s" : ""}`}
               </button>
-              <p id="image-cost-estimate" className="text-xs text-ink-3">
-                Estimated image cost: <span className="num font-medium text-ink-2">{fmtUsd(estimatedImageCost)}</span>
-              </p>
             </div>
             {selectedOption?.capabilities.referenceImagesRequired && !reference && (
               <p id="generate-requirement" className="text-xs text-ink-3">
@@ -566,7 +602,7 @@ function ImagePanel({
           {imgs.length > 0 && (
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               {imgs.map((img) => (
-                <BrandableImage key={img.id} img={img} brandLogo={brandLogo} />
+                <BrandableImage key={img.id} img={img} brandLogo={brandLogo} onDeleted={() => setImgs((current) => current.filter((item) => item.id !== img.id))} />
               ))}
             </div>
           )}
@@ -576,9 +612,11 @@ function ImagePanel({
   );
 }
 
-function BrandableImage({ img, brandLogo }: { img: GeneratedImageView; brandLogo: BrandLogo }) {
+function BrandableImage({ img, brandLogo, onDeleted }: { img: GeneratedImageView; brandLogo: BrandLogo; onDeleted: () => void }) {
   const [branding, setBranding] = useState<LogoOverlay | null>(img.branding);
   const [adjustOpen, setAdjustOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
   const branded = branding !== null;
@@ -592,6 +630,19 @@ function BrandableImage({ img, brandLogo }: { img: GeneratedImageView; brandLogo
   function toggleBranding(on: boolean) {
     if (!on) setAdjustOpen(false);
     save(on ? (branding ?? brandLogo.defaultOverlay) : null);
+  }
+
+  async function remove() {
+    if (!window.confirm(`Delete generated image variation ${img.variationNo}? This cannot be undone.`)) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteGeneratedImageAction(img.id);
+      onDeleted();
+    } catch (reason) {
+      setDeleteError(reason instanceof Error ? reason.message : "The image could not be deleted.");
+      setDeleting(false);
+    }
   }
 
   return (
@@ -626,9 +677,14 @@ function BrandableImage({ img, brandLogo }: { img: GeneratedImageView; brandLogo
         </a>
       </div>
 
-      <figcaption className="border-t border-line px-3 py-2 text-xs text-ink-3">
-        {img.model} · {img.aspectRatio} · Variation {img.variationNo}
+      <figcaption className="flex items-center gap-3 border-t border-line px-3 py-2 text-xs text-ink-3">
+        <span className="min-w-0 flex-1 truncate">{img.model} · {img.aspectRatio} · Variation {img.variationNo}</span>
+        <button type="button" onClick={remove} disabled={deleting} className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-md px-2 text-danger-ink hover:bg-danger-soft focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-danger/20 disabled:opacity-50">
+          <IconTrash width={14} height={14} /> {deleting ? "Deleting…" : "Delete"}
+        </button>
       </figcaption>
+
+      {deleteError && <p className="border-t border-line px-3 py-2 text-xs text-danger" role="alert">{deleteError}</p>}
 
       {brandLogo.hasLogo && (
         <div className="space-y-3 px-3 py-2.5">
@@ -661,96 +717,104 @@ function BrandableImage({ img, brandLogo }: { img: GeneratedImageView; brandLogo
   );
 }
 
-function CostPanel({ cost }: { cost: CostSummary }) {
-  return (
-    <section className="cs-card p-5">
-      <h3 className="font-semibold tracking-tight text-ink">Cost summary</h3>
-      <dl className="mt-3 space-y-1.5">
-        {cost.byStage.map((s) => (
-          <div key={s.stage} className="flex justify-between text-sm">
-            <dt className="text-ink-2">{s.stage}</dt>
-            <dd className="num text-ink">{fmtUsd(s.costUsd)}</dd>
-          </div>
-        ))}
-        {cost.imageCount > 0 && (
-          <div className="flex justify-between text-sm">
-            <dt className="text-ink-2">Images ({cost.imageCount})</dt>
-            <dd className="num text-ink">{fmtUsd(cost.imageCostUsd)}</dd>
-          </div>
-        )}
-      </dl>
-      <div className="mt-3 border-t border-line pt-3">
-        <div className="flex justify-between">
-          <span className="text-sm font-medium text-ink">Total</span>
-          <span className="num font-semibold text-ink">{fmtUsd(cost.totalCostUsd)}</span>
-        </div>
-        <p className="num mt-1 text-xs text-ink-3">
-          {cost.tokensIn.toLocaleString()} in · {cost.tokensOut.toLocaleString()} out tokens
-        </p>
-      </div>
-    </section>
-  );
-}
-
-function ApprovalPanel({
+function FinalizePanel({
   projectId,
-  current,
+  finalized: initiallyFinalized,
 }: {
   projectId: string;
-  current: ApprovalOutcome | null;
+  finalized: boolean;
 }) {
   const [pending, startTransition] = useTransition();
-  const [selected, setSelected] = useState<ApprovalOutcome | null>(current);
+  const [finalized, setFinalized] = useState(initiallyFinalized);
 
-  function record(outcome: ApprovalOutcome) {
-    setSelected(outcome);
+  function finalize() {
     const fd = new FormData();
     fd.set("projectId", projectId);
-    fd.set("outcome", outcome);
-    startTransition(() => finalizeProjectAction(fd));
+    startTransition(async () => {
+      await finalizeProjectAction(fd);
+      setFinalized(true);
+    });
   }
 
   return (
-    <section className="cs-card p-5">
-      <h3 className="font-semibold tracking-tight text-ink">Approval outcome</h3>
-      <p className="mt-1 text-sm text-ink-2">
-        This feeds the first-draft approval-rate dashboard.
-      </p>
-      <div className="mt-3 space-y-2">
-        {OUTCOMES.map((o) => {
-          const active = selected === o.value;
-          return (
-            <button
-              key={o.value}
-              onClick={() => record(o.value)}
-              disabled={pending}
-              className={`flex w-full items-start gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors ${
-                active
-                  ? "border-accent bg-accent-soft"
-                  : "border-line hover:bg-sunken"
-              }`}
-            >
-              <span
-                className={`mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border ${
-                  active ? "border-accent bg-accent text-white" : "border-line-strong"
-                }`}
-              >
-                {active && <IconCheck width={11} height={11} />}
-              </span>
-              <span>
-                <span className={`block text-sm font-medium ${active ? "text-accent-ink" : "text-ink"}`}>
-                  {o.label}
-                </span>
-                <span className="block text-xs text-ink-3">{o.desc}</span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
-      {selected && (
-        <p className="mt-3 text-xs text-ok">
-          Saved — project is in the Content Library.
+    <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h2 className="text-[length:var(--text-h2)] text-ink">{finalized ? "Article saved" : "Save article"}</h2>
+        <p className="mt-1.5 max-w-[52ch] text-sm leading-relaxed text-ink-3">
+          {finalized ? "This article is available in your Library." : "Save the finished article to your Library. Run the optional review below if you want one final check."}
         </p>
+      </div>
+      <button onClick={finalize} disabled={pending || finalized} className="cs-btn-primary min-w-36 shrink-0">
+        {finalized && <IconCheck width={16} height={16} />}
+        {pending ? "Saving…" : finalized ? "Saved" : "Save article"}
+      </button>
+      {finalized && <span className="sr-only" role="status">Article saved to your Library.</span>}
+    </div>
+  );
+}
+
+function BrandReviewPanel({
+  projectId,
+  anthropicReady,
+}: {
+  projectId: string;
+  anthropicReady: boolean;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [review, setReview] = useState<BrandReviewResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  function reviewArticle() {
+    setError(null);
+    startTransition(async () => {
+      try {
+        setReview(await reviewBrandAlignmentAction(projectId));
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "The brand review could not be completed.");
+      }
+    });
+  }
+
+  const findings = review?.checks.filter((check) => check.status === "review") ?? [];
+
+  return (
+    <section aria-labelledby="article-review-heading" className="mt-10 border-t border-line pt-8">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h3 id="article-review-heading" className="text-[length:var(--text-h3)] text-ink">Review article</h3>
+          <p className="mt-1.5 max-w-[58ch] text-sm leading-relaxed text-ink-3">
+            Check facts, sources, and editorial consistency before saving.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={reviewArticle}
+          disabled={pending || !anthropicReady}
+          className="cs-btn shrink-0"
+        >
+          <IconSpark width={16} height={16} />
+          {pending ? "Reviewing…" : review ? "Review again" : "Review article"}
+        </button>
+      </div>
+      {!anthropicReady && <p className="mt-3 text-sm text-ink-3">Configure Anthropic to run the brand review.</p>}
+      {error && <p className="mt-3 text-sm text-danger" role="alert">{error}</p>}
+      {review && (
+        <div className="mt-6" aria-live="polite">
+          <p className={`text-sm font-medium ${findings.length ? "text-ink" : "text-ok"}`}>
+            {findings.length ? review.summary : "Review complete — no issues need attention."}
+          </p>
+          {findings.length > 0 && (
+            <ul className="mt-3 divide-y divide-line border-y border-line">
+              {findings.map((check, index) => (
+                <li key={`${check.criterion}-${index}`} className="py-4">
+                  <p className="text-sm font-semibold text-ink">{check.criterion}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-ink-2">{check.finding}</p>
+                  <p className="mt-1.5 text-sm font-medium text-accent-ink">Suggested edit: {check.suggestion}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </section>
   );

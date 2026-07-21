@@ -1,8 +1,13 @@
 import "server-only";
-import { asc } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import type { InferSelectModel } from "drizzle-orm";
 import { getDb } from "@/db";
 import { brandProfiles } from "@/db/schema";
+import {
+  DEFAULT_BRAND_STRATEGY,
+  parseBrandStrategy,
+  serializeBrandStrategy,
+} from "./designally-strategy";
 
 export type Brand = InferSelectModel<typeof brandProfiles>;
 
@@ -19,11 +24,25 @@ export async function getBrand(): Promise<Brand> {
     .from(brandProfiles)
     .orderBy(asc(brandProfiles.createdAt))
     .limit(1);
-  if (existing) return existing;
+  if (existing) {
+    if (!existing.guidelineText.includes("## Purpose")) {
+      const guidelineText = serializeBrandStrategy(parseBrandStrategy(existing.guidelineText));
+      const [updated] = await db
+        .update(brandProfiles)
+        .set({ guidelineText })
+        .where(eq(brandProfiles.id, existing.id))
+        .returning();
+      return updated;
+    }
+    return existing;
+  }
 
   const [created] = await db
     .insert(brandProfiles)
-    .values({ name: "Designally" })
+    .values({
+      name: "Designally",
+      guidelineText: serializeBrandStrategy(DEFAULT_BRAND_STRATEGY),
+    })
     .returning();
   return created;
 }

@@ -1,13 +1,8 @@
 # Designally Content Studio
 
 An internal, AI-powered content generation web app for the Designally team. It
-turns a topic into publish-ready blog posts and social content — in Thai and
-English — through a guided 6-stage pipeline, with per-article cost transparency
-at every step.
-
-> All output is reviewed by a human before publishing. The tool's job is to make
-> that first draft good enough that approval is fast. The app tracks the
-> **first-draft approval rate** so that quality is measurable from day one.
+turns a topic, brief, or creative category into a publish-ready article
+for Designally’s article platform, in Thai and English.
 
 ## Features (MVP)
 
@@ -15,24 +10,27 @@ at every step.
   to self-hosting). A `role` field is in place for future role-based access.
 - **Single brand profile** — one brand (Designally) for the whole system:
   tone, terminology, do/don't rules, audience, defaults, a logo/avatar image,
-  and pasted brand guidelines that steer every generation. Edited in
+  and a structured brand strategy that steers every generation. Edited in
   **Settings → Brand**; automatically applied to every project (no per-project
   brand selection).
 - **Article template & categories** — article generation instructions and
-  categories are editable in Settings. New categories can also be **added on the fly** (with search)
+  creative-agency categories are editable in Settings. The default territory
+  covers resources, fonts, UX/UI, design principles, AI tools for designers,
+  branding, web design, and creative-industry developments. New categories can also be **added on the fly** (with search)
   while creating content, and are saved for reuse.
-- **Guided 6-stage pipeline** — Setup → Topics → Outline → Drafts (3 streamed
-  variations) → Refine (chat) → Finalize (copy, images, cost, approval).
+- **One focused workflow** — Create → Draft & edit → Generate images → Done.
+- **Three ways to start** — provide a topic, provide a brief, or choose a category
+  and let AI generate timely topic ideas.
+- **Research-backed drafting** — candidate research, source verification, and
+  article planning run automatically behind the single Generate draft action.
 - **Trend/topic suggestions** via the Anthropic web search tool.
-- **Competitor URL** fetch & summarize (as reference — never copies).
-- **Search Console CSV** parsing into prompt insights.
-- **3-variation streamed drafts**, Thai & English (Thai-quality prompting).
+- **Lightweight source research** — one current-source article plan runs before drafting, without a candidate-selection pipeline.
+- **One streamed article draft** built from the verified source plan.
 - **Chat-based refinement** on the chosen draft.
 - **Companion image generation** with a model picker powered by Fal.ai.
 - **Focused API key management** — add provider-specific image keys in Settings. Text
   generation uses the server's Anthropic environment key; image generation uses Fal.ai.
-- **Token & cost tracking** — per generation, per project (by stage), and a
-  dashboard with approval rate, monthly spend, and total spend.
+- **Editorial fact-check** — source consistency and factual review without performance scores.
 - **Copy-to-clipboard** export (Markdown + plain text).
 - **Content Library** with filters and reopen.
 
@@ -42,7 +40,7 @@ at every step.
   AI calls. The Anthropic key stays server-side.
 - **Drizzle ORM** over **Postgres**. Runs on **Supabase** in production, or on an
   embedded **PGlite** database locally (zero external services).
-- **Tailwind CSS v4** — light, minimal dashboard theme; IBM Plex Sans / Plex Sans
+- **Tailwind CSS v4** — light, focused product theme; IBM Plex Sans / Plex Sans
   Thai / Plex Mono for a clear hierarchy and correct Thai rendering.
 - **Anthropic Messages API** — streaming drafts, web search for trends. Models
   are configurable in Settings (a fast model for research, a high-quality model
@@ -83,20 +81,16 @@ and are never shown again after saving.
 Saved keys use AES-256-GCM encryption. Local development generates a stable
 encryption key under `./data`; production must set a stable `ENCRYPTION_KEY`.
 
-## Model & pricing configuration
+## Model configuration
 
-Models and the pricing table are seeded on first boot and editable in
-**Settings**:
+Generation models are seeded on first boot and selectable in **Settings**:
 
 - **Research model** (trends, competitor summary): a fast model — default
   `claude-haiku-4-5`.
 - **Drafting model** (outline, drafts, refine): a high-quality model — default
   `claude-sonnet-5`.
-- **Pricing table** — per-model input/output $/MTok and per-image prices. Edit
-  these when prices change; all cost figures derive from this table.
-
-> Confirm current Anthropic model IDs and pricing at deploy time — the seeded
-> values are indicative (July 2026) and adjustable in the UI.
+Legacy pricing data remains in the schema for compatibility but is not shown or
+used for usage logging.
 
 ## Production with Supabase
 
@@ -169,18 +163,18 @@ src/
   app/
     login/                 first-run account + sign in
     (app)/                 authenticated shell (left nav)
-      page.tsx             Dashboard
+      page.tsx             Content Library home
       new/                 Stage 1 — Setup
       pipeline/[id]/       Stages 2–6 (stepper + stage components)
       library/             Content Library (filterable)
-      settings/            Brand, categories, article template, models, pricing, providers
+      settings/            Brand strategy, categories, article template, models, providers
     api/
       pipeline/[id]/draft  streamed draft generation (NDJSON)
       pipeline/[id]/refine streamed refinement (NDJSON)
       images/[id]          serves stored images
       brand-image/[id]     serves the brand's uploaded logo/avatar
   db/                      Drizzle schema, dual PGlite/Postgres driver, seed
-  lib/                     anthropic client, cost, projects, image providers, …
+  lib/                     anthropic client, brand strategy, projects, image providers, …
   prompts/                 layered, versioned prompt templates
 ```
 

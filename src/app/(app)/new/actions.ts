@@ -1,19 +1,88 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { projects, categories } from "@/db/schema";
 import type { ProjectInputs, Language, SelectedTopic } from "@/db/schema";
 import { requireUser } from "@/lib/session";
-import { parseGscInsights } from "@/lib/gsc";
-import { fetchReadableText } from "@/lib/fetch-url";
-import {
-  getModels,
-  isAnthropicConfigured,
-  runText,
-} from "@/lib/anthropic";
-import { competitorTask } from "@/prompts/tasks";
+import type { EditorialFormat } from "@/lib/editorial";
+import { getBrand } from "@/lib/brand";
+import { getArticleRules } from "@/lib/article-template";
+import { buildSystemPrompt, getModels, runJson } from "@/lib/anthropic";
+import { topicsTask } from "@/prompts/tasks";
+
+function inferEditorialFormat(value: string): EditorialFormat {
+  const text = value.toLowerCase();
+  if (/\b(compare|comparison|versus|\bvs\.?\b)/.test(text)) return "comparison";
+  if (/\b(profile|interview|studio|designer)\b/.test(text)) return "profile";
+  if (/\b(trend|trending|popular)\b/.test(text)) return "trend";
+  if (/\b(resource|free|website|tool|template)\b/.test(text)) return "resources";
+  if (/\b(new|release|launch)\b/.test(text)) return "releases";
+  if (/\b(best|top|roundup|collection)\b/.test(text)) return "roundup";
+  return "explainer";
+}
+
+function extractEditorialPeriod(value: string): string | undefined {
+  const match = value.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+20\d{2}\b/i);
+  return match?.[0];
+}
+
+type TopicIdeasResponse = { topics: SelectedTopic[] };
+
+export async function generateTopicIdeasAction(input: {
+  categoryId?: string;
+  categoryName?: string;
+  language: Language;
+}): Promise<SelectedTopic[]> {
+  await requireUser();
+  const db = await getDb();
+  const [category] = input.categoryId
+    ? await db.select().from(categories).where(eq(categories.id, input.categoryId)).limit(1)
+    : [];
+  const categoryName = input.categoryName?.trim() || category?.name || "Creative resources";
+  const [brand, articleRules, models] = await Promise.all([getBrand(), getArticleRules(), getModels()]);
+  const { data } = await runJson<TopicIdeasResponse>({
+    model: models.research,
+    system: buildSystemPrompt({
+      brand,
+      articleRules,
+      category: category || null,
+      language: input.language,
+      inputs: { articleMode: "editorial" },
+    }),
+    task: topicsTask({ categoryName, language: input.language }),
+    schema: {
+      type: "object",
+      properties: {
+        topics: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              angle: { type: "string" },
+              whyTimely: { type: "string" },
+              searchIntent: { type: "string" },
+            },
+            required: ["title", "angle", "whyTimely", "searchIntent"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["topics"],
+      additionalProperties: false,
+    },
+    maxTokens: 1400,
+    projectId: null,
+    stage: "topic_ideas",
+  });
+
+  return (data.topics || [])
+    .filter((topic) => topic.title?.trim())
+    .slice(0, 8)
+    .map((topic) => ({ ...topic, title: topic.title.trim(), source: "suggested" as const }));
+}
 
 export async function createProjectAction(formData: FormData) {
   const user = await requireUser();
@@ -42,57 +111,58 @@ export async function createProjectAction(formData: FormData) {
     categoryId = categoryRaw;
   }
 
-  const keyword = String(formData.get("keyword") ?? "").trim();
   const brief = String(formData.get("brief") ?? "").trim();
-  const competitorUrl = String(formData.get("competitorUrl") ?? "").trim();
-  const gscRaw = String(formData.get("gsc") ?? "").trim();
-  const extraGuidelines = String(formData.get("extraGuidelines") ?? "").trim();
   const startMode = String(formData.get("startMode") ?? "brief");
   const exactTopic = String(formData.get("exactTopic") ?? "").trim();
+  const chosenTopic = String(formData.get("chosenTopic") ?? "").trim();
+  const chosenAngle = String(formData.get("chosenAngle") ?? "").trim();
+  const chosenWhyTimely = String(formData.get("chosenWhyTimely") ?? "").trim();
+  const chosenSearchIntent = String(formData.get("chosenSearchIntent") ?? "").trim();
+  let chosenResearchSources: { name: string; url: string }[] = [];
+  try {
+    const parsed = JSON.parse(String(formData.get("chosenResearchSources") ?? "[]")) as unknown;
+    if (Array.isArray(parsed)) {
+      chosenResearchSources = parsed.flatMap((value) => {
+        if (!value || typeof value !== "object") return [];
+        const item = value as Record<string, unknown>;
+        const name = typeof item.name === "string" ? item.name.trim() : "";
+        const url = typeof item.url === "string" ? item.url.trim() : "";
+        try {
+          const target = new URL(url);
+          return name && (target.protocol === "https:" || target.protocol === "http:") ? [{ name, url: target.toString() }] : [];
+        } catch {
+          return [];
+        }
+      }).slice(0, 3);
+    }
+  } catch {
+    // Ignore malformed client data and perform normal article research.
+  }
+  const seedText = exactTopic || chosenTopic || brief;
 
   const inputs: ProjectInputs = {
-    keyword: keyword || undefined,
+    articleMode: "editorial",
     brief: brief || undefined,
-    competitorUrl: competitorUrl || undefined,
-    extraGuidelines: extraGuidelines || undefined,
+    editorialFormat: inferEditorialFormat(seedText),
+    editorialPeriod: extractEditorialPeriod(seedText),
+    editorialReader: "Designers and creative teams",
+    editorialEntryCount: 10,
   };
-
-  if (gscRaw) {
-    const insights = parseGscInsights(gscRaw);
-    if (insights) inputs.gscInsights = insights;
-  }
-
-  // Fetch + summarize competitor article (never copies — reference only).
-  if (competitorUrl) {
-    try {
-      const text = await fetchReadableText(competitorUrl);
-      if ((await isAnthropicConfigured()) && text) {
-        const { research } = await getModels();
-        const { text: summary } = await runText({
-          model: research,
-          task: `${competitorTask(competitorUrl)}\n\nHere is the extracted page text:\n${text}`,
-          maxTokens: 800,
-          projectId: null,
-          stage: "competitor",
-        });
-        inputs.competitorSummary = summary.trim();
-      } else if (text) {
-        inputs.competitorSummary =
-          "(Automatic summary unavailable — ANTHROPIC_API_KEY not configured. Raw excerpt:)\n" +
-          text.slice(0, 1500);
-      }
-    } catch (err) {
-      inputs.competitorSummary = `(Could not fetch competitor URL: ${
-        err instanceof Error ? err.message : "unknown error"
-      })`;
-    }
-  }
 
   let selectedTopic: SelectedTopic | null = null;
   if (startMode === "topic" && exactTopic) {
     selectedTopic = { title: exactTopic, source: "custom" };
   } else if (startMode === "brief" && brief) {
     selectedTopic = { title: "Article from brief", angle: brief, source: "brief" };
+  } else if (startMode === "discover" && chosenTopic) {
+    selectedTopic = {
+      title: chosenTopic,
+      angle: chosenAngle || undefined,
+      whyTimely: chosenWhyTimely || undefined,
+      searchIntent: chosenSearchIntent || undefined,
+      researchSources: chosenResearchSources.length ? chosenResearchSources : undefined,
+      source: "suggested",
+    };
   }
 
   const [project] = await db
@@ -108,5 +178,6 @@ export async function createProjectAction(formData: FormData) {
     })
     .returning();
 
-  redirect(`/pipeline/${project.id}?stage=${selectedTopic ? 3 : 2}`);
+  const nextStage = selectedTopic ? 3 : 2;
+  redirect(`/pipeline/${project.id}?stage=${nextStage}`);
 }

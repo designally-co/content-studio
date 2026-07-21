@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { parseBrandStrategy } from "@/lib/designally-strategy";
 
 type Brand = Omit<
   InferSelectModel<typeof brandProfiles>,
@@ -60,6 +61,7 @@ export function BrandEditor({ brand }: { brand: Brand }) {
 
   const storedLogo = brand.hasLogo ? "/api/brand-logo" : "";
   const logoSrc = logoPreview ? logoPreview : removeLogo ? "" : storedLogo;
+  const strategy = useMemo(() => parseBrandStrategy(brand.guidelineText), [brand.guidelineText]);
 
   function onLogoChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -196,7 +198,28 @@ export function BrandEditor({ brand }: { brand: Brand }) {
         </CardContent>
       </Card>
 
-      {/* 2 — Tone of voice */}
+      {/* 2 — Writing guidelines */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Writing Guidelines</CardTitle>
+          <CardDescription>
+            Optional brand-specific writing guidance applied alongside tone and terminology.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Field label="Additional writing guidance" htmlFor="strategy-additional">
+            <Textarea
+              id="strategy-additional"
+              name="strategyAdditional"
+              defaultValue={strategy.additionalGuidelines || strategy.voice}
+              className="min-h-36"
+              placeholder="Any voice, terminology, or editorial guidance not covered below…"
+            />
+          </Field>
+        </CardContent>
+      </Card>
+
+      {/* 3 — Tone of voice */}
       <Card>
         <CardHeader>
           <CardTitle>Tone Of Voice</CardTitle>
@@ -223,7 +246,7 @@ export function BrandEditor({ brand }: { brand: Brand }) {
         </CardContent>
       </Card>
 
-      {/* 3 — Terminology & rules */}
+      {/* 4 — Terminology & rules */}
       <Card>
         <CardHeader>
           <CardTitle>Terminology & Rules</CardTitle>
@@ -258,7 +281,7 @@ export function BrandEditor({ brand }: { brand: Brand }) {
         </CardContent>
       </Card>
 
-      {/* 4 — Audience & defaults */}
+      {/* 5 — Audience & defaults */}
       <Card>
         <CardHeader>
           <CardTitle>Audience & Defaults</CardTitle>
@@ -301,24 +324,6 @@ export function BrandEditor({ brand }: { brand: Brand }) {
               />
             </Field>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* 5 — Guidelines */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Brand Guidelines</CardTitle>
-          <CardDescription>
-            Paste guideline excerpts to inject into prompts.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Textarea
-            name="guidelineText"
-            defaultValue={brand.guidelineText}
-            className="min-h-40"
-            placeholder="Paste any brand guideline content here..."
-          />
         </CardContent>
       </Card>
 

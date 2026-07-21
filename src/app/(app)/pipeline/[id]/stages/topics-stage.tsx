@@ -43,6 +43,8 @@ export function TopicsStage({
     fd.set("projectId", projectId);
     fd.set("title", topic.title);
     fd.set("angle", topic.angle ?? "");
+    fd.set("whyTimely", topic.whyTimely ?? "");
+    fd.set("searchIntent", topic.searchIntent ?? "");
     fd.set("source", topic.source === "suggested" ? "suggested" : "edited");
     startTransition(() => selectTopicAction(fd));
   }

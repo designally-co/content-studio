@@ -1,25 +1,15 @@
-import type { ProjectStatus, ApprovalOutcome } from "@/db/schema";
+import type { ProjectStatus } from "@/db/schema";
 
 const STAGE_LABEL = ["", "Setup", "Topics", "Outline", "Drafts", "Refine", "Finalize"];
 
 export function StatusBadge({
   status,
   stage,
-  outcome,
 }: {
   status: ProjectStatus;
   stage: number;
-  outcome?: ApprovalOutcome | null;
 }) {
-  if (status === "finalized") {
-    const label =
-      outcome === "approved_first"
-        ? "Approved (first)"
-        : outcome === "approved_edited"
-          ? "Approved (edited)"
-          : "Finalized";
-    return <Pill tone="ok">{label}</Pill>;
-  }
+  if (status === "finalized") return <Pill tone="ok">Finalized</Pill>;
   if (status === "rejected") return <Pill tone="danger">Rejected</Pill>;
   if (status === "in_pipeline")
     return <Pill tone="accent">In pipeline · {STAGE_LABEL[stage] ?? `Stage ${stage}`}</Pill>;

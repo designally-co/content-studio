@@ -9,8 +9,7 @@ import type { LogoOverlay } from "@/db/schema";
 import { requireUser } from "@/lib/session";
 import { getBrand } from "@/lib/brand";
 import { getImageProvider } from "@/lib/image/registry";
-import { loadStoredImage, saveImage } from "@/lib/image/storage";
-import { imageCost } from "@/lib/cost";
+import { deleteStoredImage, loadStoredImage, saveImage } from "@/lib/image/storage";
 import type { ImageAspectRatio, ReferenceImageInput } from "@/lib/image/providers";
 import { IMAGE_ASPECT_RATIOS } from "@/lib/image/providers";
 
@@ -166,8 +165,6 @@ export async function generateImagesAction(
     })
     .where(eq(projects.id, projectId));
 
-  const configuredCost = await imageCost(provider.provider, provider.model, 1);
-  const perImage = configuredCost || provider.indicativePricePerImage;
   // New images are branded by default when a brand logo exists, using the
   // brand's default overlay. The user can toggle/adjust per image.
   const brand = await getBrand();
@@ -190,7 +187,6 @@ export async function generateImagesAction(
         variationNo,
         referenceIds,
         storagePath,
-        costUsd: perImage.toFixed(6),
         branding: defaultBranding,
       })
       .returning();
@@ -217,4 +213,21 @@ export async function setImageBrandingAction(
   await requireUser();
   const db = await getDb();
   await db.update(images).set({ branding }).where(eq(images.id, imageId));
+}
+
+export async function deleteGeneratedImageAction(imageId: string): Promise<void> {
+  const user = await requireUser();
+  const db = await getDb();
+  const [row] = await db
+    .select({ id: images.id, projectId: images.projectId, storagePath: images.storagePath, createdBy: projects.createdBy })
+    .from(images)
+    .innerJoin(projects, eq(images.projectId, projects.id))
+    .where(eq(images.id, imageId))
+    .limit(1);
+  if (!row) return;
+  if (row.createdBy && row.createdBy !== user.id) throw new Error("You cannot delete this image.");
+
+  await deleteStoredImage(row.storagePath);
+  await db.delete(images).where(eq(images.id, imageId));
+  revalidatePath(`/pipeline/${row.projectId}`);
 }

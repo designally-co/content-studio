@@ -110,3 +110,38 @@ export async function loadStoredImage(storagePath: string): Promise<{ data: Buff
   if (!resolved) return null;
   return { data: resolved.data, mimeType: resolved.mimeType };
 }
+
+/** Remove a generated or uploaded image from its configured backing store. */
+export async function deleteStoredImage(storagePath: string): Promise<void> {
+  if (storagePath.startsWith("local:")) {
+    const filename = path.basename(storagePath.slice("local:".length));
+    if (!filename) return;
+    await fs.unlink(path.join(LOCAL_DIR, filename)).catch((error: NodeJS.ErrnoException) => {
+      if (error.code !== "ENOENT") throw error;
+    });
+    return;
+  }
+
+  if (storagePath.startsWith("supabase:")) {
+    const sb = supabase();
+    if (!sb) throw new Error("Supabase storage is not configured.");
+    const relative = storagePath.slice("supabase:".length);
+    const separator = relative.indexOf("/");
+    const bucket = separator > 0 ? relative.slice(0, separator) : "";
+    const objectName = separator > 0 ? relative.slice(separator + 1) : "";
+    if (!bucket || !objectName) throw new Error("Invalid Supabase storage path.");
+    const response = await fetch(`${sb.url}/storage/v1/object/${bucket}`, {
+      method: "DELETE",
+      headers: {
+        ...supabaseAuthHeaders(sb.key),
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ prefixes: [objectName] }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!response.ok && response.status !== 404) {
+      const detail = await response.text().catch(() => "");
+      throw new Error(`Supabase storage deletion failed (${response.status}): ${detail.slice(0, 200)}`);
+    }
+  }
+}

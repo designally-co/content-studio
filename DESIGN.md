@@ -1,6 +1,6 @@
 ---
 name: Designally Content Studio
-description: A focused editorial production interface for creating and approving on-brand content.
+description: A focused editorial production interface for creating and finalizing strategically grounded, on-brand articles.
 colors:
   primary: "#f66341"
   primary-hover: "#e14e2d"
@@ -152,17 +152,17 @@ The palette combines a vivid editorial orange with warm brown-leaning neutrals t
 
 **Display Font:** Gabarito, falling back to IBM Plex Sans Thai and system sans-serif  
 **Body Font:** Instrument Sans, falling back to IBM Plex Sans Thai and system sans-serif  
-**Label/Mono Font:** Gabarito for controls; Spline Sans Mono for costs, counts, and token data
+**Label/Mono Font:** Gabarito for controls; Spline Sans Mono for counts and aligned operational data
 
 **Character:** Gabarito gives headings and actions an approachable editorial confidence; Instrument Sans stays quiet during reading and form work. Thai text must fall through to IBM Plex Sans Thai without losing hierarchy or density.
 
 ### Hierarchy
 
-- **Headline** (700, 28px, 1.15): major dashboard and workflow headings.
+- **Headline** (700, 28px, 1.15): major library and workflow headings.
 - **Title** (700, 22px, 1.15): page headers, stage titles, and major panel headings.
 - **Body** (400, 16px, 1.6): instructions, form content, and interface prose; explanatory text should remain within 65–75 characters per line.
 - **Label** (600, 14px, 1.35): buttons, fields, tabs, and compact controls.
-- **Data** (400, 13px, 1.35): costs, counts, tokens, and aligned numeric values with tabular figures.
+- **Data** (400, 13px, 1.35): counts and aligned numeric values with tabular figures.
 
 **The Interface-Type Rule.** Product labels remain compact and fixed-size. Fluid display typography is forbidden inside the authenticated application shell.
 
@@ -217,14 +217,14 @@ Components are refined and restrained: predictable at first glance, precise unde
 
 ### Generation Workbench
 
-Model, ratio, reference, variation, prompt, cost, and result controls must read as one progressive task rather than independent cards. Capability-dependent controls disappear or become explicitly unavailable; they must never fail only after a paid request begins.
+Model, ratio, reference, variation, prompt, and result controls must read as one progressive task rather than independent cards. Capability-dependent controls disappear or become explicitly unavailable.
 
 ## Do's and Don'ts
 
 ### Do:
 
 - **Do** use Proofing Orange only for primary action, current selection, focus, and small brand signals.
-- **Do** preserve the same button, input, card, badge, and navigation vocabulary across Dashboard, New Content, Pipeline, Library, and Settings.
+- **Do** preserve the same button, input, card, badge, and navigation vocabulary across Library, New Content, Pipeline, and Settings.
 - **Do** use full borders, tonal grouping, labels, and icons to communicate structure and status.
 - **Do** keep motion between 120–200ms, tied to hover, focus, expansion, loading, and state change, with reduced-motion support.
 - **Do** maintain WCAG 2.2 AA contrast and equal typographic care for Thai and English.
@@ -236,4 +236,4 @@ Model, ratio, reference, variation, prompt, cost, and result controls must read 
 - **Don't** use an over-decorated “futuristic AI” aesthetic, neon glow, decorative gradients, or glassmorphism.
 - **Don't** introduce nested cards, colored side-stripe borders, gradient text, decorative grids, or wide ghost-card shadows.
 - **Don't** invent novel controls for standard actions or use motion that does not communicate state.
-- **Don't** use color alone for approval, warning, error, progress, or provider availability.
+- **Don't** use color alone for brand-review findings, warning, error, progress, or provider availability.

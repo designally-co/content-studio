@@ -5,8 +5,7 @@ import { IconArrowRight } from "@/components/icons";
 
 type Cat = { id: string; name: string };
 
-type Selection =
-  | { kind: "suggest" }
+export type CategorySelection =
   | { kind: "existing"; id: string; name: string }
   | { kind: "new"; name: string };
 
@@ -16,8 +15,10 @@ type Selection =
  *  - newCategory: the name to create, or "" (when picking existing / suggest)
  * A newly added category is persisted server-side so it's reusable next time.
  */
-export function CategoryCombobox({ categories }: { categories: Cat[] }) {
-  const [selection, setSelection] = useState<Selection>({ kind: "suggest" });
+export function CategoryCombobox({ categories, onSelectionChange }: { categories: Cat[]; onSelectionChange?: (selection: CategorySelection) => void }) {
+  const [selection, setSelection] = useState<CategorySelection>(
+    categories[0] ? { kind: "existing", id: categories[0].id, name: categories[0].name } : { kind: "new", name: "Creative resources" }
+  );
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -43,19 +44,16 @@ export function CategoryCombobox({ categories }: { categories: Cat[] }) {
   const exact = categories.some((c) => c.name.toLowerCase() === q);
   const canCreate = q.length > 0 && !exact;
 
-  const label =
-    selection.kind === "suggest"
-      ? "Suggest for me"
-      : selection.kind === "new"
+  const label = selection.kind === "new"
         ? `${selection.name} (new)`
         : selection.name;
 
-  const categoryIdValue =
-    selection.kind === "suggest" ? "suggest" : selection.kind === "existing" ? selection.id : "";
+  const categoryIdValue = selection.kind === "existing" ? selection.id : "";
   const newCategoryValue = selection.kind === "new" ? selection.name : "";
 
-  function pick(next: Selection) {
+  function pick(next: CategorySelection) {
     setSelection(next);
+    onSelectionChange?.(next);
     setOpen(false);
     setQuery("");
   }
@@ -90,7 +88,7 @@ export function CategoryCombobox({ categories }: { categories: Cat[] }) {
         aria-haspopup="listbox"
         className="cs-select flex w-full items-center justify-between text-left"
       >
-        <span className={selection.kind === "suggest" ? "text-ink-3" : "text-ink"}>{label}</span>
+        <span className="text-ink">{label}</span>
         <span className="ml-2 text-ink-3">▾</span>
       </button>
 
@@ -102,18 +100,12 @@ export function CategoryCombobox({ categories }: { categories: Cat[] }) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder="Search or type a new category…"
+              placeholder="Search design categories…"
               aria-label="Search or create a category"
               className="cs-input !py-1.5 text-sm"
             />
           </div>
           <ul id="category-options" role="listbox" aria-label="Categories" className="max-h-60 overflow-y-auto py-1 text-sm">
-            <li>
-              <Row selected={selection.kind === "suggest"} onClick={() => pick({ kind: "suggest" })}>
-                <span className="text-ink-2">Suggest for me</span>
-                <span className="ml-2 text-xs text-ink-3">based on trends</span>
-              </Row>
-            </li>
             {matches.map((c) => (
               <li key={c.id}>
                 <Row

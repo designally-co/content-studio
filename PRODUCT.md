@@ -10,15 +10,17 @@ web
 
 ## Users
 
-Designally’s internal content team: people creating, reviewing, and preparing Thai and English content for publication. They work through a guided production workflow and need to move from an initial idea to an approved, usable asset without losing brand consistency or operational visibility.
+Designally’s internal content team: people researching, curating, creating, and reviewing Thai and English articles for publication on Designally’s article platform. They need credible source material, editorial control, and consistent brand quality without turning every creative subject into business advice.
 
 ## Product Purpose
 
-Designally Content Studio helps the team produce publish-ready, on-brand content faster, with fewer refinement rounds and a higher first-draft approval rate. It brings topic development, outlining, drafting, refinement, companion-image generation, human review, and cost tracking into one coherent workflow.
+Designally Content Studio turns a topic or brief into one researched creative-industry article. When the editor has no idea yet, they choose a category and AI develops timely topic options. Source research and article planning happen automatically behind draft generation.
+
+Its editorial territory is the practice and culture of a creative agency: creative resources, typography and fonts, UX/UI references, design principles and systems, AI tools for designers, branding and identity, web design, creative technology, and notable work or developments across the creative industry.
 
 ## Positioning
 
-A guided, brand-aware content pipeline that turns an idea into reviewed, publish-ready content—with quality and cost visible at every stage.
+A focused, brand-aware article system that produces credible creative-industry coverage ready for Designally’s publishing platform.
 
 ## Brand Personality
 
@@ -30,11 +32,13 @@ The interface must not resemble a generic AI chatbot, a noisy analytics dashboar
 
 ## Design Principles
 
-1. **Keep the workflow legible.** The six-stage pipeline should always make the current task, completed decisions, and next action clear.
-2. **Support human judgment.** AI accelerates the work, but review, editing, approval, and rejection remain explicit user decisions.
-3. **Carry the brand automatically.** Brand context should shape generation and defaults without asking users to repeat the same setup at every stage.
-4. **Make quality and cost visible.** Surface meaningful generation status, provenance, and spend where they help the team make decisions.
-5. **Prefer dependable familiarity.** Use consistent, accessible product patterns so the interface disappears into the content task.
+1. **Keep the workflow legible.** The product follows one path: Create → Draft & edit → Generate images → Done.
+2. **Ask only for useful input.** Start from a topic, a brief, or a creative category when the editor needs topic ideas.
+3. **Research before writing.** Draft generation creates one lightweight, source-backed article plan without exposing a candidate or curation pipeline.
+4. **Support human judgment.** Editing, fact-checking, image generation, and finalization remain explicit decisions.
+5. **Carry the brand appropriately.** Use Designally’s voice and editorial territory without forcing every creative subject into business advice.
+6. **Write article-first.** Output is a complete article for Designally’s platform. Social media shares the published article downstream; it is not a separate generation format.
+7. **Prefer dependable familiarity.** Use consistent, accessible product patterns so the interface disappears into the content task.
 
 ## Accessibility & Inclusion
 

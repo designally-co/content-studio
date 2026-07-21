@@ -8,11 +8,11 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await requireUser();
+  await requireUser();
 
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
-      <SideNav user={{ name: user.name, email: user.email }} />
+      <SideNav />
       <main className="min-w-0 flex-1 bg-bg">{children}</main>
     </div>
   );

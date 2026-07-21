@@ -1,262 +1,249 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { StageShell, ApiNotReady } from "./stage-shell";
 import { Markdown } from "@/components/markdown";
+import { CopyButton } from "@/components/copy-button";
+import { IconArrowRight, IconCheck, IconSpark } from "@/components/icons";
 import { streamNdjson } from "@/lib/ndjson-client";
-import { selectDraftAction } from "../actions";
-import { IconArrowRight, IconCheck } from "@/components/icons";
+import { markdownToPlainText } from "@/lib/plain";
+import { ApiNotReady, StageShell } from "./stage-shell";
+import { goToFinalizeAction, saveDraftContentAction } from "../actions";
 
+const SUGGESTIONS = [
+  "Make the introduction shorter",
+  "Add more concrete visual details",
+  "Make the explanations more practical",
+  "Tighten repetitive sections",
+];
+
+type Revision = { id: string; userMessage: string; resultMd: string };
 type DraftView = {
   id: string | null;
-  variationNo: number;
   contentMd: string;
-  isSelected: boolean;
   metricLabel?: string;
   streaming: boolean;
   error?: string | null;
 };
 
-const VARIATION_LABEL = ["Bold hook", "Story angle", "Data / how-to"];
-
 export function DraftsStage({
   projectId,
   drafts,
+  refinements,
   targetLength,
   anthropicReady,
 }: {
   projectId: string;
-  drafts: {
-    id: string;
-    variationNo: number;
-    contentMd: string;
-    isSelected: boolean;
-  }[];
+  drafts: { id: string; variationNo: number; contentMd: string; isSelected: boolean }[];
+  refinements: Revision[];
   targetLength: string;
   anthropicReady: boolean;
 }) {
-  const initial: DraftView[] = [1, 2, 3].map((n) => {
-    const existing = drafts.find((d) => d.variationNo === n);
-    return existing
-      ? { ...existing, streaming: false, error: null }
-      : {
-          id: null,
-          variationNo: n,
-          contentMd: "",
-          isSelected: false,
-          streaming: false,
-          error: null,
-        };
+  const existing = drafts.find((draft) => draft.isSelected) ?? drafts[0];
+  const [draft, setDraft] = useState<DraftView>({
+    id: existing?.id ?? null,
+    contentMd: existing?.contentMd ?? "",
+    streaming: false,
+    error: null,
   });
-
-  const [views, setViews] = useState<DraftView[]>(initial);
+  const [revisions, setRevisions] = useState(refinements);
+  const [editing, setEditing] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [input, setInput] = useState("");
+  const [dirty, setDirty] = useState(false);
+  const [revising, setRevising] = useState(false);
   const [pending, startTransition] = useTransition();
+  const autoStarted = useRef(false);
+  const editSnapshotSaved = useRef(false);
+  const editBase = useRef(existing?.contentMd ?? "");
 
-  const selectedId = views.find((v) => v.isSelected)?.id ?? null;
-
-  function patch(n: number, p: Partial<DraftView>) {
-    setViews((prev) => prev.map((v) => (v.variationNo === n ? { ...v, ...p } : v)));
+  function addLocalRevision(label: string, content: string) {
+    if (!content.trim()) return;
+    setRevisions((current) => [...current, { id: crypto.randomUUID(), userMessage: label, resultMd: content }]);
   }
 
-  async function streamOne(n: number) {
-    patch(n, { contentMd: "", streaming: true, error: null, metricLabel: undefined });
+  async function generateDraft(regenerating = false) {
+    const previous = draft.contentMd;
+    if (regenerating && previous.trim()) addLocalRevision("Version before regeneration", previous);
+    setDraft((current) => ({ ...current, contentMd: "", streaming: true, error: null, metricLabel: undefined }));
     try {
-      let acc = "";
-      for await (const ev of streamNdjson<{
-        t: string;
-        d?: string;
-        draftId?: string;
-        metricLabel?: string;
-        m?: string;
-      }>(`/api/pipeline/${projectId}/draft`, { variation: n })) {
-        if (ev.t === "delta" && ev.d) {
-          acc += ev.d;
-          patch(n, { contentMd: acc });
-        } else if (ev.t === "done") {
-          patch(n, {
-            id: ev.draftId ?? null,
-            metricLabel: ev.metricLabel,
-            streaming: false,
-          });
-        } else if (ev.t === "error") {
-          patch(n, { streaming: false, error: ev.m ?? "Failed" });
+      let content = "";
+      for await (const event of streamNdjson<{ t: string; d?: string; draftId?: string; metricLabel?: string; m?: string }>(
+        `/api/pipeline/${projectId}/draft`,
+        { variation: 1 }
+      )) {
+        if (event.t === "delta" && event.d) {
+          content += event.d;
+          setDraft((current) => ({ ...current, contentMd: content }));
+        } else if (event.t === "done") {
+          setDraft((current) => ({ ...current, id: event.draftId ?? current.id, metricLabel: event.metricLabel, streaming: false }));
+          editBase.current = content;
+        } else if (event.t === "error") {
+          setDraft((current) => ({ ...current, contentMd: previous, streaming: false, error: event.m ?? "Draft generation failed." }));
         }
       }
-    } catch (err) {
-      patch(n, {
-        streaming: false,
-        error: err instanceof Error ? err.message : "Failed",
-      });
+    } catch (reason) {
+      setDraft((current) => ({ ...current, contentMd: previous, streaming: false, error: reason instanceof Error ? reason.message : "Draft generation failed." }));
     }
   }
 
-  // Variation 1 writes itself as soon as the stage opens. Variations 2 and 3
-  // are on demand — only worth their tokens if the first angle misses.
-  const autoStarted = useRef(false);
   useEffect(() => {
-    if (autoStarted.current || !anthropicReady) return;
-    // Already written on an earlier visit — don't spend tokens rewriting it.
-    if (drafts.some((d) => d.variationNo === 1)) return;
+    if (!anthropicReady || existing || autoStarted.current) return;
     autoStarted.current = true;
-    // Kick off after commit: streamOne sets state on its first line, which must
-    // not run synchronously inside the effect.
-    const id = setTimeout(() => void streamOne(1), 0);
-    return () => {
-      clearTimeout(id);
-      // Let a StrictMode remount re-arm; the ref only guards re-renders.
-      autoStarted.current = false;
-    };
-    // streamOne is stable for the life of the stage; re-running would double-bill.
+    void generateDraft();
+    // Initial generation persists server-side and must start once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [anthropicReady]);
+  }, [anthropicReady, existing]);
 
-  function select(draftId: string | null) {
-    if (!draftId) return;
-    const fd = new FormData();
-    fd.set("projectId", projectId);
-    fd.set("draftId", draftId);
-    startTransition(() => selectDraftAction(fd));
+  useEffect(() => {
+    if (!dirty || !draft.id || draft.streaming || revising) return;
+    const timer = setTimeout(() => {
+      const preserve = !editSnapshotSaved.current;
+      if (preserve) {
+        addLocalRevision("Version before manual edits", editBase.current);
+        editSnapshotSaved.current = true;
+      }
+      startTransition(() => saveDraftContentAction(draft.id!, draft.contentMd, preserve, "Version before manual edits"));
+      setDirty(false);
+    }, 900);
+    return () => clearTimeout(timer);
+  }, [dirty, draft.contentMd, draft.id, draft.streaming, revising]);
+
+  function toggleEditing() {
+    setEditing((current) => {
+      const next = !current;
+      if (next) {
+        editBase.current = draft.contentMd;
+        editSnapshotSaved.current = false;
+      }
+      return next;
+    });
   }
 
+  async function revise(message: string) {
+    const instruction = message.trim();
+    if (!instruction || revising || draft.streaming || dirty || pending || !draft.id) return;
+    const previous = draft.contentMd;
+    addLocalRevision(`Version before AI revision: ${instruction}`, previous);
+    setInput("");
+    setRevising(true);
+    setDraft((current) => ({ ...current, error: null }));
+    try {
+      let content = "";
+      for await (const event of streamNdjson<{ t: string; d?: string; m?: string }>(
+        `/api/pipeline/${projectId}/refine`,
+        { message: instruction }
+      )) {
+        if (event.t === "delta" && event.d) {
+          content += event.d;
+          setDraft((current) => ({ ...current, contentMd: content }));
+        } else if (event.t === "done") {
+          addLocalRevision(instruction, content);
+          editBase.current = content;
+        } else if (event.t === "error") {
+          setDraft((current) => ({ ...current, contentMd: previous, error: event.m ?? "Revision failed." }));
+        }
+      }
+    } catch (reason) {
+      setDraft((current) => ({ ...current, contentMd: previous, error: reason instanceof Error ? reason.message : "Revision failed." }));
+    } finally {
+      setRevising(false);
+    }
+  }
+
+  function restore(revision: Revision) {
+    if (!draft.id || dirty || pending || !revision.resultMd || revision.resultMd === draft.contentMd) return;
+    const current = draft.contentMd;
+    addLocalRevision("Version before restore", current);
+    setDraft((value) => ({ ...value, contentMd: revision.resultMd }));
+    editBase.current = revision.resultMd;
+    startTransition(() => saveDraftContentAction(draft.id!, revision.resultMd, true, "Version before restore"));
+  }
+
+  function regenerate() {
+    if (draft.contentMd && !window.confirm("Regenerate this draft? The current version will remain available in revision history.")) return;
+    void generateDraft(true);
+  }
+
+  function continueToImages() {
+    const formData = new FormData();
+    formData.set("projectId", projectId);
+    startTransition(() => goToFinalizeAction(formData));
+  }
+
+  if (!anthropicReady) return <StageShell title="Draft & edit"><ApiNotReady /></StageShell>;
+
   return (
-    <StageShell
-      title="Draft"
-      description="Read the recommended first draft at a comfortable width. Alternative approaches stay out of the way until you need them."
-      wide
-    >
-      {!anthropicReady ? (
-        <ApiNotReady />
-      ) : (
-        <>
-          <div className="mx-auto max-w-4xl">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs font-semibold uppercase tracking-[var(--tracking-caps)] text-accent-ink">
-                Recommended draft
-              </p>
-              <p className="text-xs text-ink-3">
-              Target length: <span className="text-ink-2">{targetLength}</span>
+    <StageShell title="Draft & edit" description="Generate, edit, and revise one article while every meaningful version stays restorable." wide>
+      <div className={`grid items-start gap-5 ${drawerOpen ? "lg:grid-cols-[minmax(0,1fr)_20rem]" : ""}`}>
+        <article className="overflow-hidden rounded-xl border border-line bg-surface">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3 sm:px-7">
+            <div>
+              <p className="text-sm font-medium text-ink">Article draft</p>
+              <p className="mt-0.5 text-xs text-ink-3" aria-live="polite">
+                {draft.streaming ? "Writing draft…" : revising ? "Applying revision…" : dirty || pending ? "Saving…" : draft.contentMd ? `Saved · Target ${targetLength}` : `Target ${targetLength}`}
               </p>
             </div>
-            <DraftCard
-              view={views[0]}
-              label={VARIATION_LABEL[0]}
-              selectedId={selectedId}
-              onRegenerate={() => streamOne(1)}
-              onSelect={() => select(views[0].id)}
-              busy={pending}
-              primary
-            />
-
-            <details className="mt-5 rounded-xl border border-line bg-surface">
-              <summary className="cursor-pointer px-5 py-4 text-sm font-medium text-ink-2 hover:text-ink">
-                Try 2 alternative approaches
-              </summary>
-              <div className="grid gap-4 border-t border-line p-4 lg:grid-cols-2">
-                {views.slice(1).map((v) => (
-              <DraftCard
-                key={v.variationNo}
-                view={v}
-                label={VARIATION_LABEL[v.variationNo - 1]}
-                selectedId={selectedId}
-                onRegenerate={() => streamOne(v.variationNo)}
-                onSelect={() => select(v.id)}
-                busy={pending}
-              />
-            ))}
-              </div>
-            </details>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={toggleEditing} disabled={!draft.contentMd || draft.streaming || revising} className="cs-btn">{editing ? "Preview" : "Edit"}</button>
+              <button type="button" onClick={() => setDrawerOpen((value) => !value)} disabled={!draft.id || draft.streaming} className="cs-btn" aria-expanded={drawerOpen}>{drawerOpen ? "Close revisions" : `Revise & history${revisions.length ? ` (${revisions.length})` : ""}`}</button>
+              <button type="button" onClick={regenerate} disabled={draft.streaming || revising || dirty || pending} className="cs-btn">{draft.streaming ? "Writing…" : "Regenerate"}</button>
+            </div>
           </div>
-        </>
-      )}
-    </StageShell>
-  );
-}
 
-function DraftCard({
-  view,
-  label,
-  selectedId,
-  onRegenerate,
-  onSelect,
-  busy,
-  primary = false,
-}: {
-  view: DraftView;
-  label: string;
-  selectedId: string | null;
-  onRegenerate: () => void;
-  onSelect: () => void;
-  busy: boolean;
-  primary?: boolean;
-}) {
-  const isSelected = view.id != null && view.id === selectedId;
-  return (
-    <div
-      className={`flex flex-col rounded-xl border bg-surface transition-shadow ${
-        isSelected ? "border-accent shadow-[0_0_0_3px_var(--accent-soft)]" : "border-line"
-      }`}
-    >
-      <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-2.5">
-        <div className="flex items-center gap-2">
-          <span className="grid h-6 w-6 place-items-center rounded-full bg-sunken text-xs font-semibold text-ink-2">
-            {view.variationNo}
-          </span>
-          <span className="text-sm font-medium text-ink">{label}</span>
-        </div>
-        {view.streaming ? (
-          <span className="text-xs text-accent-ink">writing…</span>
-        ) : view.metricLabel ? (
-          <span className="text-xs text-ink-3">{view.metricLabel}</span>
-        ) : null}
-      </div>
+          {draft.error && <p className="m-5 rounded-lg border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{draft.error}</p>}
 
-      <div className={`${primary ? "min-h-[22rem] px-5 py-6 sm:px-8 sm:py-8" : "max-h-[24rem] min-h-[8rem] overflow-y-auto px-4 py-3"}`}>
-        {view.error ? (
-          <p className="text-sm text-danger" role="alert">{view.error}</p>
-        ) : view.contentMd ? (
-          <Markdown>{view.contentMd}</Markdown>
-        ) : view.streaming ? (
-          <p className="py-8 text-center text-sm text-ink-3">…</p>
-        ) : (
-          <p className="px-2 py-8 text-center text-sm text-ink-3">
-            Generate this angle if the first draft isn&apos;t what you wanted.
-          </p>
-        )}
-        {view.streaming && (
-          <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-accent align-text-bottom" />
-        )}
-      </div>
+          {editing ? (
+            <div className="p-5 sm:p-8">
+              <textarea value={draft.contentMd} onChange={(event) => { setDraft((current) => ({ ...current, contentMd: event.target.value })); setDirty(true); }} className="cs-textarea min-h-[38rem] text-sm leading-relaxed" aria-label="Article Markdown" />
+            </div>
+          ) : (
+            <div className="mx-auto min-h-[38rem] max-w-[76ch] px-5 py-8 sm:px-8 sm:py-12">
+              {draft.contentMd ? <Markdown>{draft.contentMd}</Markdown> : <p className="py-16 text-center text-sm text-ink-3">Preparing the article…</p>}
+              {(draft.streaming || revising) && <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-accent align-text-bottom" />}
+            </div>
+          )}
 
-      <div className={`mt-auto flex items-center justify-end border-t border-line ${primary ? "px-5 py-4 sm:px-8" : "px-4 py-2.5"}`}>
-        <div className="flex flex-wrap items-center justify-end gap-1.5">
-          <button
-            onClick={onRegenerate}
-            disabled={view.streaming}
-            className="cs-btn !px-2.5 !py-1 text-xs"
-          >
-            {view.streaming ? "Writing…" : view.contentMd ? "Regenerate" : "Generate"}
-          </button>
-          <button
-            onClick={onSelect}
-            disabled={!view.id || view.streaming || busy}
-            className={
-              isSelected
-                ? "inline-flex min-h-9 items-center gap-1 rounded-md bg-ok px-2.5 py-1 text-xs font-medium text-white [@media(pointer:coarse)]:min-h-11"
-                : "cs-btn-primary !px-2.5 !py-1 text-xs"
-            }
-          >
-            {isSelected ? (
-              <>
-                <IconCheck width={13} height={13} /> Selected
-              </>
-            ) : (
-              <>
-                {primary ? "Continue with this draft" : "Use this draft"} <IconArrowRight width={13} height={13} />
-              </>
+          <div className="sticky bottom-0 flex flex-col-reverse gap-2 border-t border-line bg-surface/95 px-5 py-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-7">
+            <div className="flex flex-wrap gap-2">
+              <CopyButton text={draft.contentMd} label="Copy Markdown" className="cs-btn" />
+              <CopyButton text={markdownToPlainText(draft.contentMd)} label="Copy plain text" className="cs-btn" />
+            </div>
+            <button type="button" onClick={continueToImages} disabled={!draft.id || !draft.contentMd || draft.streaming || revising || dirty || pending} className="cs-btn-primary">Continue to images <IconArrowRight width={16} height={16} /></button>
+          </div>
+        </article>
+
+        {drawerOpen && (
+          <aside className="rounded-xl border border-line bg-surface lg:sticky lg:top-5" aria-label="AI revisions and version history">
+            <div className="border-b border-line px-5 py-4">
+              <h3 className="font-semibold text-ink">Revise article</h3>
+              <p className="mt-1 text-xs text-ink-3">Ask for one focused change at a time.</p>
+            </div>
+            <div className="space-y-4 p-4">
+              <div className="flex flex-wrap gap-2">
+                {SUGGESTIONS.map((suggestion) => <button key={suggestion} type="button" onClick={() => void revise(suggestion)} disabled={revising || dirty || pending} className="rounded-full border border-line bg-bg px-3 py-2 text-xs text-ink-2 hover:border-accent hover:text-accent-ink disabled:opacity-50">{suggestion}</button>)}
+              </div>
+              <form onSubmit={(event) => { event.preventDefault(); void revise(input); }} className="space-y-2">
+                <label htmlFor="revision-instruction" className="cs-label">Revision instruction</label>
+                <textarea id="revision-instruction" value={input} onChange={(event) => setInput(event.target.value)} className="cs-textarea min-h-24 text-sm" placeholder="Make the typeface descriptions more specific…" />
+                <button type="submit" disabled={revising || dirty || pending || !input.trim()} className="cs-btn-primary w-full"><IconSpark width={16} height={16} />{revising ? "Applying…" : "Apply revision"}</button>
+              </form>
+            </div>
+            {revisions.length > 0 && (
+              <div className="max-h-[28rem] overflow-y-auto border-t border-line px-4 py-4">
+                <h4 className="text-xs font-semibold text-ink-3">Version history</h4>
+                <ol className="mt-3 space-y-2">
+                  {[...revisions].reverse().map((revision) => (
+                    <li key={revision.id} className="rounded-lg bg-sunken px-3 py-3">
+                      <p className="text-sm text-ink-2">{revision.userMessage}</p>
+                      <button type="button" onClick={() => restore(revision)} disabled={dirty || pending || !revision.resultMd} className="mt-2 inline-flex min-h-9 items-center gap-1 text-xs font-medium text-accent-ink hover:underline"><IconCheck width={13} height={13} />Restore this version</button>
+                    </li>
+                  ))}
+                </ol>
+              </div>
             )}
-          </button>
-        </div>
+          </aside>
+        )}
       </div>
-    </div>
+    </StageShell>
   );
 }

@@ -10,14 +10,29 @@ import type {
   ProjectInputs,
   FormatRules,
 } from "@/db/schema";
-import { SYSTEM_BASE, JSON_CONTRACT } from "@/prompts/system";
+import {
+  SYSTEM_PROMPT,
+  JSON_CONTRACT,
+  BRAND_INSIGHT_MODE_RULES,
+  EDITORIAL_MODE_RULES,
+  RESEARCH_RULES,
+  PROMPT_VERSION,
+} from "@/prompts/system";
 import {
   buildBrandLayer,
   buildFormatLayer,
   buildContextLayer,
 } from "@/prompts/layers";
+import { BUSINESS_PROFILE } from "@/lib/ai/brand";
+import { SchemaValidationError } from "@/lib/ai/schemas";
+import { logUsage } from "./cost";
 import { extractJson } from "./json";
-import { logUsage, type Usage } from "./cost";
+type Usage = {
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_input_tokens?: number | null;
+  cache_creation_input_tokens?: number | null;
+};
 
 type Brand = InferSelectModel<typeof brandProfiles>;
 type Category = InferSelectModel<typeof categories>;
@@ -66,18 +81,83 @@ function thinkingParam(model: string) {
 }
 
 /** Web search tool version valid across all current models (incl. Haiku). */
-const WEB_SEARCH_TOOL = { type: "web_search_20250305", name: "web_search", max_uses: 5 } as const;
+function webSearchTool(maxUses: number) {
+  return {
+    type: "web_search_20250305" as const,
+    name: "web_search" as const,
+    max_uses: Math.min(5, Math.max(1, Math.floor(maxUses))),
+  };
+}
 
-/** Compose the layered system prompt (system + brand + format + context). */
-export function buildSystemPrompt(ctx: PipelineContext): string {
-  return [
-    SYSTEM_BASE,
+/**
+ * Two-layer system prompt for the Sonnet stages:
+ *  - `shared`  — role + brand guideline + article template. Byte-identical
+ *                across outline/draft/refine within a project, and the
+ *                role+brand head is identical across projects.
+ *  - `context` — per-project inputs. Stable across the 3 drafts + every refine
+ *                of one project.
+ *
+ * Each gets its own cache breakpoint (see `cachedSystem`), so a call reads the
+ * shared prefix from cache even when it's the first call of its stage — which
+ * is what lets "outline → 3 drafts → refine" show cache reads on every call
+ * after the first, not just repeats of the same stage.
+ */
+export type SystemLayers = { shared: string; context: string };
+
+export function buildSystemLayers(ctx: PipelineContext): SystemLayers {
+  const shared = [
+    SYSTEM_PROMPT,
+    ctx.inputs.articleMode === "editorial" ? EDITORIAL_MODE_RULES : BRAND_INSIGHT_MODE_RULES,
     buildBrandLayer(ctx.brand),
     buildFormatLayer(ctx.articleRules, ctx.category, ctx.language),
-    buildContextLayer(ctx.inputs),
   ]
     .filter(Boolean)
     .join("\n\n");
+  return { shared, context: buildContextLayer(ctx.inputs) };
+}
+
+/** Flattened single string (used where two-block caching isn't needed). */
+export function buildSystemPrompt(ctx: PipelineContext): string {
+  const { shared, context } = buildSystemLayers(ctx);
+  return [shared, context].filter(Boolean).join("\n\n");
+}
+
+/**
+ * Research-stage system prompt (Haiku): business profile + research rules only,
+ * NOT the brand guideline (spec §8). Returned uncached — it's well under
+ * Haiku 4.5's 4,096-token minimum cacheable prefix, so a cache_control marker
+ * would be silently ignored and we'd pay full input rate anyway.
+ */
+export function buildResearchSystem(): string {
+  return `${BUSINESS_PROFILE}\n\n${RESEARCH_RULES}`;
+}
+
+/**
+ * Wrap a system prompt into cache-marked text blocks. A string yields one
+ * block; `SystemLayers` yields two (shared prefix + per-project context), each
+ * with its own breakpoint. `cache: false` (research) attaches no markers.
+ * `extraLast` is appended to the final block (e.g. the JSON contract).
+ */
+function cachedSystem(
+  system: string | SystemLayers,
+  opts?: { cache?: boolean; extraLast?: string }
+): Anthropic.TextBlockParam[] {
+  const cache = opts?.cache ?? true;
+  const mark = cache ? { cache_control: { type: "ephemeral" as const } } : {};
+
+  // The final block carries any appended text (e.g. the JSON contract). Empty
+  // text blocks can't take cache_control, so build the raw texts, drop empties,
+  // then mark what remains.
+  const texts =
+    typeof system === "string" ? [system] : [system.shared, system.context];
+  if (opts?.extraLast) {
+    const last = texts.length - 1;
+    texts[last] = texts[last] ? `${texts[last]}\n\n${opts.extraLast}` : opts.extraLast;
+  }
+
+  return texts
+    .filter((text) => text.trim().length > 0)
+    .map((text) => ({ type: "text" as const, text, ...mark }));
 }
 
 /** Concatenate text blocks from a message response. */
@@ -89,29 +169,46 @@ function textOf(content: Anthropic.ContentBlock[]): string {
 }
 
 /**
- * Structured (JSON) generation with defensive parsing and one retry on parse
- * failure (per spec §6.1). Logs usage under `stage`.
+ * Structured (JSON) generation. The model's shape is guaranteed natively via
+ * `output_config.format`; an optional `validate` (a Zod parse) enforces rules
+ * JSON Schema can't express — e.g. English-only image prompts. On a validation
+ * failure we retry ONCE with the error appended as a user message; a second
+ * failure throws a typed `SchemaValidationError` (never a partial result).
+ * Every call (including the retry) writes a telemetry row.
  */
 export async function runJson<T>(params: {
   model: string;
-  system: string;
+  system: string | SystemLayers;
   task: string;
   schema: Record<string, unknown>;
   maxTokens: number;
-  webSearch?: boolean;
+  webSearch?: boolean | { maxUses: number };
+  timeoutMs?: number;
   projectId: string | null;
   stage: string;
+  /** Set false for the research stage (system is under Haiku's cache minimum). */
+  cache?: boolean;
+  /** Post-parse validator (e.g. a Zod `.parse`). Throws on invalid input. */
+  validate?: (data: unknown) => T;
 }): Promise<{ data: T; usage: Usage }> {
-  const attempt = async (extra?: string) => {
+  // Ceiling for the truncation self-heal. Non-streaming stays well under the
+  // ~16k mark where SDK HTTP timeouts become a risk.
+  const MAX_TOKENS_CEILING = 12000;
+  let retries = 0;
+
+  const attempt = async (extra: string | undefined, maxTokens: number): Promise<
+    { raw: unknown; usage: Usage } | { truncated: true; usage: Usage }
+  > => {
     const client = await anthropicClient();
+    const startedAt = performance.now();
     const msg = await client.messages.create({
       model: params.model,
-      max_tokens: params.maxTokens,
+      max_tokens: maxTokens,
       ...(thinkingParam(params.model)
         ? { thinking: thinkingParam(params.model) }
         : {}),
-      system: `${params.system}\n\n${JSON_CONTRACT}`,
-      ...(params.webSearch ? { tools: [WEB_SEARCH_TOOL] } : {}),
+      system: cachedSystem(params.system, { cache: params.cache, extraLast: JSON_CONTRACT }),
+      ...(params.webSearch ? { tools: [webSearchTool(typeof params.webSearch === "object" ? params.webSearch.maxUses : 5)] } : {}),
       output_config: {
         format: {
           type: "json_schema",
@@ -121,73 +218,131 @@ export async function runJson<T>(params: {
       messages: [
         { role: "user", content: extra ? `${params.task}\n\n${extra}` : params.task },
       ],
+    }, { timeout: params.timeoutMs ?? 120000, maxRetries: 0 });
+
+    await logUsage({
+      projectId: params.projectId,
+      stage: params.stage,
+      model: params.model,
+      usage: msg.usage,
+      promptVersion: PROMPT_VERSION,
+      latencyMs: Math.round(performance.now() - startedAt),
+      schemaRetryCount: retries,
     });
-    return msg;
+
+    const raw = extractJson<unknown>(textOf(msg.content));
+    if (raw === null) {
+      if (msg.stop_reason === "max_tokens") return { truncated: true, usage: msg.usage };
+      throw new Error("Model did not return the required structured response.");
+    }
+    return { raw, usage: msg.usage };
   };
 
-  const msg = await attempt();
-  await logUsage({
-    projectId: params.projectId,
-    stage: params.stage,
-    model: params.model,
-    usage: msg.usage,
-  });
-  const parsed = extractJson<T>(textOf(msg.content));
+  /** Run one attempt, self-healing once if the JSON was cut off by max_tokens. */
+  const attemptWithHeal = async (extra?: string): Promise<{ raw: unknown; usage: Usage }> => {
+    let budget = params.maxTokens;
+    let result = await attempt(extra, budget);
+    if ("truncated" in result && budget < MAX_TOKENS_CEILING) {
+      retries += 1;
+      budget = Math.min(Math.ceil(budget * 1.6), MAX_TOKENS_CEILING);
+      result = await attempt(extra, budget);
+    }
+    if ("truncated" in result) {
+      throw new Error(
+        `The ${params.stage} response exceeded the output token limit even after retrying with more room. ` +
+          "Try a shorter target length or simpler topic."
+      );
+    }
+    return result;
+  };
 
-  if (parsed === null) {
-    throw new Error(
-      msg.stop_reason === "max_tokens"
-        ? "Structured response exceeded the output token limit."
-        : "Model did not return the required structured response."
+  const validate = params.validate;
+  const first = await attemptWithHeal();
+  if (!validate) return { data: first.raw as T, usage: first.usage };
+
+  try {
+    return { data: validate(first.raw), usage: first.usage };
+  } catch (firstErr) {
+    const detail = firstErr instanceof Error ? firstErr.message : String(firstErr);
+    retries += 1;
+    // Retry once, telling the model exactly what was wrong.
+    const second = await attemptWithHeal(
+      `Your previous JSON was rejected by validation: ${detail}\nReturn corrected JSON that satisfies every rule.`
     );
+    try {
+      return { data: validate(second.raw), usage: second.usage };
+    } catch (secondErr) {
+      throw new SchemaValidationError(
+        params.stage,
+        secondErr instanceof Error ? secondErr.message : String(secondErr)
+      );
+    }
   }
-  return { data: parsed, usage: msg.usage };
 }
 
 /**
  * Stream a plain-text generation. Calls `onDelta` for each text chunk and
- * returns the final text plus usage (caller logs usage + persists).
+ * returns the final text plus usage.
  */
 export async function streamText(params: {
   model: string;
-  system: string;
-  task: string;
+  system: string | SystemLayers;
+  /** Single user turn. Ignored when `messages` is provided. */
+  task?: string;
+  /** Full message list (e.g. a cached refine conversation). Overrides `task`. */
+  messages?: Anthropic.MessageParam[];
   maxTokens: number;
   onDelta: (text: string) => void;
+  projectId: string | null;
+  stage: string;
 }): Promise<{ text: string; usage: Usage }> {
   const client = await anthropicClient();
+  const startedAt = performance.now();
   const stream = client.messages.stream({
     model: params.model,
     max_tokens: params.maxTokens,
     ...(thinkingParam(params.model)
       ? { thinking: thinkingParam(params.model) }
       : {}),
-    system: params.system,
-    messages: [{ role: "user", content: params.task }],
+    // Two cache breakpoints on the layered system prompt so the 3 drafts and
+    // every refine of a project read the shared prefix at ~0.1x input cost.
+    // (Ephemeral cache metadata can slightly delay the first streamed token on
+    // some provider/model combos; accepted here for the caching win.)
+    system: cachedSystem(params.system),
+    messages: params.messages ?? [{ role: "user", content: params.task ?? "" }],
   });
 
   stream.on("text", (delta) => params.onDelta(delta));
   const final = await stream.finalMessage();
+  await logUsage({
+    projectId: params.projectId,
+    stage: params.stage,
+    model: params.model,
+    usage: final.usage,
+    promptVersion: PROMPT_VERSION,
+    latencyMs: Math.round(performance.now() - startedAt),
+  });
   return { text: textOf(final.content), usage: final.usage };
 }
 
 /** Non-streaming plain-text generation (e.g. competitor summary, image prompt). */
 export async function runText(params: {
   model: string;
-  system?: string;
+  system?: string | SystemLayers;
   task: string;
   maxTokens: number;
   projectId: string | null;
   stage: string;
 }): Promise<{ text: string; usage: Usage }> {
   const client = await anthropicClient();
+  const startedAt = performance.now();
   const msg = await client.messages.create({
     model: params.model,
     max_tokens: params.maxTokens,
     ...(thinkingParam(params.model)
       ? { thinking: thinkingParam(params.model) }
       : {}),
-    ...(params.system ? { system: params.system } : {}),
+    ...(params.system ? { system: cachedSystem(params.system) } : {}),
     messages: [{ role: "user", content: params.task }],
   });
   await logUsage({
@@ -195,6 +350,8 @@ export async function runText(params: {
     stage: params.stage,
     model: params.model,
     usage: msg.usage,
+    promptVersion: PROMPT_VERSION,
+    latencyMs: Math.round(performance.now() - startedAt),
   });
   return { text: textOf(msg.content), usage: msg.usage };
 }

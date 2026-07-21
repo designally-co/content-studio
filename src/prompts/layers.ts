@@ -41,7 +41,7 @@ export function buildBrandLayer(brand: Brand): string {
 
   if (brand.guidelineText.trim())
     lines.push(
-      `Brand guideline excerpts:\n${brand.guidelineText.trim().slice(0, 4000)}`
+      `Additional brand writing guidelines:\n${brand.guidelineText.trim()}`
     );
 
   return lines.join("\n");

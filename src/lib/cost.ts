@@ -66,6 +66,9 @@ export async function logUsage(params: {
   stage: string;
   model: string;
   usage: Usage;
+  promptVersion?: string;
+  latencyMs?: number;
+  schemaRetryCount?: number;
 }): Promise<{ tokensIn: number; tokensOut: number; costUsd: number }> {
   const { tokensIn, tokensOut } = normalizeUsage(params.usage);
   const costUsd = await textCost(params.model, tokensIn, tokensOut);
@@ -76,7 +79,12 @@ export async function logUsage(params: {
     model: params.model,
     tokensIn,
     tokensOut,
+    cacheCreationTokens: params.usage.cache_creation_input_tokens ?? 0,
+    cacheReadTokens: params.usage.cache_read_input_tokens ?? 0,
     costUsd: costUsd.toFixed(6),
+    promptVersion: params.promptVersion ?? null,
+    latencyMs: params.latencyMs ?? null,
+    schemaRetryCount: params.schemaRetryCount ?? 0,
   });
   return { tokensIn, tokensOut, costUsd };
 }

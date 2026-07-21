@@ -1,17 +1,16 @@
 import { NextRequest } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
-import { drafts } from "@/db/schema";
+import { drafts, refinements } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
 import { loadProject, pipelineContext } from "@/lib/projects";
 import {
   getModels,
-  buildSystemPrompt,
+  buildSystemLayers,
   streamText,
   isAnthropicConfigured,
 } from "@/lib/anthropic";
 import { draftTask } from "@/prompts/tasks";
-import { logUsage } from "@/lib/cost";
 import { countMetrics } from "@/lib/text";
 
 export const dynamic = "force-dynamic";
@@ -49,46 +48,44 @@ export async function POST(
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        const { text, usage } = await streamText({
+        const { text } = await streamText({
           model: drafting,
-          system: buildSystemPrompt(ctx),
+          system: buildSystemLayers(ctx),
           task: draftTask({ outlineMarkdown: outline, variation, longForm }),
           maxTokens,
           onDelta: (d) => send(controller, { t: "delta", d }),
-        });
-
-        const { tokensIn, tokensOut, costUsd } = await logUsage({
           projectId: id,
-          stage: `draft:${variation}`,
-          model: drafting,
-          usage,
+          stage: "draft",
         });
 
-        // Persist (replace any prior draft for this variation).
+        // Keep one selected draft. Regeneration snapshots the previous version
+        // before replacing its content so history remains restorable.
         const db = await getDb();
-        await db
-          .delete(drafts)
-          .where(and(eq(drafts.projectId, id), eq(drafts.variationNo, variation)));
-        const [row] = await db
-          .insert(drafts)
-          .values({
+        const existing = loaded.drafts.find((draft) => draft.variationNo === variation);
+        let row;
+        if (existing) {
+          if (existing.contentMd.trim()) {
+            await db.insert(refinements).values({
+              projectId: id,
+              draftId: existing.id,
+              userMessage: "Version before regeneration",
+              resultMd: existing.contentMd,
+            });
+          }
+          [row] = await db.update(drafts).set({ contentMd: text, isSelected: true }).where(eq(drafts.id, existing.id)).returning();
+        } else {
+          [row] = await db.insert(drafts).values({
             projectId: id,
             variationNo: variation,
             contentMd: text,
-            isSelected: false,
-            tokensIn,
-            tokensOut,
-            costUsd: costUsd.toFixed(6),
-          })
-          .returning();
+            isSelected: true,
+          }).returning();
+        }
 
         const metric = countMetrics(text);
         send(controller, {
           t: "done",
           draftId: row.id,
-          tokensIn,
-          tokensOut,
-          costUsd,
           metricLabel: metric.label,
         });
       } catch (err) {

@@ -4,6 +4,7 @@ export type OutlineJson = {
   title?: string;
   introAngle?: string;
   sections?: { heading: string; points: string[] }[];
+  sources?: { name: string; url: string; whyRelevant: string }[];
   cta?: string;
   // short-form
   hook?: string;
@@ -22,6 +23,16 @@ export function outlineToMarkdown(o: OutlineJson, longForm: boolean): string {
       for (const p of s.points ?? []) lines.push(`- ${p}`);
       lines.push("");
     }
+    if (o.sources?.length) {
+      lines.push("## Research notes");
+      for (const source of o.sources) {
+        const url = safeHttpUrl(source.url);
+        lines.push(url
+          ? `- [${source.name}](${url}) — ${source.whyRelevant}`
+          : `- ${source.name} — ${source.whyRelevant}`);
+      }
+      lines.push("");
+    }
     if (o.cta) lines.push(`**CTA:** ${o.cta}`);
     return lines.join("\n").trim();
   }
@@ -33,4 +44,13 @@ export function outlineToMarkdown(o: OutlineJson, longForm: boolean): string {
   if (o.cta) lines.push(`**CTA:** ${o.cta}`);
   if (o.hashtags?.length) lines.push(`**Hashtags:** ${o.hashtags.join(" ")}`);
   return lines.join("\n\n").trim();
+}
+
+function safeHttpUrl(value: string): string | null {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
 }

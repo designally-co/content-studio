@@ -1,8 +1,8 @@
 import { asc } from "drizzle-orm";
-import { KeyRound, Plus, Trash2 } from "lucide-react";
+import { KeyRound, LogOut, Plus, Trash2 } from "lucide-react";
+import { logoutAction } from "@/app/actions";
 import { getDb } from "@/db";
 import { categories, pricing, appSettings, type FormatRules } from "@/db/schema";
-import { PageHeader } from "@/components/page-header";
 import {
   listApiKeys,
   type SavedApiKey,
@@ -14,9 +14,6 @@ import {
   saveArticleTemplateAction,
   saveApiKeyAction,
   deleteApiKeyAction,
-  updatePriceAction,
-  addPriceAction,
-  deletePriceAction,
 } from "./actions";
 import {
   AlertDialog,
@@ -48,14 +45,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { getBrand } from "@/lib/brand";
@@ -64,12 +53,6 @@ import { ModelSelectionCard } from "./model-selection-card";
 import { articlePrompt, getArticleRules } from "@/lib/article-template";
 
 export const dynamic = "force-dynamic";
-
-const UNIT_LABEL: Record<string, string> = {
-  mtok_in: "Input · $/MTok",
-  mtok_out: "Output · $/MTok",
-  image: "Per image · $",
-};
 
 export default async function SettingsPage() {
   const db = await getDb();
@@ -104,18 +87,25 @@ export default async function SettingsPage() {
   );
 
   return (
-    <>
-      <PageHeader
-        title="Settings"
-        description="Manage credentials, content structure, models, and pricing."
-      />
+    <div className="min-h-screen">
+      <header className="sticky top-0 z-(--z-sticky) border-b border-line bg-bg">
+        <div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-5 lg:px-12 xl:px-16">
+          <div className="max-w-3xl">
+            <h1 className="text-[length:var(--text-h1)] font-bold">Settings</h1>
+            <p className="mt-1.5 text-sm leading-relaxed text-ink-3 sm:text-base">
+              Manage credentials, content structure, generation models, and your account.
+            </p>
+          </div>
+        </div>
+      </header>
 
-      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8 lg:p-8">
+      <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-12 lg:py-8 xl:px-16">
         <Tabs defaultValue="brand" className="gap-6">
-          <TabsList className="w-full justify-start overflow-x-auto sm:w-auto">
+          <TabsList className="grid !h-auto w-full grid-cols-2 gap-1 sm:w-fit sm:grid-cols-4">
             <TabsTrigger value="brand">Brand</TabsTrigger>
             <TabsTrigger value="content">Content</TabsTrigger>
             <TabsTrigger value="api-models">API & models</TabsTrigger>
+            <TabsTrigger value="account">Account</TabsTrigger>
           </TabsList>
 
           <TabsContent value="brand">
@@ -130,11 +120,24 @@ export default async function SettingsPage() {
           <TabsContent value="api-models" className="space-y-6">
             <ApiKeysCard keys={savedKeys} />
             <ModelSelectionCard textModels={textModels} settings={settings} />
-            <PricingCard prices={prices} />
+          </TabsContent>
+
+          <TabsContent value="account">
+            <Card>
+              <CardHeader>
+                <CardTitle>Account</CardTitle>
+                <CardDescription>Manage your current Designally Content Studio session.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form action={logoutAction}>
+                  <Button type="submit" variant="outline"><LogOut /> Sign out</Button>
+                </form>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -277,6 +280,15 @@ function ArticleTemplateCard({ template }: { template: FormatRules }) {
       </CardHeader>
       <CardContent>
         <form action={saveArticleTemplateAction} className="grid gap-4">
+          <FormField id="article-template-length" label="Target word count">
+            <Input
+              id="article-template-length"
+              name="length"
+              required
+              defaultValue={template.length}
+              placeholder="900–1,200 words"
+            />
+          </FormField>
           <FormField id="article-template-prompt" label="Prompt">
             <Textarea
               id="article-template-prompt"
@@ -296,76 +308,6 @@ function ArticleTemplateCard({ template }: { template: FormatRules }) {
   );
 }
 
-
-type PriceRow = typeof pricing.$inferSelect;
-
-function PricingCard({ prices }: { prices: PriceRow[] }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Pricing table</CardTitle>
-        <CardDescription>Editable rates used for project and dashboard cost calculations.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        <div className="overflow-hidden rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Provider</TableHead><TableHead>Model</TableHead><TableHead>Unit</TableHead><TableHead>Price (USD)</TableHead><TableHead className="w-12" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {prices.map((price) => (
-                <TableRow key={price.id}>
-                  <TableCell className="text-muted-foreground">{price.provider}</TableCell>
-                  <TableCell className="font-medium">{price.model}</TableCell>
-                  <TableCell className="text-muted-foreground">{UNIT_LABEL[price.unit]}</TableCell>
-                  <TableCell>
-                    <form action={updatePriceAction} className="flex items-center gap-2">
-                      <input type="hidden" name="id" value={price.id} />
-                      <Input name="priceUsd" defaultValue={price.priceUsd} inputMode="decimal" className="num h-8 w-28" />
-                      <Button type="submit" variant="outline" size="sm">Save</Button>
-                    </form>
-                  </TableCell>
-                  <TableCell>
-                    <DeleteConfirm action={deletePriceAction} fields={{ id: price.id }} title="Delete pricing row?" description="Future cost calculations will no longer use this rate." />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-        <Separator />
-        <form action={addPriceAction} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[0.8fr_1.2fr_1fr_0.7fr_auto] lg:items-end">
-          <div className="grid gap-2">
-            <Label htmlFor="price-provider">Provider</Label>
-            <Select name="provider" defaultValue="anthropic">
-              <SelectTrigger id="price-provider" className="w-full"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="anthropic">Anthropic</SelectItem>
-                <SelectItem value="fal">Fal.ai</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <FormField id="price-model" label="Model"><Input id="price-model" name="model" required placeholder="claude-…" /></FormField>
-          <div className="grid gap-2">
-            <Label htmlFor="price-unit">Unit</Label>
-            <Select name="unit" defaultValue="mtok_in">
-              <SelectTrigger id="price-unit" className="w-full"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="mtok_in">Input · $/MTok</SelectItem>
-                <SelectItem value="mtok_out">Output · $/MTok</SelectItem>
-                <SelectItem value="image">Per image · $</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <FormField id="price-value" label="Price"><Input id="price-value" name="priceUsd" inputMode="decimal" placeholder="0.00" className="num" /></FormField>
-          <Button type="submit" variant="outline"><Plus data-icon="inline-start" /> Add price</Button>
-        </form>
-      </CardContent>
-    </Card>
-  );
-}
 
 function FormField({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
   return <div className="grid gap-2"><Label htmlFor={id}>{label}</Label>{children}</div>;

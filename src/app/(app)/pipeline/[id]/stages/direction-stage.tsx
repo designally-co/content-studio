@@ -84,6 +84,8 @@ export function DirectionStage({
     formData.set("projectId", projectId);
     formData.set("title", topic.title);
     formData.set("angle", topic.angle ?? "");
+    formData.set("whyTimely", topic.whyTimely ?? "");
+    formData.set("searchIntent", topic.searchIntent ?? "");
     formData.set("source", topic.source === "suggested" ? "suggested" : "edited");
     startTransition(() => selectTopicAction(formData));
   }

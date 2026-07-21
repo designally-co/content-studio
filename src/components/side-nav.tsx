@@ -6,21 +6,18 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Menu, X } from "lucide-react";
 import {
-  IconDashboard,
   IconNew,
   IconLibrary,
   IconSettings,
-  IconLogout,
 } from "./icons";
-import { logoutAction } from "@/app/actions";
 
 const NAV = [
-  { href: "/", label: "Dashboard", icon: IconDashboard, exact: true },
-  { href: "/new", label: "New content", icon: IconNew, exact: false },
-  { href: "/library", label: "Library", icon: IconLibrary, exact: false },
+  { href: "/", label: "Library", icon: IconLibrary, exact: true },
+  { href: "/new", label: "Create", icon: IconNew, exact: false },
+  { href: "/settings", label: "Settings", icon: IconSettings, exact: false },
 ];
 
-export function SideNav({ user }: { user: { name: string; email: string } }) {
+export function SideNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -84,7 +81,6 @@ export function SideNav({ user }: { user: { name: string; email: string } }) {
               </button>
             </div>
             <NavLinks pathname={pathname} onNavigate={() => setOpen(false)} />
-            <UserFooter user={user} pathname={pathname} onNavigate={() => setOpen(false)} />
           </aside>
         </div>
       )}
@@ -103,12 +99,10 @@ export function SideNav({ user }: { user: { name: string; email: string } }) {
       </div>
 
         <NavLinks pathname={pathname} />
-        <UserFooter user={user} pathname={pathname} />
       </aside>
     </>
   );
 }
-
 function MobileBrand() {
   return (
     <div className="flex min-w-0 items-center gap-2.5">
@@ -147,51 +141,5 @@ function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
           );
         })}
     </nav>
-  );
-}
-
-function UserFooter({
-  user,
-  pathname,
-  onNavigate,
-}: {
-  user: { name: string; email: string };
-  pathname: string;
-  onNavigate?: () => void;
-}) {
-  const active = pathname === "/settings" || pathname.startsWith("/settings/");
-
-  return (
-    <div className="border-t border-line p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <div className={`flex items-center gap-1 rounded-lg transition-colors ${active ? "bg-accent-soft" : "hover:bg-sunken"}`}>
-          <Link
-            href="/settings"
-            onClick={onNavigate}
-            aria-current={active ? "page" : undefined}
-            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-2 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
-          >
-          <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-accent-soft text-xs font-semibold text-accent-ink">
-            {user.name.slice(0, 2).toUpperCase()}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className={`truncate text-sm font-medium ${active ? "text-accent-ink" : "text-ink"}`}>
-              Account &amp; Settings
-            </p>
-            <p className="truncate text-xs text-ink-3">{user.name} · {user.email}</p>
-          </div>
-          <IconSettings className={active ? "text-accent" : "text-ink-3"} width={17} height={17} />
-          </Link>
-          <form action={logoutAction}>
-            <button
-              type="submit"
-              aria-label="Sign out"
-              title="Sign out"
-              className="grid size-11 place-items-center rounded-lg text-ink-3 hover:bg-surface hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
-            >
-              <IconLogout width={16} height={16} />
-            </button>
-          </form>
-        </div>
-    </div>
   );
 }

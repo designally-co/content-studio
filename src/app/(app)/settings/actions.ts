@@ -16,6 +16,7 @@ import { requireUser } from "@/lib/session";
 import { addApiKey, deleteApiKey, type ApiKeyProvider } from "@/lib/secrets";
 import { getBrand } from "@/lib/brand";
 import { DEFAULT_ARTICLE_PROMPT } from "@/lib/article-template";
+import { serializeBrandStrategy } from "@/lib/designally-strategy";
 
 const PRICING_PROVIDERS = ["anthropic", "fal"] as const;
 const API_KEY_PROVIDERS: ApiKeyProvider[] = ["fal"];
@@ -54,10 +55,13 @@ export async function deleteCategoryAction(formData: FormData) {
 export async function saveArticleTemplateAction(formData: FormData) {
   const db = await touch();
   const prompt = String(formData.get("prompt") ?? "").trim() || DEFAULT_ARTICLE_PROMPT;
-  await db
-    .insert(appSettings)
-    .values({ key: "article.prompt", value: prompt })
-    .onConflictDoUpdate({ target: appSettings.key, set: { value: prompt } });
+  const length = String(formData.get("length") ?? "").trim() || "1,200–2,000 words";
+  for (const [key, value] of [["article.prompt", prompt], ["article.length", length]] as const) {
+    await db
+      .insert(appSettings)
+      .values({ key, value })
+      .onConflictDoUpdate({ target: appSettings.key, set: { value } });
+  }
   revalidatePath("/settings");
 }
 
@@ -214,7 +218,15 @@ export async function saveBrandAction(formData: FormData) {
         links: String(formData.get("links") ?? "").trim(),
         hashtags: String(formData.get("hashtags") ?? "").trim(),
       },
-      guidelineText: String(formData.get("guidelineText") ?? "").trim(),
+      guidelineText: serializeBrandStrategy({
+        purpose: String(formData.get("strategyPurpose") ?? ""),
+        positioning: String(formData.get("strategyPositioning") ?? ""),
+        values: String(formData.get("strategyValues") ?? ""),
+        voice: String(formData.get("strategyVoice") ?? ""),
+        audiences: String(formData.get("strategyAudiences") ?? ""),
+        messaging: String(formData.get("strategyMessaging") ?? ""),
+        additionalGuidelines: String(formData.get("strategyAdditional") ?? ""),
+      }),
       ...(logo ?? {}),
     })
     .where(eq(brandProfiles.id, id));

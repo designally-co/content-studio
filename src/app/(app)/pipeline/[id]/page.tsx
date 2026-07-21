@@ -1,30 +1,23 @@
 import { notFound } from "next/navigation";
-import { loadProject, costSummary } from "@/lib/projects";
+import { loadProject } from "@/lib/projects";
 import { isAnthropicConfigured } from "@/lib/anthropic";
 import { imageGenerationOptions } from "@/lib/image/registry";
 import { Stepper } from "@/components/stepper";
-import { DirectionStage } from "./stages/direction-stage";
+import { SimpleDirectionStage } from "./stages/simple-direction-stage";
 import { DraftsStage } from "./stages/drafts-stage";
-import { RefineStage } from "./stages/refine-stage";
 import { FinalizeStage } from "./stages/finalize-stage";
 
 export const dynamic = "force-dynamic";
-
-const LANG_LABEL: Record<string, string> = {
-  en: "English",
-  th: "Thai",
-  both: "Thai + English",
-};
 
 export default async function PipelinePage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ stage?: string }>;
+  searchParams: Promise<{ stage?: string; view?: string }>;
 }) {
   const { id } = await params;
-  const { stage: stageParam } = await searchParams;
+  const { stage: stageParam, view: viewParam } = await searchParams;
   const loaded = await loadProject(id);
   if (!loaded) notFound();
 
@@ -34,38 +27,32 @@ export default async function PipelinePage({
 
   const anthropicReady = await isAnthropicConfigured();
   const imageOptions = await imageGenerationOptions();
-  const cost = costSummary(loaded);
   const title = loaded.project.selectedTopic?.title;
+  const finalizeView: "images" | "complete" = viewParam === "images" || viewParam === "complete"
+    ? viewParam
+    : loaded.project.status === "finalized" ? "complete" : "images";
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="border-b border-line bg-surface px-4 py-4 sm:px-6 lg:px-8">
-        <div className="min-w-0">
-          <h1 className="truncate text-lg font-semibold tracking-tight text-ink">
-            {title || `Untitled project · ${loaded.brand.name}`}
+      <header className="sticky top-0 z-(--z-sticky) border-b border-line bg-bg">
+        <div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-5 lg:px-12 xl:px-16">
+          <h1 className="text-[length:var(--text-h1)] font-bold text-ink">
+            {title || "Untitled article"}
           </h1>
-          <p className="mt-0.5 text-xs text-ink-3">
-            {loaded.brand.name} · {LANG_LABEL[loaded.project.language]}
-            {loaded.category ? ` · ${loaded.category.name}` : ""}
-          </p>
+          <Stepper projectId={id} current={current} reached={reached} finalized={loaded.project.status === "finalized"} finalizeView={finalizeView} />
         </div>
       </header>
 
-      <Stepper projectId={id} current={current} reached={reached} />
-
       <div className="flex-1">
         {current <= 3 && (
-          <DirectionStage
+          <SimpleDirectionStage
             projectId={id}
             suggestions={loaded.project.topicSuggestions ?? []}
             selected={loaded.project.selectedTopic ?? null}
-            brief={loaded.project.inputs.brief ?? ""}
-            markdown={loaded.project.outline?.markdown ?? ""}
-            longForm={loaded.articleRules.longForm}
             anthropicReady={anthropicReady}
           />
         )}
-        {current === 4 && (
+        {(current === 4 || current === 5) && (
           <DraftsStage
             projectId={id}
             drafts={loaded.drafts.map((d) => ({
@@ -74,22 +61,12 @@ export default async function PipelinePage({
               contentMd: d.contentMd,
               isSelected: d.isSelected,
             }))}
-            targetLength={loaded.articleRules.length}
-            anthropicReady={anthropicReady}
-          />
-        )}
-        {current === 5 && (
-          <RefineStage
-            projectId={id}
-            draft={(() => {
-              const sel = loaded.drafts.find((d) => d.isSelected) ?? loaded.drafts[0];
-              return sel ? { id: sel.id, contentMd: sel.contentMd } : null;
-            })()}
-            refinements={loaded.refinements.map((r) => ({
-              id: r.id,
-              userMessage: r.userMessage,
-              resultMd: r.resultMd,
+            refinements={loaded.refinements.map((revision) => ({
+              id: revision.id,
+              userMessage: revision.userMessage,
+              resultMd: revision.resultMd,
             }))}
+            targetLength={loaded.articleRules.length}
             anthropicReady={anthropicReady}
           />
         )}
@@ -123,8 +100,8 @@ export default async function PipelinePage({
               aspectRatio: loaded.project.inputs.imageAspectRatio ?? "1:1",
             }}
             options={imageOptions}
-            cost={cost}
-            approvalOutcome={loaded.project.approvalOutcome}
+            finalized={loaded.project.status === "finalized"}
+            initialView={finalizeView}
             anthropicReady={anthropicReady}
           />
         )}

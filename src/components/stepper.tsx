@@ -4,38 +4,41 @@ import Link from "next/link";
 import { IconCheck } from "./icons";
 
 const STAGES = [
-  { n: 1, label: "Brief", target: 1 },
-  { n: 2, label: "Direction", target: 2 },
-  { n: 3, label: "Draft", target: 4 },
-  { n: 4, label: "Review", target: 5 },
-  { n: 5, label: "Finalize", target: 6 },
+  { n: 1, label: "Create", target: 1 },
+  { n: 2, label: "Draft & edit", target: 4 },
+  { n: 3, label: "Generate images", target: 6 },
+  { n: 4, label: "Done", target: 6 },
 ];
 
-function visibleStage(stage: number) {
+function visibleStage(stage: number, finalized: boolean, finalizeView?: "images" | "complete") {
   if (stage <= 1) return 1;
-  if (stage <= 3) return 2;
-  if (stage === 4) return 3;
-  if (stage === 5) return 4;
-  return 5;
+  if (stage <= 5) return 2;
+  if (finalizeView === "images") return 3;
+  if (finalizeView === "complete") return finalized ? 4 : 3;
+  return finalized ? 4 : 3;
 }
 
 export function Stepper({
   projectId,
   current,
   reached,
+  finalized,
+  finalizeView,
 }: {
   projectId: string;
   /** the stage currently being viewed */
   current: number;
   /** the furthest stage reached (upper bound for navigation) */
   reached: number;
+  finalized: boolean;
+  finalizeView?: "images" | "complete";
 }) {
   return (
-    <nav className="border-b border-line bg-surface px-4 sm:px-6 lg:px-8" aria-label="Content pipeline">
-      <ol className="flex items-center gap-1 overflow-x-auto py-3">
+    <nav className="mt-3" aria-label="Content pipeline">
+      <ol className="flex items-center gap-1 overflow-x-auto">
         {STAGES.map((s, i) => {
-          const currentVisible = visibleStage(current);
-          const reachedVisible = visibleStage(reached);
+          const currentVisible = visibleStage(current, finalized, finalizeView);
+          const reachedVisible = visibleStage(reached, finalized);
           const done = s.n < currentVisible;
           const active = s.n === currentVisible;
           const navigable = s.n <= reachedVisible && s.n !== 1;
@@ -68,7 +71,7 @@ export function Stepper({
           return (
             <li key={s.n} className="flex items-center">
               {navigable && !active ? (
-                <Link href={`/pipeline/${projectId}?stage=${s.target}`}>{content}</Link>
+                <Link href={`/pipeline/${projectId}?stage=${s.target}${s.n === 3 ? "&view=images" : s.n === 4 ? "&view=complete" : ""}`}>{content}</Link>
               ) : (
                 <span aria-current={active ? "step" : undefined}>{content}</span>
               )}
