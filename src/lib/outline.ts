@@ -46,6 +46,27 @@ export function outlineToMarkdown(o: OutlineJson, longForm: boolean): string {
   return lines.join("\n\n").trim();
 }
 
+/**
+ * Pull the research sources out of a stored outline's Markdown. The only links
+ * an outline carries are its research sources (rendered as `- [name](url)`), so
+ * we collect every Markdown link and de-duplicate by URL. Used to append a
+ * "Sources" section to the drafted article.
+ */
+export function extractOutlineSources(markdown: string): { name: string; url: string }[] {
+  const seen = new Set<string>();
+  const out: { name: string; url: string }[] = [];
+  const re = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(markdown)) !== null) {
+    const name = match[1].trim();
+    const url = match[2].trim();
+    if (!name || seen.has(url)) continue;
+    seen.add(url);
+    out.push({ name, url });
+  }
+  return out.slice(0, 12);
+}
+
 function safeHttpUrl(value: string): string | null {
   try {
     const url = new URL(value);

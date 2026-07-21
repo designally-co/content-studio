@@ -69,7 +69,7 @@ export function DraftsStage({
       let content = "";
       for await (const event of streamNdjson<{ t: string; d?: string; draftId?: string; metricLabel?: string; m?: string }>(
         `/api/pipeline/${projectId}/draft`,
-        { variation: 1 }
+        {}
       )) {
         if (event.t === "delta" && event.d) {
           content += event.d;

@@ -8,11 +8,14 @@ import {
   pricing,
   appSettings,
   brandProfiles,
+  projects,
   DEFAULT_LOGO_OVERLAY,
+  users,
   type LogoOverlay,
   type LogoPosition,
 } from "@/db/schema";
 import { requireUser } from "@/lib/session";
+import { hashPassword } from "@/lib/auth";
 import { addApiKey, deleteApiKey, type ApiKeyProvider } from "@/lib/secrets";
 import { getBrand } from "@/lib/brand";
 import { DEFAULT_ARTICLE_PROMPT } from "@/lib/article-template";
@@ -25,6 +28,80 @@ const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // 2 MB
 async function touch() {
   await requireUser();
   return getDb();
+}
+
+export type TeamActionState = { error?: string; success?: string };
+
+async function requireAdmin() {
+  const user = await requireUser();
+  if (user.role !== "admin") throw new Error("Administrator access is required.");
+  return user;
+}
+
+export async function manageTeamMemberAction(
+  _previous: TeamActionState,
+  formData: FormData
+): Promise<TeamActionState> {
+  const currentUser = await requireAdmin();
+  const db = await getDb();
+  const intent = String(formData.get("intent") ?? "");
+
+  try {
+    if (intent === "create") {
+      const name = String(formData.get("name") ?? "").trim();
+      const email = String(formData.get("email") ?? "").trim().toLowerCase();
+      const password = String(formData.get("password") ?? "");
+      const role = String(formData.get("role") ?? "member");
+      if (!name || !/^\S+@\S+\.\S+$/.test(email)) return { error: "Enter a name and valid email address." };
+      if (password.length < 8) return { error: "Password must be at least 8 characters." };
+      if (role !== "admin" && role !== "member") return { error: "Choose a valid role." };
+      await db.insert(users).values({ name, email, passwordHash: await hashPassword(password), role, active: true });
+      revalidatePath("/settings");
+      return { success: `Account created for ${email}.` };
+    }
+
+    const userId = String(formData.get("userId") ?? "");
+    const [target] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!target) return { error: "That account no longer exists." };
+
+    if (intent === "role") {
+      const role = String(formData.get("role") ?? "");
+      if (role !== "admin" && role !== "member") return { error: "Choose a valid role." };
+      if (target.id === currentUser.id && role !== "admin") return { error: "You cannot remove your own administrator access." };
+      await db.update(users).set({ role }).where(eq(users.id, target.id));
+      revalidatePath("/settings");
+      return { success: `${target.name}'s role was updated.` };
+    }
+
+    if (intent === "password") {
+      const password = String(formData.get("password") ?? "");
+      if (password.length < 8) return { error: "The new password must be at least 8 characters." };
+      await db.update(users).set({ passwordHash: await hashPassword(password) }).where(eq(users.id, target.id));
+      return { success: `Password reset for ${target.email}.` };
+    }
+
+    if (intent === "toggle-active") {
+      if (target.id === currentUser.id) return { error: "You cannot disable your own account." };
+      await db.update(users).set({ active: !target.active }).where(eq(users.id, target.id));
+      revalidatePath("/settings");
+      return { success: `${target.name}'s account was ${target.active ? "disabled" : "restored"}.` };
+    }
+
+    if (intent === "delete") {
+      if (target.id === currentUser.id) return { error: "You cannot delete your own account." };
+      // Preserve company content by transferring ownership before removing the login.
+      await db.update(projects).set({ createdBy: currentUser.id }).where(eq(projects.createdBy, target.id));
+      await db.update(brandProfiles).set({ createdBy: currentUser.id }).where(eq(brandProfiles.createdBy, target.id));
+      await db.delete(users).where(eq(users.id, target.id));
+      revalidatePath("/settings");
+      return { success: `${target.name}'s account was permanently deleted.` };
+    }
+
+    return { error: "Unknown account action." };
+  } catch (error) {
+    if (intent === "create") return { error: "An account with that email may already exist." };
+    return { error: error instanceof Error ? error.message : "The account could not be updated." };
+  }
 }
 
 // ---- categories ----

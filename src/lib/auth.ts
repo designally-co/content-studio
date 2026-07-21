@@ -89,11 +89,11 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   // than trusting a stale cookie — otherwise FK writes fail with a ghost id.
   const db = await getDb();
   const [user] = await db
-    .select({ id: users.id, email: users.email, name: users.name, role: users.role })
+    .select({ id: users.id, email: users.email, name: users.name, role: users.role, active: users.active })
     .from(users)
     .where(eq(users.id, sub))
     .limit(1);
-  if (!user) return null;
+  if (!user?.active) return null;
   return { id: user.id, email: user.email, name: user.name, role: user.role };
 }
 
@@ -112,6 +112,7 @@ export async function authenticate(email: string, password: string): Promise<Ses
     .where(eq(users.email, email.toLowerCase().trim()))
     .limit(1);
   if (!user) return null;
+  if (!user.active) return null;
   const ok = await verifyPassword(password, user.passwordHash);
   if (!ok) return null;
   return { id: user.id, email: user.email, name: user.name, role: user.role };

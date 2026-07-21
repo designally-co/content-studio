@@ -190,29 +190,14 @@ Respond as JSON:
 }`;
 }
 
-/**
- * Draft task. `variation` steers each of the 3 drafts to differ meaningfully.
- */
-const VARIATION_STEER = [
-  "Variation 1 — lead with a bold, provocative hook and a confident, punchy rhythm.",
-  "Variation 2 — lead with a relatable problem/story angle; warmer, more narrative structure.",
-  "Variation 3 — lead with a data/insight or how-to framing; clear, practical, skimmable structure.",
-];
-
 export function draftTask(params: {
   outlineMarkdown: string;
-  variation: number;
   longForm: boolean;
 }): string {
-  const steer = VARIATION_STEER[params.variation - 1] ?? VARIATION_STEER[0];
-  return `## Task: write draft (variation ${params.variation} of 3)
+  return `## Task: write draft
 Write a complete, publish-ready article for Designally's article platform from the approved outline/plan below. Follow the brand strategy, selected audience, message pillar, objective, and format rules exactly. The finished article may later be shared on social media, but it must not read like a social post.
 
-Treat the outline's research notes as a reporting pack. Use only source-supported specifics. Link sources naturally on the relevant name or claim in Markdown; do not collect them in a references section. For every main section, move from concrete detail to interpretation: what it is, what makes it distinctive or consequential, and why the selected reader should care. Do not pad the article to meet a word count.
-
-${steer}
-
-Variations must differ meaningfully from one another (hook, structure, or tone-within-brand) — not be paraphrases of the same text.
+Treat the outline's research notes as a reporting pack. Use only source-supported specifics. You may link a source inline on the relevant name or claim in Markdown where it reads naturally. Do not add your own references or "Sources" section — a sources list is appended automatically after your draft. For every main section, move from concrete detail to interpretation: what it is, what makes it distinctive or consequential, and why the selected reader should care. Do not pad the article to meet a word count.
 
 Approved outline/plan:
 ${params.outlineMarkdown}

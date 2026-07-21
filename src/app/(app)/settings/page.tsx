@@ -2,7 +2,7 @@ import { asc } from "drizzle-orm";
 import { KeyRound, LogOut, Plus, Trash2 } from "lucide-react";
 import { logoutAction } from "@/app/actions";
 import { getDb } from "@/db";
-import { categories, pricing, appSettings, type FormatRules } from "@/db/schema";
+import { categories, pricing, appSettings, users, type FormatRules } from "@/db/schema";
 import {
   listApiKeys,
   type SavedApiKey,
@@ -51,18 +51,22 @@ import { getBrand } from "@/lib/brand";
 import { BrandEditor } from "./brand-editor";
 import { ModelSelectionCard } from "./model-selection-card";
 import { articlePrompt, getArticleRules } from "@/lib/article-template";
+import { requireUser } from "@/lib/session";
+import { TeamMembersCard } from "./team-members-card";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const db = await getDb();
-  const [brandRow, cats, articleTemplate, prices, settingsRows, savedKeys] = await Promise.all([
+  const currentUser = await requireUser();
+  const [brandRow, cats, articleTemplate, prices, settingsRows, savedKeys, teamMembers] = await Promise.all([
     getBrand(),
     db.select().from(categories).orderBy(asc(categories.name)),
     getArticleRules(),
     db.select().from(pricing).orderBy(asc(pricing.provider), asc(pricing.model)),
     db.select().from(appSettings),
     listApiKeys("fal"),
+    db.select({ id: users.id, name: users.name, email: users.email, role: users.role, active: users.active }).from(users).orderBy(asc(users.name)),
   ]);
   // Don't ship image bytes to the client; expose one logo flag and load it
   // through /api/brand-logo.
@@ -122,7 +126,8 @@ export default async function SettingsPage() {
             <ModelSelectionCard textModels={textModels} settings={settings} />
           </TabsContent>
 
-          <TabsContent value="account">
+          <TabsContent value="account" className="space-y-6">
+            {currentUser.role === "admin" && <TeamMembersCard members={teamMembers} currentUserId={currentUser.id} />}
             <Card>
               <CardHeader>
                 <CardTitle>Account</CardTitle>

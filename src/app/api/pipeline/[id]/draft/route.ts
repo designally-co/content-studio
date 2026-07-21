@@ -11,6 +11,7 @@ import {
   isAnthropicConfigured,
 } from "@/lib/anthropic";
 import { draftTask } from "@/prompts/tasks";
+import { extractOutlineSources } from "@/lib/outline";
 import { countMetrics } from "@/lib/text";
 
 export const dynamic = "force-dynamic";
@@ -23,8 +24,8 @@ export async function POST(
   const user = await getSessionUser();
   if (!user) return new Response("Unauthorized", { status: 401 });
   const { id } = await params;
-  const body = (await req.json()) as { variation?: number };
-  const variation = Math.min(Math.max(body.variation ?? 1, 1), 3);
+  // A single draft is generated per project (the old 1-of-3 variation flow is gone).
+  const variation = 1;
 
   const loaded = await loadProject(id);
   if (!loaded) return new Response("Not found", { status: 404 });
@@ -51,12 +52,28 @@ export async function POST(
         const { text } = await streamText({
           model: drafting,
           system: buildSystemLayers(ctx),
-          task: draftTask({ outlineMarkdown: outline, variation, longForm }),
+          task: draftTask({ outlineMarkdown: outline, longForm }),
           maxTokens,
           onDelta: (d) => send(controller, { t: "delta", d }),
           projectId: id,
           stage: "draft",
         });
+
+        // Append a Sources section built from the outline's research sources, so
+        // long-form drafts always cite where they were drafted from (rather than
+        // relying on the writer to add one). Stream it as a final chunk too.
+        let finalText = text;
+        if (longForm) {
+          const sources = extractOutlineSources(outline);
+          const alreadyHasSection = /(^|\n)#{1,6}\s*(sources|references)\b/i.test(text);
+          if (sources.length && !alreadyHasSection) {
+            const block =
+              "\n\n## Sources\n\n" +
+              sources.map((s) => `- [${s.name}](${s.url})`).join("\n");
+            send(controller, { t: "delta", d: block });
+            finalText = text + block;
+          }
+        }
 
         // Keep one selected draft. Regeneration snapshots the previous version
         // before replacing its content so history remains restorable.
@@ -72,17 +89,17 @@ export async function POST(
               resultMd: existing.contentMd,
             });
           }
-          [row] = await db.update(drafts).set({ contentMd: text, isSelected: true }).where(eq(drafts.id, existing.id)).returning();
+          [row] = await db.update(drafts).set({ contentMd: finalText, isSelected: true }).where(eq(drafts.id, existing.id)).returning();
         } else {
           [row] = await db.insert(drafts).values({
             projectId: id,
             variationNo: variation,
-            contentMd: text,
+            contentMd: finalText,
             isSelected: true,
           }).returning();
         }
 
-        const metric = countMetrics(text);
+        const metric = countMetrics(finalText);
         send(controller, {
           t: "done",
           draftId: row.id,
