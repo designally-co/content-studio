@@ -12,6 +12,7 @@ import {
   isAnthropicConfigured,
 } from "@/lib/anthropic";
 import { articleMaxTokens } from "@/lib/generation-limits";
+import { deDash } from "@/lib/text";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -108,6 +109,10 @@ export async function POST(
           stage: "refine",
         });
 
+        // Strip em dashes from the revised article so the saved copy stays
+        // human-reading (mirrors the draft route + the system-prompt rule).
+        const cleaned = deDash(text);
+
         const db = await getDb();
         await db.insert(refinements).values([
           {
@@ -120,15 +125,15 @@ export async function POST(
             projectId: id,
             draftId: selected.id,
             userMessage: message,
-            resultMd: text,
+            resultMd: cleaned,
           },
         ]);
         await db
           .update(drafts)
-          .set({ contentMd: text })
+          .set({ contentMd: cleaned })
           .where(eq(drafts.id, selected.id));
 
-        send(controller, { t: "done" });
+        send(controller, { t: "done", content: cleaned });
       } catch (err) {
         send(controller, {
           t: "error",

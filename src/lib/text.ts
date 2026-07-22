@@ -21,6 +21,29 @@ export function countMetrics(md: string): {
   return { words, chars, isThai, label: `${words.toLocaleString()} words` };
 }
 
+/**
+ * Remove em dashes (and other "AI-tell" dashes) from generated prose, replacing
+ * them with punctuation that reads as human-written. Em dash / horizontal bar
+ * become a comma; a spaced en dash becomes a comma; a line-leading dash (quote
+ * attribution) is dropped. ASCII hyphens and numeric en-dash ranges (e.g.
+ * 2020–2024) are left untouched so Markdown tables, rules, and ranges survive.
+ * A last-resort net: the model is also instructed not to produce these.
+ */
+export function deDash(md: string): string {
+  return md
+    // line-leading em/en dash used for attribution → drop the dash, keep any
+    // blockquote/list marker (and its trailing space)
+    .replace(/(^|\n)([>*+-][ \t]+)?[ \t]*[—―–][ \t]+/g, "$1$2")
+    // em dash / horizontal bar anywhere else → comma
+    .replace(/\s*[—―]\s*/g, ", ")
+    // spaced en dash used as punctuation (numeric ranges like 2020–2024 stay) → comma
+    .replace(/\s+–\s+/g, ", ")
+    // tidy the punctuation the swap can create
+    .replace(/ +,/g, ",") // no space before a comma
+    .replace(/,\s*,/g, ", ") // collapse accidental double commas
+    .replace(/,(\s*[.!?;:])/g, "$1"); // comma absorbed by following terminal punctuation
+}
+
 function stripMarkdown(md: string): string {
   return md
     .replace(/```[\s\S]*?```/g, " ")

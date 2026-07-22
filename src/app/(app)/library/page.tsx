@@ -19,7 +19,11 @@ export default async function LibraryPage({
   const sp = await searchParams;
   const db = await getDb();
 
-  const cats = await db.select().from(categories).orderBy(asc(categories.name));
+  const cats = await db
+    .select()
+    .from(categories)
+    .where(eq(categories.active, true))
+    .orderBy(asc(categories.sortOrder), asc(categories.name));
 
   const conds = [];
   if (sp.category) conds.push(eq(projects.categoryId, sp.category));

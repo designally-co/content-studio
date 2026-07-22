@@ -1,15 +1,30 @@
 import { asc } from "drizzle-orm";
 import { getDb } from "@/db";
-import { categories } from "@/db/schema";
+import { categories, pillars } from "@/db/schema";
 import { isAnthropicConfigured } from "@/lib/anthropic";
-import { SetupForm } from "./setup-form";
+import { SetupForm, type PillarGroup } from "./setup-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewContentPage() {
   const db = await getDb();
-  const cats = await db.select().from(categories).orderBy(asc(categories.name));
+  const [pillarRows, catRows] = await Promise.all([
+    db.select().from(pillars).orderBy(asc(pillars.sortOrder)),
+    db.select().from(categories).orderBy(asc(categories.sortOrder), asc(categories.name)),
+  ]);
   const anthropicReady = await isAnthropicConfigured();
+
+  const groups: PillarGroup[] = pillarRows
+    .filter((pillar) => pillar.active)
+    .map((pillar) => ({
+      id: pillar.id,
+      name: pillar.name,
+      tagline: pillar.tagline,
+      directions: catRows
+        .filter((cat) => cat.active && cat.pillarId === pillar.id)
+        .map((cat) => ({ id: cat.id, name: cat.name })),
+    }))
+    .filter((group) => group.directions.length > 0);
 
   return (
     <div className="min-h-screen">
@@ -24,10 +39,7 @@ export default async function NewContentPage() {
         </div>
       </header>
 
-      <SetupForm
-        categories={cats.filter((c) => c.active).map((c) => ({ id: c.id, name: c.name }))}
-        anthropicReady={anthropicReady}
-      />
+      <SetupForm pillars={groups} anthropicReady={anthropicReady} />
     </div>
   );
 }

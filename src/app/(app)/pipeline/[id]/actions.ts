@@ -29,6 +29,7 @@ import {
   editorialArticlePlanTask,
 } from "@/prompts/tasks";
 import { outlineToMarkdown, type OutlineJson } from "@/lib/outline";
+import { pillarForDirection } from "@/lib/content-pillars";
 import type { BrandReviewResult } from "@/lib/brand-review";
 import type { EditorialCandidate } from "@/lib/editorial";
 import {
@@ -70,6 +71,7 @@ export async function prepareSimpleArticleAction(projectId: string) {
     ? loaded.project.selectedTopic.angle || ctx.inputs.brief || "Creative industry article"
     : loaded.project.selectedTopic?.title || ctx.inputs.brief || loaded.category?.name || "Creative industry article";
   const { research } = await getModels();
+  const planPillar = pillarForDirection(loaded.category?.name ?? "");
   const task = editorialArticlePlanTask({
     topic,
     brief: ctx.inputs.brief,
@@ -77,6 +79,8 @@ export async function prepareSimpleArticleAction(projectId: string) {
     period: ctx.inputs.editorialPeriod,
     language: ctx.language,
     seedSources: loaded.project.selectedTopic?.researchSources,
+    pillarName: planPillar?.name,
+    pillarPurpose: planPillar?.purpose,
   });
   const schema = {
       type: "object",
@@ -176,6 +180,8 @@ export async function researchEditorialCandidatesAction(projectId: string): Prom
       entryCount,
       language: ctx.language,
       seedSources: loaded.project.selectedTopic?.researchSources,
+      pillarName: pillarForDirection(loaded.category?.name ?? "")?.name,
+      pillarPurpose: pillarForDirection(loaded.category?.name ?? "")?.purpose,
     }),
     schema: {
       type: "object",
@@ -331,12 +337,19 @@ export async function generateTopicsAction(projectId: string): Promise<SelectedT
   const ctx = pipelineContext(loaded);
   const { research } = await getModels();
   const categoryName = loaded.category?.name ?? ctx.inputs.keyword ?? "the brand's field";
+  const pillar = pillarForDirection(categoryName);
 
   const { data } = await runJson<TopicsResponse>({
     model: research,
     system: buildResearchSystem(),
     cache: false,
-    task: topicsTask({ categoryName, language: ctx.language }),
+    task: topicsTask({
+      categoryName,
+      language: ctx.language,
+      pillarName: pillar?.name,
+      pillarPurpose: pillar?.purpose,
+      examples: pillar?.examples,
+    }),
     schema: {
       type: "object",
       properties: {

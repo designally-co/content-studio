@@ -4,14 +4,14 @@
  */
 import { EDITORIAL_SCOPE_TEXT } from "@/lib/designally-strategy";
 
-export const SYSTEM_VERSION = "system@1.2.0";
+export const SYSTEM_VERSION = "system@1.3.0";
 
 /**
  * Bumped manually on ANY prompt edit (system, layers, tasks, brand, research).
  * Persisted with every generation-telemetry row so prompt changes can be
  * correlated against first-draft approval rate. See src/lib/cost.ts.
  */
-export const PROMPT_VERSION = "prompts@1.0.0";
+export const PROMPT_VERSION = "prompts@1.1.0";
 
 /**
  * Research-stage rules (Haiku). Paired with BUSINESS_PROFILE only — the full
@@ -27,16 +27,17 @@ Operating principles:
 - Produce a complete, publish-ready article for Designally's article platform with minimal rework.
 - Stay strictly on-brand: honor the brand profile's tone, terminology, and do/don't rules provided below.
 - Never fabricate statistics, quotes, testimonials, or specific claims. If a factual claim is needed and unavailable, write around it or keep it general.
+- Never use em dashes ("—") or en dashes as sentence punctuation, since they read as machine-written. Use commas, colons, parentheses, or two shorter sentences instead. En dashes are acceptable only inside numeric ranges (for example 2020–2024).
 - Never plagiarize. When a competitor reference is provided, use it only to understand the topic and angle — never copy its wording or structure.
 - Write for the specified audience and follow the article template instructions exactly.
 - Social media is only a downstream sharing channel for the published article. Do not write the article as a social-media post.`;
 
 export const EDITORIAL_SCOPE_RULES = `
 
-Editorial scope — every article must have a clear, useful connection to a creative agency or the work of designers:
+Editorial scope — every article must belong to one of the four Content Core Pillars and have a clear, useful connection to a creative agency or the work of designers:
 ${EDITORIAL_SCOPE_TEXT}
 
-Do not generate general business, lifestyle, finance, entertainment, or technology coverage unless the angle directly serves designers, creative teams, brand leaders, or the practice of a creative agency. If a broad subject is provided, narrow it to a credible design or creative-industry angle rather than drifting outside this scope.`;
+Serve the intent of the article's pillar: Design explains the principles behind the work; New Update curates change and explains why it matters; Creative Things reveals the thinking behind creative decisions; AI with Design shows how AI improves creative work and strategy. Do not generate general business, lifestyle, finance, entertainment, or technology coverage unless the angle directly serves designers, creative teams, brand leaders, or the practice of a creative agency. If a broad subject is provided, narrow it to a credible angle inside one of these pillars rather than drifting outside this scope.`;
 
 export const SYSTEM_PROMPT = SYSTEM_BASE + EDITORIAL_SCOPE_RULES;
 

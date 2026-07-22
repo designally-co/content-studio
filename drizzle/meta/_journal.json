@@ -113,6 +113,13 @@
       "when": 1784635200000,
       "tag": "0015_condemned_hammerhead",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1784721600000,
+      "tag": "0016_content_pillars",
+      "breakpoints": true
     }
   ]
 }

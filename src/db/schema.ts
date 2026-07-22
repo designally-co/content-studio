@@ -86,10 +86,28 @@ export const brandProfiles = pgTable("brand_profiles", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** Content Core Pillars — the four top-level editorial territories. */
+export const pillars = pgTable("pillars", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** Stable slug matching CONTENT_PILLARS in @/lib/content-pillars. */
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  tagline: text("tagline").notNull().default(""),
+  purpose: text("purpose").notNull().default(""),
+  sortOrder: integer("sort_order").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+});
+
+/**
+ * Content directions — the selectable sub-categories under a pillar.
+ * (Historically a flat "categories" list; now nested under a pillar.)
+ */
 export const categories = pgTable("categories", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   nameTh: text("name_th").notNull().default(""),
+  pillarId: uuid("pillar_id").references(() => pillars.id),
+  sortOrder: integer("sort_order").notNull().default(0),
   active: boolean("active").notNull().default(true),
 });
 

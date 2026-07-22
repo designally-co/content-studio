@@ -7,6 +7,7 @@ import type {
   FormatRules,
 } from "@/db/schema";
 import { articlePrompt } from "@/lib/article-template";
+import { pillarForDirection } from "@/lib/content-pillars";
 
 export const LAYERS_VERSION = "layers@1.0.0";
 
@@ -57,7 +58,16 @@ export function buildFormatLayer(
     "## Article template",
     articlePrompt(articleRules),
   ];
-  if (category) lines.push(`Category: ${category.name}`);
+  if (category) {
+    const pillar = pillarForDirection(category.name);
+    if (pillar) {
+      lines.push(`Content pillar: ${pillar.name} — ${pillar.tagline}`);
+      lines.push(`Pillar purpose: ${pillar.purpose}`);
+      lines.push(`Content direction: ${category.name}`);
+    } else {
+      lines.push(`Content direction: ${category.name}`);
+    }
+  }
   lines.push("", buildLanguageLayer(language));
   return lines.join("\n");
 }

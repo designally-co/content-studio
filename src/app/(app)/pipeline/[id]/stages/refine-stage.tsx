@@ -54,7 +54,7 @@ export function RefineStage({
     setStreaming(true);
     try {
       let nextContent = "";
-      for await (const event of streamNdjson<{ t: string; d?: string; m?: string }>(
+      for await (const event of streamNdjson<{ t: string; d?: string; content?: string; m?: string }>(
         `/api/pipeline/${projectId}/refine`,
         { message: instruction }
       )) {
@@ -62,6 +62,8 @@ export function RefineStage({
           nextContent += event.d;
           setContent(nextContent);
         } else if (event.t === "done") {
+          if (event.content != null) nextContent = event.content;
+          setContent(nextContent);
           setRevisions((current) => [
             ...current,
             { id: crypto.randomUUID(), userMessage: instruction, resultMd: nextContent },

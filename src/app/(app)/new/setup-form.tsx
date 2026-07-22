@@ -3,18 +3,25 @@
 import { useRef, useState } from "react";
 import type { SelectedTopic } from "@/db/schema";
 import { createProjectAction, generateTopicIdeasAction } from "./actions";
-import { CategoryCombobox, type CategorySelection } from "./category-combobox";
+import { PillarDirectionPicker } from "./pillar-direction-picker";
 import { IconArrowRight, IconSpark } from "@/components/icons";
 
-type Cat = { id: string; name: string };
+export type PillarGroup = {
+  id: string;
+  name: string;
+  tagline: string;
+  directions: { id: string; name: string }[];
+};
 
-export function SetupForm({ categories, anthropicReady }: { categories: Cat[]; anthropicReady: boolean }) {
+export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[]; anthropicReady: boolean }) {
   const [pending, setPending] = useState(false);
   const [startMode, setStartMode] = useState<"topic" | "brief" | "discover">("topic");
   const [language, setLanguage] = useState<"en" | "th" | "both">("en");
-  const [category, setCategory] = useState<CategorySelection>(
-    categories[0] ? { kind: "existing", id: categories[0].id, name: categories[0].name } : { kind: "new", name: "Creative resources" }
-  );
+  const firstPillar = pillars[0];
+  const [selection, setSelection] = useState<{ pillarId: string; directionId: string }>({
+    pillarId: firstPillar?.id ?? "",
+    directionId: firstPillar?.directions[0]?.id ?? "",
+  });
   const [topics, setTopics] = useState<SelectedTopic[]>([]);
   const [generatingTopics, setGeneratingTopics] = useState(false);
   const [topicError, setTopicError] = useState<string | null>(null);
@@ -30,11 +37,10 @@ export function SetupForm({ categories, anthropicReady }: { categories: Cat[]; a
     setTopicError(null);
     try {
       const result = await generateTopicIdeasAction({
-        categoryId: category.kind === "existing" ? category.id : undefined,
-        categoryName: category.kind === "new" ? category.name : undefined,
+        categoryId: selection.directionId || undefined,
         language,
       });
-      if (result.length === 0) throw new Error("No topic ideas were returned. Try another category.");
+      if (result.length === 0) throw new Error("No topic ideas were returned. Try another direction.");
       setTopics(result);
     } catch (reason) {
       setTopicError(reason instanceof Error ? reason.message : "Could not generate topic ideas.");
@@ -72,7 +78,7 @@ export function SetupForm({ categories, anthropicReady }: { categories: Cat[]; a
           {([
             ["topic", "A topic", "Research and draft the subject you already have."],
             ["brief", "A brief", "Turn your context into one researched article."],
-            ["discover", "No idea yet", "Choose a category and generate timely topics."],
+            ["discover", "No idea yet", "Choose a pillar and generate timely topics."],
           ] as const).map(([value, label, description]) => (
             <label key={value} className={`cursor-pointer rounded-xl border p-4 transition-colors ${startMode === value ? "border-accent bg-accent-soft" : "border-line bg-surface hover:border-line-strong"}`}>
               <input type="radio" name="startMode" value={value} checked={startMode === value} onChange={() => setStartMode(value)} className="sr-only" />
@@ -96,9 +102,16 @@ export function SetupForm({ categories, anthropicReady }: { categories: Cat[]; a
         )}
         {startMode === "discover" && (
           <div className="space-y-5">
-            <Field label="Creative category" htmlFor="category-picker" hint="AI will research timely topic ideas inside this category.">
-              <CategoryCombobox categories={categories} onSelectionChange={(selection) => { setCategory(selection); setTopics([]); }} />
-            </Field>
+            <div>
+              <span className="cs-label">Content pillar &amp; direction</span>
+              <PillarDirectionPicker
+                pillars={pillars}
+                pillarId={selection.pillarId}
+                directionId={selection.directionId}
+                onChange={(next) => { setSelection(next); setTopics([]); }}
+              />
+              <p className="mt-1.5 text-sm text-ink-3">AI will research timely topic ideas inside this content direction.</p>
+            </div>
             <button type="button" onClick={generateTopics} disabled={generatingTopics || !anthropicReady} className="cs-btn-primary">
               <IconSpark width={16} height={16} />
               {generatingTopics ? "Finding timely ideas…" : topics.length ? "Generate different ideas" : "Generate topic ideas"}

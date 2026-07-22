@@ -1,3 +1,5 @@
+import { EDITORIAL_SCOPE_LINES } from "@/lib/content-pillars";
+
 export const MOMENTS = [
   { value: "creation", label: "Creation", description: "A business or offer taking shape for the first time." },
   { value: "growth", label: "Growth", description: "A capable business whose brand is holding momentum back." },
@@ -25,16 +27,9 @@ export const ARTICLE_OBJECTIVES = [
   { value: "conversion", label: "Support conversion", description: "Lead naturally toward a low-risk next step." },
 ] as const;
 
-export const EDITORIAL_SCOPE = [
-  "creative-industry resources and useful reference collections",
-  "typography, type design, fonts, and foundries",
-  "free or noteworthy UX/UI tools, websites, libraries, and learning resources",
-  "design principles, methods, systems, craft, and critique",
-  "AI and emerging tools for designers and creative teams",
-  "branding, identity, creative direction, and visual communication",
-  "web design, digital experiences, and creative technology",
-  "notable creative studios, projects, releases, and industry developments",
-] as const;
+// Editorial scope is derived from the four Content Core Pillars so the prompt
+// and the app's selectable content directions can never drift apart.
+export const EDITORIAL_SCOPE = EDITORIAL_SCOPE_LINES;
 
 export const EDITORIAL_SCOPE_TEXT = EDITORIAL_SCOPE.map((item) => `- ${item}`).join("\n");
 
@@ -62,7 +57,7 @@ export const DEFAULT_BRAND_STRATEGY: BrandStrategy = {
   messaging: MESSAGE_PILLARS.map((item) => `${item.label}: ${item.message}`).join("\n"),
   additionalGuidelines: `Tagline: More Than Creative. We Build What Matters.
 Thai: ไม่ใช่แค่ครีเอทีฟ — เราสร้างสิ่งที่ธุรกิจต้องการจริงๆ
-Editorial territory: creative resources; typography and fonts; UX/UI resources; design principles and systems; AI tools for designers; branding and identity; web design and creative technology; and notable creative-industry work and developments.
+Editorial territory follows the four Content Core Pillars: Design (design principles, systems, and craft); New Update (industry news, trends, and emerging changes); Creative Things (the thinking behind creative work and campaigns); and AI with Design (applying AI to design and strategy).
 Avoid generic claims such as innovative or cutting-edge. Never fabricate proof, oversell results, or lead with credentials.`,
 };
 

@@ -1,15 +1,37 @@
-import { categories, pricing, appSettings } from "./schema";
+import { categories, pillars, pricing, appSettings } from "./schema";
+import { CONTENT_PILLARS } from "@/lib/content-pillars";
 import type { DB } from "./index";
 
 /**
- * Seeds reference data on first boot (categories, pricing,
+ * Seeds reference data on first boot (pillars + content directions, pricing,
  * default model settings). Idempotent: runs only when the target table is empty.
  * Prices are indicative at build time (July 2026) and editable in Settings.
  */
 export async function seedIfEmpty(db: DB) {
-  const existingCats = await db.select().from(categories).limit(1);
-  if (existingCats.length === 0) {
-    await db.insert(categories).values(DEFAULT_EDITORIAL_CATEGORIES);
+  const existingPillars = await db.select().from(pillars).limit(1);
+  if (existingPillars.length === 0) {
+    const insertedPillars = await db
+      .insert(pillars)
+      .values(
+        CONTENT_PILLARS.map((pillar) => ({
+          slug: pillar.slug,
+          name: pillar.name,
+          tagline: pillar.tagline,
+          purpose: pillar.purpose,
+          sortOrder: pillar.order,
+        }))
+      )
+      .returning();
+
+    const pillarIdBySlug = new Map(insertedPillars.map((p) => [p.slug, p.id]));
+    const directions = CONTENT_PILLARS.flatMap((pillar) =>
+      pillar.directions.map((name, index) => ({
+        name,
+        pillarId: pillarIdBySlug.get(pillar.slug),
+        sortOrder: index + 1,
+      }))
+    );
+    if (directions.length) await db.insert(categories).values(directions);
   }
 
   const existingPricing = await db.select().from(pricing).limit(1);
@@ -36,14 +58,3 @@ export async function seedIfEmpty(db: DB) {
     ]);
   }
 }
-
-const DEFAULT_EDITORIAL_CATEGORIES = [
-  { name: "Creative Resources", nameTh: "แหล่งข้อมูลสำหรับงานครีเอทีฟ" },
-  { name: "Typography & Fonts", nameTh: "ตัวอักษรและฟอนต์" },
-  { name: "UX/UI Resources", nameTh: "แหล่งข้อมูล UX/UI" },
-  { name: "Design Principles", nameTh: "หลักการออกแบบ" },
-  { name: "AI Tools for Designers", nameTh: "เครื่องมือ AI สำหรับนักออกแบบ" },
-  { name: "Branding & Identity", nameTh: "แบรนดิ้งและอัตลักษณ์" },
-  { name: "Web Design & Creative Technology", nameTh: "ออกแบบเว็บไซต์และเทคโนโลยีสร้างสรรค์" },
-  { name: "Creative Industry & Trends", nameTh: "วงการสร้างสรรค์และเทรนด์" },
-];

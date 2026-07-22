@@ -67,7 +67,7 @@ export function DraftsStage({
     setDraft((current) => ({ ...current, contentMd: "", streaming: true, error: null, metricLabel: undefined }));
     try {
       let content = "";
-      for await (const event of streamNdjson<{ t: string; d?: string; draftId?: string; metricLabel?: string; m?: string }>(
+      for await (const event of streamNdjson<{ t: string; d?: string; draftId?: string; metricLabel?: string; content?: string; m?: string }>(
         `/api/pipeline/${projectId}/draft`,
         {}
       )) {
@@ -75,7 +75,9 @@ export function DraftsStage({
           content += event.d;
           setDraft((current) => ({ ...current, contentMd: content }));
         } else if (event.t === "done") {
-          setDraft((current) => ({ ...current, id: event.draftId ?? current.id, metricLabel: event.metricLabel, streaming: false }));
+          // The server may return a sanitized final (e.g. em dashes removed); adopt it.
+          if (event.content != null) content = event.content;
+          setDraft((current) => ({ ...current, id: event.draftId ?? current.id, contentMd: content, metricLabel: event.metricLabel, streaming: false }));
           editBase.current = content;
         } else if (event.t === "error") {
           setDraft((current) => ({ ...current, contentMd: previous, streaming: false, error: event.m ?? "Draft generation failed." }));
@@ -129,7 +131,7 @@ export function DraftsStage({
     setDraft((current) => ({ ...current, error: null }));
     try {
       let content = "";
-      for await (const event of streamNdjson<{ t: string; d?: string; m?: string }>(
+      for await (const event of streamNdjson<{ t: string; d?: string; content?: string; m?: string }>(
         `/api/pipeline/${projectId}/refine`,
         { message: instruction }
       )) {
@@ -137,6 +139,8 @@ export function DraftsStage({
           content += event.d;
           setDraft((current) => ({ ...current, contentMd: content }));
         } else if (event.t === "done") {
+          if (event.content != null) content = event.content;
+          setDraft((current) => ({ ...current, contentMd: content }));
           addLocalRevision(instruction, content);
           editBase.current = content;
         } else if (event.t === "error") {

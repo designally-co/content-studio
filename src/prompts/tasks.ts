@@ -23,17 +23,20 @@ export function editorialResearchTask(params: {
   entryCount: number;
   language: Language;
   seedSources?: { name: string; url: string }[];
+  pillarName?: string;
+  pillarPurpose?: string;
 }): string {
   return `## Task: discover and verify editorial candidates
 Research candidates for an editorial article about “${params.topic}”.
-Category: ${params.category}
+Content pillar: ${params.pillarName || "—"}${params.pillarPurpose ? ` — ${params.pillarPurpose}` : ""}
+Content direction: ${params.category}
 Format: ${params.format}
 Time period: ${params.period || "Current / not fixed"}
 Reader: ${params.reader}
 Market: ${marketFor(params.language)}
 ${params.seedSources?.length ? `Sources already found during topic discovery; verify and reuse these before searching more broadly:\n${params.seedSources.map((source) => `- ${source.name}: ${source.url}`).join("\n")}` : ""}
 
-Find ${Math.min(20, Math.max(params.entryCount + 1, 6))} credible candidates. The article can only use ${params.entryCount}, so prioritize verification over collecting extras. For a dated roundup, include only candidates with evidence connecting them to the requested period. Prioritize official creator, foundry, product, studio, or project pages. A candidate is “confirmed” only when its identity, attribution, URL, and period relevance are supported. Do not convert the subject into business advice. Do not rank by popularity unless a source provides real evidence; “best” means an informed editorial selection.
+Find ${Math.min(20, Math.max(params.entryCount + 1, 6))} credible candidates that serve this pillar's intent. The article can only use ${params.entryCount}, so prioritize verification over collecting extras. For a dated roundup, include only candidates with evidence connecting them to the requested period. Prioritize official creator, foundry, product, studio, or project pages. A candidate is “confirmed” only when its identity, attribution, URL, and period relevance are supported. Do not convert the subject into business advice. Do not rank by popularity unless a source provides real evidence; “best” means an informed editorial selection.
 
 For each candidate return its name, creator, organization/foundry, official URL, best corroborating source URL, release evidence, 2–5 concrete factual details, what makes it distinctive, why it matters to designers, and confidence.
 
@@ -109,11 +112,14 @@ export function editorialArticlePlanTask(params: {
   period?: string;
   language: Language;
   seedSources?: { name: string; url: string }[];
+  pillarName?: string;
+  pillarPurpose?: string;
 }): string {
   return `## Task: research and plan one creative-industry article
 Research the current subject using reliable sources, prioritizing official creator, product, foundry, studio, project, and documentation pages. Produce a concise article plan that contains enough verified detail for a writer to create the complete article without a separate candidate or curation step.
 
 Topic: ${params.topic}
+Content pillar: ${params.pillarName || "—"}${params.pillarPurpose ? ` — ${params.pillarPurpose}` : ""}
 Brief: ${params.brief || "None"}
 Format: ${params.format || "Choose the most useful editorial structure"}
 Period: ${params.period || "Current / not fixed"}
@@ -134,9 +140,18 @@ Respond as JSON with a working title, concise introduction angle, 4–8 purposef
 export function topicsTask(params: {
   categoryName: string;
   language: Language;
+  pillarName?: string;
+  pillarPurpose?: string;
+  examples?: string[];
 }): string {
+  const pillarLine = params.pillarName
+    ? `\nThis direction lives under the "${params.pillarName}" content pillar${params.pillarPurpose ? ` — ${params.pillarPurpose}` : ""}. Every idea must serve that pillar's intent.`
+    : "";
+  const examplesBlock = params.examples?.length
+    ? `\n\nExample headlines that fit this pillar (match their tone and specificity; do not reuse them verbatim):\n${params.examples.map((example) => `- ${example}`).join("\n")}`
+    : "";
   return `## Task: suggest topics
-Suggest timely, researchable directions for the category "${params.categoryName}" in ${marketFor(params.language)}. Prioritize concrete resources, releases, developments, and genuine questions that matter to designers. Each direction must be specific enough for the next stage to research and useful enough to become a complete creative-industry article.
+Suggest timely, researchable directions for the content direction "${params.categoryName}" in ${marketFor(params.language)}.${pillarLine} Prioritize concrete resources, releases, developments, and genuine questions that matter to designers. Each direction must be specific enough for the next stage to research and useful enough to become a complete creative-industry article.${examplesBlock}
 
 Stay within Designally's editorial territory:
 ${EDITORIAL_SCOPE_TEXT}

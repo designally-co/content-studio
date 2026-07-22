@@ -40,7 +40,7 @@ export function FilterBar({
   }
 
   const filters: { key: string; label: string; options: Option[]; searchable?: boolean }[] = [
-    { key: "category", label: "All categories", options: categories, searchable: true },
+    { key: "category", label: "All directions", options: categories, searchable: true },
     {
       key: "language",
       label: "All languages",

@@ -11,6 +11,7 @@ import { getBrand } from "@/lib/brand";
 import { getArticleRules } from "@/lib/article-template";
 import { buildSystemPrompt, getModels, runJson } from "@/lib/anthropic";
 import { topicsTask } from "@/prompts/tasks";
+import { CONTENT_PILLARS, pillarForDirection } from "@/lib/content-pillars";
 
 function inferEditorialFormat(value: string): EditorialFormat {
   const text = value.toLowerCase();
@@ -40,7 +41,8 @@ export async function generateTopicIdeasAction(input: {
   const [category] = input.categoryId
     ? await db.select().from(categories).where(eq(categories.id, input.categoryId)).limit(1)
     : [];
-  const categoryName = input.categoryName?.trim() || category?.name || "Creative resources";
+  const categoryName = category?.name || input.categoryName?.trim() || CONTENT_PILLARS[0].directions[0];
+  const pillar = pillarForDirection(categoryName);
   const [brand, articleRules, models] = await Promise.all([getBrand(), getArticleRules(), getModels()]);
   const { data } = await runJson<TopicIdeasResponse>({
     model: models.research,
@@ -51,7 +53,13 @@ export async function generateTopicIdeasAction(input: {
       language: input.language,
       inputs: { articleMode: "editorial" },
     }),
-    task: topicsTask({ categoryName, language: input.language }),
+    task: topicsTask({
+      categoryName,
+      language: input.language,
+      pillarName: pillar?.name,
+      pillarPurpose: pillar?.purpose,
+      examples: pillar?.examples,
+    }),
     schema: {
       type: "object",
       properties: {

@@ -105,7 +105,7 @@ export function SimpleDirectionStage({
       title={selectedTopic ? "Draft" : "Choose a topic"}
       description={selectedTopic
         ? "Checking one current source and preparing your draft. If research is unavailable, drafting continues with a conservative plan."
-        : "Choose an AI-generated direction for your creative category."}
+        : "Choose an AI-generated direction for your content pillar."}
       wide
     >
       {error && <p className="mb-5 rounded-xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{error}</p>}

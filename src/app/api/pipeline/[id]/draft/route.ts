@@ -12,7 +12,7 @@ import {
 } from "@/lib/anthropic";
 import { draftTask } from "@/prompts/tasks";
 import { extractOutlineSources } from "@/lib/outline";
-import { countMetrics } from "@/lib/text";
+import { countMetrics, deDash } from "@/lib/text";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -75,6 +75,10 @@ export async function POST(
           }
         }
 
+        // Strip em dashes from the saved article (belt-and-suspenders with the
+        // system-prompt rule) so the persisted/exported copy reads human-written.
+        finalText = deDash(finalText);
+
         // Keep one selected draft. Regeneration snapshots the previous version
         // before replacing its content so history remains restorable.
         const db = await getDb();
@@ -104,6 +108,7 @@ export async function POST(
           t: "done",
           draftId: row.id,
           metricLabel: metric.label,
+          content: finalText,
         });
       } catch (err) {
         send(controller, {

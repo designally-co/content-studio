@@ -61,7 +61,7 @@ export function TopicsStage({
   return (
     <StageShell
       title="Topic & trend suggestions"
-      description="The app searches current trends for your category and language market, then proposes timely angles. Pick one, edit it, or write your own."
+      description="The app searches current trends for your content direction and language market, then proposes timely angles. Pick one, edit it, or write your own."
       wide
     >
       {!anthropicReady ? (
