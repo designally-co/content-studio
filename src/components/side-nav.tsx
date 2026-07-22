@@ -102,14 +102,13 @@ export function SideNav() {
     </>
   );
 }
-/** Designally "D." brandmark — dark bowl with a coral period. */
+/** Designally "D." brandmark — dark bowl with a coral period, on a square canvas. */
 function BrandMark({ size = 36 }: { size?: number }) {
-  const width = Math.round((size * 280) / 230);
   return (
     <svg
-      width={width}
+      width={size}
       height={size}
-      viewBox="0 0 280 230"
+      viewBox="0 0 340 340"
       fill="none"
       role="img"
       aria-label="Designally"
@@ -119,9 +118,9 @@ function BrandMark({ size = 36 }: { size?: number }) {
         fillRule="evenodd"
         clipRule="evenodd"
         fill="#14181C"
-        d="M38 10H115C168 10 205 55 205 115C205 175 168 220 115 220H38A28 28 0 0 1 10 192V38A28 28 0 0 1 38 10ZM68 60H112C148 60 168 85 168 115C168 145 148 170 112 170H68V60Z"
+        d="M37 40H163C223 40 287 92 287 170C287 248 223 300 163 300H47A26 26 0 0 1 21 274V56A16 16 0 0 1 37 40ZM86 108H159C201 108 227 132 227 170C227 208 201 232 159 232H86V108Z"
       />
-      <circle cx="245" cy="196" r="30" fill="#EC6350" />
+      <circle cx="283" cy="262" r="36" fill="#EC6350" />
     </svg>
   );
 }
