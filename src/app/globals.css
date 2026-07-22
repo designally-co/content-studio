@@ -387,7 +387,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  height: 40px;
+  height: 44px;
   padding: 0 1.25rem;
   border-radius: var(--radius);
   font-family: var(--font-sans);
