@@ -7,7 +7,7 @@ import {
 } from "@/lib/image/visual-brief";
 
 /** Task layer — stage-specific instructions. Versioned per template. */
-export const TASKS_VERSION = "tasks@1.3.0";
+export const TASKS_VERSION = "tasks@1.4.0";
 
 const marketFor = (language: Language) =>
   language === "th"
@@ -280,7 +280,7 @@ export function articleVisualBriefTask(params: {
   return `## Task: extract an article-aware visual brief
 Read the finished article and identify what an editorial image must visibly communicate. Base every detail on the article. Classify the subject, retain the most visually important named fonts, tools, websites, projects, or principles, and extract concrete visual characteristics. Do not turn the subject into a business metaphor.
 
-Target the visual variety of a creative-industry publication (Creative Boom / It's Nice That): each image should feel distinct. In "mood" and "visualCharacteristics", commit to an expressive, story-specific color palette (bold or muted as the subject demands) and a specific medium — do NOT describe a uniform muted, beige, or off-white studio look, and do not reuse a generic house palette. Let the color and medium be driven by this article alone.
+Target the visual variety of a creative-industry publication (Creative Boom / It's Nice That): each image should feel distinct. In "mood" and "visualCharacteristics", commit to an expressive, story-specific color palette (bold or muted as the subject demands) and a specific medium — do NOT describe a uniform muted, beige, or off-white studio look, and do not reuse a generic house palette. Let the color and medium be driven by this article alone. Exception: when the requested art direction is designally_ci, this variety rule does not apply — instead follow the Designally house system (one bold subject on a calm charcoal, steel blue, or warm off-white field with a single orange accent), and set "mood" and "visualCharacteristics" to match that restrained palette and one-object discipline.
 
 Requested direction: ${params.direction}
 Requested art direction: ${params.artDirection}

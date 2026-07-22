@@ -302,7 +302,8 @@ function ImagePanel({
     : initialOption?.capabilities.aspectRatios[0] ?? "1:1";
   const [prompt, setPrompt] = useState("");
   const [direction, setDirection] = useState<ImageDirection>("auto");
-  const [artDirection, setArtDirection] = useState<ArtDirectionSelection>("auto");
+  // Designally house style is the official default; users can override it below.
+  const [artDirection, setArtDirection] = useState<ArtDirectionSelection>("designally_ci");
   const [visualBrief, setVisualBrief] = useState<ArticleVisualBrief | null>(null);
   const [optionId, setOptionId] = useState(initialOptionId);
   const [count, setCount] = useState(
@@ -398,7 +399,7 @@ function ImagePanel({
         <>
           <div className="mt-3 space-y-3">
             <p className="text-sm leading-relaxed text-ink-2">
-              Visual style and composition are matched automatically to the finished article. Draft the prompt, review it, then generate.
+              Images use the Designally house style by default — one bold subject on a calm field with a single orange accent. Draft the prompt, review it, then generate. Change the visual style under Advanced controls.
             </p>
             <div className="space-y-1.5">
               <label htmlFor="image-model" className="text-xs font-medium text-ink-2">Image model</label>
@@ -416,7 +417,7 @@ function ImagePanel({
             <details className="rounded-lg border border-line bg-sunken px-4 py-3 text-sm">
               <summary className="cursor-pointer font-medium text-ink-2">
                 Advanced controls
-                {(artDirection !== "auto" || direction !== "auto") && <span className="ml-2 font-normal text-accent-ink">Customized</span>}
+                {(artDirection !== "designally_ci" || direction !== "auto") && <span className="ml-2 font-normal text-accent-ink">Customized</span>}
               </summary>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">

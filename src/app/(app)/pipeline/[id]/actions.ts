@@ -609,9 +609,10 @@ export async function generateImagePromptAction(
     ? requestedDirection as ImageDirection
     : "auto";
   const requestedArtDirection = imageContext?.artDirection;
+  // Designally house style is the official default when none is explicitly chosen.
   const artDirection = ART_DIRECTION_PRESETS.some((option) => option.value === requestedArtDirection)
     ? requestedArtDirection as ArtDirectionSelection
-    : "auto";
+    : "designally_ci";
   const hasReferenceImage = Boolean(imageContext?.hasReferenceImage);
 
   const { data: brief } = await runJson<ArticleVisualBrief>({
