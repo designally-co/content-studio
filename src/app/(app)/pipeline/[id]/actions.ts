@@ -629,7 +629,7 @@ export async function generateImagePromptAction(
       properties: {
         articleType: { type: "string", enum: ["typography", "ux_ui", "tools", "design_principles", "branding", "websites", "trend", "other"] },
         articleStructure: { type: "string", enum: ["roundup", "resources", "releases", "comparison", "explainer", "profile", "trend"] },
-        artDirection: { type: "string", enum: ["abstract_insight", "metaphorical_editorial", "editorial_studio", "retro_futurist", "tactile_flat_lay", "interface_showcase"] },
+        artDirection: { type: "string", enum: ["abstract_insight", "metaphorical_editorial", "editorial_studio", "retro_futurist", "tactile_flat_lay", "interface_showcase", "designally_ci"] },
         artDirectionReason: { type: "string" },
         imageRole: { type: "string" },
         mainSubject: { type: "string" },

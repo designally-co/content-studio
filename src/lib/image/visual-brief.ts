@@ -45,6 +45,11 @@ export const ART_DIRECTION_PRESETS = [
     label: "Interface showcase",
     description: "Layered editorial interface compositions for websites and digital products.",
   },
+  {
+    value: "designally_ci",
+    label: "Designally house style",
+    description: "One bold object on a calm field with a single orange accent — the Designally system.",
+  },
 ] as const;
 
 export type ArtDirectionSelection = (typeof ART_DIRECTION_PRESETS)[number]["value"];
@@ -79,6 +84,8 @@ export const ART_DIRECTION_GUIDE: Record<ArtDirectionPreset, string> = {
     "Styled product or flat-lay photography of the article's real creative objects — type specimens, books, tools, prints, swatches. Rich texture, intentional color styling (bold and playful or quiet and tonal as fits the set), directional light and real shadow. Lifestyle-magazine quality, not sterile catalogue minimalism.",
   interface_showcase:
     "Editorial composition of layered browser-like frames and modular interface surfaces in an expressive arrangement; real material texture, confident color, depth and soft studio light. Contemporary design-publication art direction. No readable UI text, invented logos, or generic device mockups.",
+  designally_ci:
+    "Designally house style: one single object or one clear idea per frame — never a collage — presented as a bold hero on a calm, flat field of near-black charcoal (#1B1D23), steel grey-blue, or warm off-white (#F3F3F3). Real material and directional studio light; an intelligent, timeless, expansive mood with generous negative space and Swiss/geometric discipline. Introduce exactly ONE Designally-orange accent (#EF6148) as a deliberate 'cut' — a single thin line or one dot, never more. An optional brushed-silver / chrome element can add a premium editorial feel. No clutter, no busy patterns, no readable text, and no logos (the D. signature is composited separately).",
 };
 
 export type ArticleVisualBrief = {

@@ -7,7 +7,7 @@ import {
 } from "@/lib/image/visual-brief";
 
 /** Task layer — stage-specific instructions. Versioned per template. */
-export const TASKS_VERSION = "tasks@1.2.0";
+export const TASKS_VERSION = "tasks@1.3.0";
 
 const marketFor = (language: Language) =>
   language === "th"
@@ -307,6 +307,7 @@ Art-direction routing:
 - retro_futurist: AI, software, emerging tools, and future-facing creative technology.
 - tactile_flat_lay: fonts, books, tools, templates, gift guides, roundups, and resource collections.
 - interface_showcase: websites, UI libraries, digital products, interfaces, and experience-design showcases.
+- designally_ci: ONLY when explicitly requested — never choose it in auto. It is the Designally house system (one object per frame on a calm charcoal, steel grey-blue, or warm off-white field with a single orange accent); when it is requested, follow that restrained house palette instead of an expressive per-article one.
 
 When requested art direction is auto, choose from the article’s meaning and structure, not its category alone. A typography profile should use editorial_studio, a typography roundup tactile_flat_lay, and a typography trend abstract_insight. When a specific art direction is requested, use it unless it would create a deceptive representation; explain any safer interpretation in artDirectionReason.
 
