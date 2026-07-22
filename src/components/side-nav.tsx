@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -87,7 +86,7 @@ export function SideNav() {
 
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col self-start border-r border-line bg-surface lg:flex">
       <div className="flex items-center gap-3 px-5 pb-8 pt-6">
-        <Image src="/logo.png" alt="" width={36} height={36} priority />
+        <BrandMark size={36} />
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[var(--tracking-caps)] text-accent-ink">
             Designally
@@ -103,10 +102,34 @@ export function SideNav() {
     </>
   );
 }
+/** Designally "D." brandmark — dark bowl with a coral period. */
+function BrandMark({ size = 36 }: { size?: number }) {
+  const width = Math.round((size * 280) / 230);
+  return (
+    <svg
+      width={width}
+      height={size}
+      viewBox="0 0 280 230"
+      fill="none"
+      role="img"
+      aria-label="Designally"
+      className="shrink-0"
+    >
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        fill="#14181C"
+        d="M38 10H115C168 10 205 55 205 115C205 175 168 220 115 220H38A28 28 0 0 1 10 192V38A28 28 0 0 1 38 10ZM68 60H112C148 60 168 85 168 115C168 145 148 170 112 170H68V60Z"
+      />
+      <circle cx="245" cy="196" r="30" fill="#EC6350" />
+    </svg>
+  );
+}
+
 function MobileBrand() {
   return (
     <div className="flex min-w-0 items-center gap-2.5">
-      <Image src="/logo.png" alt="" width={32} height={32} priority />
+      <BrandMark size={32} />
       <span className="truncate font-heading text-sm font-bold text-ink">Content Studio</span>
     </div>
   );
