@@ -98,7 +98,8 @@ export async function createProjectAction(formData: FormData) {
 
   const categoryRaw = String(formData.get("categoryId") ?? "");
   const newCategory = String(formData.get("newCategory") ?? "").trim();
-  const language = String(formData.get("language") ?? "en") as Language;
+  // Content is English-only; ignore any submitted language.
+  const language: Language = "en";
 
   // Resolve the category: a new name is created on the fly (and persisted so
   // it's reusable), an existing id is used as-is, "suggest"/empty means none.

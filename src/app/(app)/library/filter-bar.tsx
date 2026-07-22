@@ -42,15 +42,6 @@ export function FilterBar({
   const filters: { key: string; label: string; options: Option[]; searchable?: boolean }[] = [
     { key: "category", label: "All directions", options: categories, searchable: true },
     {
-      key: "language",
-      label: "All languages",
-      options: [
-        { value: "en", label: "English" },
-        { value: "th", label: "Thai" },
-        { value: "both", label: "Both" },
-      ],
-    },
-    {
       key: "status",
       label: "All statuses",
       options: [

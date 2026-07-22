@@ -9,8 +9,6 @@ import { LibraryItem } from "./library-item";
 
 export const dynamic = "force-dynamic";
 
-const LANG_LABEL: Record<string, string> = { en: "EN", th: "TH", both: "TH+EN" };
-
 export default async function LibraryPage({
   searchParams,
 }: {
@@ -27,7 +25,6 @@ export default async function LibraryPage({
 
   const conds = [];
   if (sp.category) conds.push(eq(projects.categoryId, sp.category));
-  if (sp.language) conds.push(eq(projects.language, sp.language as "en" | "th" | "both"));
   if (sp.status)
     conds.push(
       eq(projects.status, sp.status as "draft" | "in_pipeline" | "finalized" | "rejected")
@@ -37,7 +34,6 @@ export default async function LibraryPage({
     .select({
       id: projects.id,
       status: projects.status,
-      language: projects.language,
       createdAt: projects.createdAt,
       updatedAt: projects.updatedAt,
       topic: projects.selectedTopic,
@@ -93,7 +89,7 @@ export default async function LibraryPage({
     }
     return b.updatedAt.getTime() - a.updatedAt.getTime();
   });
-  const hasActiveFilters = Boolean(sp.category || sp.language || sp.status || query);
+  const hasActiveFilters = Boolean(sp.category || sp.status || query);
 
   return (
     <div className="min-h-screen">
@@ -135,7 +131,7 @@ export default async function LibraryPage({
                 month: "short",
                 day: "numeric",
               });
-              return <LibraryItem key={r.id} id={r.id} title={r.topic?.title || "Untitled project"} category={r.categoryName || "Uncategorized"} language={LANG_LABEL[r.language]} dateLabel={dateLabel} readMinutes={readTimeByProject.get(r.id) ?? null} status={r.status} imageId={latestImageByProject.get(r.id) ?? null} />;
+              return <LibraryItem key={r.id} id={r.id} title={r.topic?.title || "Untitled project"} category={r.categoryName || "Uncategorized"} dateLabel={dateLabel} readMinutes={readTimeByProject.get(r.id) ?? null} status={r.status} imageId={latestImageByProject.get(r.id) ?? null} />;
             })}
           </div>
         )}

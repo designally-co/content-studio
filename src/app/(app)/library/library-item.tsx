@@ -10,11 +10,10 @@ import { Card } from "@/components/ui/card";
 import type { ProjectStatus } from "@/db/schema";
 import { deleteArticleAction } from "./actions";
 
-export function LibraryItem({ id, title, category, language, dateLabel, readMinutes, status, imageId }: {
+export function LibraryItem({ id, title, category, dateLabel, readMinutes, status, imageId }: {
   id: string;
   title: string;
   category: string;
-  language: string;
   dateLabel: string;
   readMinutes: number | null;
   status: ProjectStatus;
@@ -54,7 +53,6 @@ export function LibraryItem({ id, title, category, language, dateLabel, readMinu
           )}
           <div className="absolute bottom-3 left-3 flex max-w-[calc(100%_-_1.5rem)] gap-1.5">
             <Badge variant="secondary" className="max-w-[15rem] bg-surface text-ink shadow-sm"><span className="truncate">{category}</span></Badge>
-            <Badge variant="secondary" className="bg-surface text-ink shadow-sm">{language}</Badge>
           </div>
           {status !== "finalized" && (
             <Badge variant="secondary" className="absolute right-3 top-3 bg-surface text-ink shadow-sm">

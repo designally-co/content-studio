@@ -16,7 +16,8 @@ export type PillarGroup = {
 export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[]; anthropicReady: boolean }) {
   const [pending, setPending] = useState(false);
   const [startMode, setStartMode] = useState<"topic" | "brief" | "discover">("topic");
-  const [language, setLanguage] = useState<"en" | "th" | "both">("en");
+  // Content is English-only; language is fixed and no longer user-selectable.
+  const language = "en" as const;
   const firstPillar = pillars[0];
   const [selection, setSelection] = useState<{ pillarId: string; directionId: string }>({
     pillarId: firstPillar?.id ?? "",
@@ -61,6 +62,7 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
   return (
     <form ref={formRef} action={createProjectAction} onSubmit={() => setPending(true)} className="mx-auto w-full max-w-3xl px-4 pb-16 pt-6 sm:px-6 sm:pb-20 sm:pt-8 lg:px-8 lg:pb-24">
       <input type="hidden" name="articleMode" value="editorial" />
+      <input type="hidden" name="language" value="en" />
       <input ref={chosenTopicRef} type="hidden" name="chosenTopic" />
       <input ref={chosenAngleRef} type="hidden" name="chosenAngle" />
       <input ref={chosenWhyTimelyRef} type="hidden" name="chosenWhyTimely" />
@@ -138,13 +140,6 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
             )}
           </div>
         )}
-        <Field label="Language" htmlFor="project-language">
-          <select id="project-language" name="language" className="cs-select" value={language} onChange={(event) => { setLanguage(event.target.value as typeof language); setTopics([]); }}>
-            <option value="en">English</option>
-            <option value="th">Thai</option>
-            <option value="both">Thai + English</option>
-          </select>
-        </Field>
       </div>
 
       <div className="mt-10 flex justify-end border-t border-line pt-6">
