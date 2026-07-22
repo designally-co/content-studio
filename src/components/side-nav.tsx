@@ -117,10 +117,10 @@ function BrandMark({ size = 36 }: { size?: number }) {
       <path
         fillRule="evenodd"
         clipRule="evenodd"
-        fill="#14181C"
+        fill="#1B1D23"
         d="M37 40H163C223 40 287 92 287 170C287 248 223 300 163 300H47A26 26 0 0 1 21 274V56A16 16 0 0 1 37 40ZM86 108H159C201 108 227 132 227 170C227 208 201 232 159 232H86V108Z"
       />
-      <circle cx="283" cy="262" r="36" fill="#EC6350" />
+      <circle cx="283" cy="262" r="36" fill="#EF6148" />
     </svg>
   );
 }
