@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { MenuSelect } from "@/components/ui/menu-select";
 import type { PillarGroup } from "./setup-form";
 
 /**
@@ -64,21 +65,14 @@ export function PillarDirectionPicker({
       </div>
 
       <div>
-        <label className="cs-label" htmlFor="direction-select">
-          Content direction
-        </label>
-        <select
+        <span className="cs-label">Content direction</span>
+        <MenuSelect
           id="direction-select"
-          className="cs-select"
+          ariaLabel="Content direction"
           value={directionId}
-          onChange={(event) => onChange({ pillarId: activePillar!.id, directionId: event.target.value })}
-        >
-          {activePillar?.directions.map((direction) => (
-            <option key={direction.id} value={direction.id}>
-              {direction.name}
-            </option>
-          ))}
-        </select>
+          options={(activePillar?.directions ?? []).map((direction) => ({ value: direction.id, label: direction.name }))}
+          onChange={(value) => onChange({ pillarId: activePillar!.id, directionId: value })}
+        />
       </div>
     </div>
   );
