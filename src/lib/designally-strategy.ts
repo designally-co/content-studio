@@ -57,7 +57,7 @@ export const DEFAULT_BRAND_STRATEGY: BrandStrategy = {
   messaging: MESSAGE_PILLARS.map((item) => `${item.label}: ${item.message}`).join("\n"),
   additionalGuidelines: `Tagline: More Than Creative. We Build What Matters.
 Thai: ไม่ใช่แค่ครีเอทีฟ — เราสร้างสิ่งที่ธุรกิจต้องการจริงๆ
-Editorial territory follows the four Content Core Pillars: Design (design principles, systems, and craft); New Update (industry news, trends, and emerging changes); Creative Things (the thinking behind creative work and campaigns); and AI with Design (applying AI to design and strategy).
+Editorial territory follows the four Content Core Pillars: Design (design principles, systems, and craft); New Update (industry news, trends, and emerging changes); Creative Things (the thinking behind creative work and campaigns); and Design with AI (applying AI to design and strategy).
 Avoid generic claims such as innovative or cutting-edge. Never fabricate proof, oversell results, or lead with credentials.`,
 };
 

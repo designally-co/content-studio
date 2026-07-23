@@ -37,7 +37,7 @@ export const EDITORIAL_SCOPE_RULES = `
 Editorial scope — every article must belong to one of the four Content Core Pillars and have a clear, useful connection to a creative agency or the work of designers:
 ${EDITORIAL_SCOPE_TEXT}
 
-Serve the intent of the article's pillar: Design explains the principles behind the work; New Update curates change and explains why it matters; Creative Things reveals the thinking behind creative decisions; AI with Design shows how AI improves creative work and strategy. Do not generate general business, lifestyle, finance, entertainment, or technology coverage unless the angle directly serves designers, creative teams, brand leaders, or the practice of a creative agency. If a broad subject is provided, narrow it to a credible angle inside one of these pillars rather than drifting outside this scope.`;
+Serve the intent of the article's pillar: Design explains the principles behind the work; New Update curates change and explains why it matters; Creative Things reveals the thinking behind creative decisions; Design with AI shows how AI improves creative work and strategy. Do not generate general business, lifestyle, finance, entertainment, or technology coverage unless the angle directly serves designers, creative teams, brand leaders, or the practice of a creative agency. If a broad subject is provided, narrow it to a credible angle inside one of these pillars rather than drifting outside this scope.`;
 
 export const SYSTEM_PROMPT = SYSTEM_BASE + EDITORIAL_SCOPE_RULES;
 

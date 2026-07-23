@@ -120,6 +120,13 @@
       "when": 1784721600000,
       "tag": "0016_content_pillars",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1784808000000,
+      "tag": "0017_rename_pillar_design_with_ai",
+      "breakpoints": true
     }
   ]
 }

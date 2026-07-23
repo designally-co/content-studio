@@ -102,9 +102,11 @@ export const CONTENT_PILLARS: ContentPillar[] = [
     ],
   },
   {
+    // Slug is a stable internal identifier (links content directions); the
+    // display name was changed to "Design with AI" without renaming it.
     slug: "ai-with-design",
     order: 4,
-    name: "AI with Design",
+    name: "Design with AI",
     tagline: "AI applied to creative thinking.",
     purpose:
       "Explore how AI can be applied to design and strategy, enabling smarter workflows, greater efficiency, and long-term value creation.",
