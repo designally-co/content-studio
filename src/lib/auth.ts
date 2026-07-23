@@ -3,6 +3,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import path from "node:path";
 import fs from "node:fs";
+import { cache } from "react";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
@@ -73,7 +74,15 @@ export async function destroySession() {
   store.delete(SESSION_COOKIE);
 }
 
-export async function getSessionUser(): Promise<SessionUser | null> {
+/**
+ * Memoised per request. The layout, the page, and nested server components each
+ * call this, so without `cache()` a single render fired 5-7 identical user
+ * lookups. With a small connection pool that is the difference between a page
+ * that renders and one that queues until Postgres' 120s statement_timeout.
+ * React's cache() scope is one request, so a login/logout in the same request
+ * still can't read a stale value.
+ */
+export const getSessionUser = cache(async function getSessionUser(): Promise<SessionUser | null> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
@@ -95,7 +104,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     .limit(1);
   if (!user?.active) return null;
   return { id: user.id, email: user.email, name: user.name, role: user.role };
-}
+});
 
 /** Whether any account exists yet (drives the first-run "create account" flow). */
 export async function hasAnyUser(): Promise<boolean> {
