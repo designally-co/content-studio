@@ -19,10 +19,15 @@ function create(): Cache {
   const url = process.env.DATABASE_URL;
   if (url) {
     // Supabase / any Postgres. `prepare: false` is required for Supabase's
-    // transaction-mode connection pooler.
+    // transaction-mode connection pooler (port 6543).
+    //
+    // Keep the per-instance pool small: every serverless worker creates its own
+    // client, and postgres-js defaults to max: 10, so a handful of concurrent
+    // workers can exhaust the pooler and fail with EMAXCONNSESSION. A low max
+    // plus a short idle timeout lets connections be recycled quickly.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const postgres = require("postgres") as typeof import("postgres");
-    const client = postgres(url, { prepare: false });
+    const client = postgres(url, { prepare: false, max: 3, idle_timeout: 20 });
     const db = drizzlePostgres(client, { schema });
     const ready = migratePostgres(db, { migrationsFolder: MIGRATIONS }).then(() =>
       seedIfEmpty(db)
