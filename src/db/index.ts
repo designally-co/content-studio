@@ -15,8 +15,34 @@ type Cache = { db: DB; ready: Promise<void> };
 
 const globalCache = globalThis as unknown as { __contentStudioDb?: Cache };
 
+/**
+ * Supabase's pooler serves session mode on :5432 and transaction mode on :6543.
+ * Session mode dedicates a real Postgres connection per client and caps at
+ * ~15, which any serverless deployment blows through immediately — the failure
+ * is `EMAXCONNSESSION: max clients reached in session mode`. Transaction mode
+ * multiplexes and is what Supabase recommends for serverless.
+ *
+ * Rewriting the port here (rather than relying on the connection string being
+ * correct everywhere) makes the app safe even if the env var is managed by an
+ * integration or was set to the session-mode string. Escape hatch:
+ * DB_KEEP_SESSION_PORT=1. `prepare: false` below is already what transaction
+ * mode requires.
+ */
+const SUPABASE_SESSION_PORT = /(@[^/@\s]*\.pooler\.supabase\.com):5432\b/;
+
+function preferTransactionPooler(rawUrl: string): string {
+  if (process.env.DB_KEEP_SESSION_PORT === "1") return rawUrl;
+  if (!SUPABASE_SESSION_PORT.test(rawUrl)) return rawUrl;
+  console.warn(
+    "[db] DATABASE_URL points at Supabase session mode (:5432); using transaction mode (:6543) instead."
+  );
+  // String replace rather than a URL round-trip so credentials are not re-encoded.
+  return rawUrl.replace(SUPABASE_SESSION_PORT, "$1:6543");
+}
+
 function create(): Cache {
-  const url = process.env.DATABASE_URL;
+  const rawUrl = process.env.DATABASE_URL;
+  const url = rawUrl ? preferTransactionPooler(rawUrl) : rawUrl;
   if (url) {
     // Supabase / any Postgres. `prepare: false` is required for Supabase's
     // transaction-mode connection pooler (port 6543).
