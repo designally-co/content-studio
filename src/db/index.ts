@@ -29,9 +29,24 @@ function create(): Cache {
     const postgres = require("postgres") as typeof import("postgres");
     const client = postgres(url, { prepare: false, max: 3, idle_timeout: 20 });
     const db = drizzlePostgres(client, { schema });
-    const ready = migratePostgres(db, { migrationsFolder: MIGRATIONS }).then(() =>
-      seedIfEmpty(db)
-    );
+
+    // Every serverless cold start would otherwise run the full migrator (its
+    // first statement is CREATE SCHEMA), which is pure overhead once the schema
+    // is current and multiplies connections during request bursts. Set
+    // SKIP_DB_MIGRATE=1 in a deployed environment and apply migrations from a
+    // trusted place (a local boot, or `npm run db:migrate`) instead.
+    const skipMigrate = process.env.SKIP_DB_MIGRATE === "1";
+    const ready = (
+      skipMigrate
+        ? Promise.resolve()
+        : migratePostgres(db, { migrationsFolder: MIGRATIONS }).then(() => seedIfEmpty(db))
+    ).catch((error: unknown) => {
+      // Never let a migration/seed hiccup take down every request: getDb()
+      // awaits this, so a rejection here 500s the whole page even though the
+      // schema is already applied. Log and continue; real query errors will
+      // still surface normally.
+      console.error("[db] migrate/seed failed, continuing without it:", error);
+    });
     return { db, ready };
   }
 
