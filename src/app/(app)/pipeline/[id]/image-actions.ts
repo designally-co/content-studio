@@ -216,16 +216,15 @@ export async function setImageBrandingAction(
 }
 
 export async function deleteGeneratedImageAction(imageId: string): Promise<void> {
-  const user = await requireUser();
+  // Shared workspace: every signed-in account manages all generated images.
+  await requireUser();
   const db = await getDb();
   const [row] = await db
-    .select({ id: images.id, projectId: images.projectId, storagePath: images.storagePath, createdBy: projects.createdBy })
+    .select({ id: images.id, projectId: images.projectId, storagePath: images.storagePath })
     .from(images)
-    .innerJoin(projects, eq(images.projectId, projects.id))
     .where(eq(images.id, imageId))
     .limit(1);
   if (!row) return;
-  if (row.createdBy && row.createdBy !== user.id) throw new Error("You cannot delete this image.");
 
   await deleteStoredImage(row.storagePath);
   await db.delete(images).where(eq(images.id, imageId));
