@@ -1,6 +1,6 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
 import { appSettings, type FormatRules } from "@/db/schema";
 
@@ -48,20 +48,21 @@ function lengthFromPrompt(prompt: string): string | undefined {
 /** Return the article generation rules, including an optional saved prompt override. */
 export async function getArticleRules(): Promise<FormatRules> {
   const db = await getDb();
-  const saved = await db
-    .select({ value: appSettings.value })
+  // Both settings are fetched in one round trip. This also avoids a trailing
+  // `.limit(1)`: through the Supabase transaction pooler that emits `LIMIT $n`,
+  // which crashed inside postgres-js with "Cannot read properties of undefined
+  // (reading 'length')" and took the whole Settings page down with a 500.
+  const rows = await db
+    .select({ key: appSettings.key, value: appSettings.value })
     .from(appSettings)
-    .where(eq(appSettings.key, "article.prompt"));
-  const savedPrompt = saved[0]?.value;
+    .where(inArray(appSettings.key, ["article.prompt", "article.length"]));
+  const byKey = new Map(rows.map((row) => [row.key, row.value]));
+
+  const savedPrompt = byKey.get("article.prompt");
   const prompt = !savedPrompt || savedPrompt === LEGACY_ARTICLE_PROMPT
     ? DEFAULT_ARTICLE_PROMPT
     : savedPrompt;
-  const [savedLength] = await db
-    .select({ value: appSettings.value })
-    .from(appSettings)
-    .where(eq(appSettings.key, "article.length"))
-    .limit(1);
-  const length = normalizeLength(savedLength?.value || lengthFromPrompt(prompt) || DEFAULT_ARTICLE_RULES.length);
+  const length = normalizeLength(byKey.get("article.length") || lengthFromPrompt(prompt) || DEFAULT_ARTICLE_RULES.length);
   return { ...DEFAULT_ARTICLE_RULES, prompt, length };
 }
 
