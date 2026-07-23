@@ -17,25 +17,25 @@ const globalCache = globalThis as unknown as { __contentStudioDb?: Cache };
 
 /**
  * Supabase's pooler serves session mode on :5432 and transaction mode on :6543.
- * Session mode dedicates a real Postgres connection per client and caps at
- * ~15, which any serverless deployment blows through immediately — the failure
- * is `EMAXCONNSESSION: max clients reached in session mode`. Transaction mode
- * multiplexes and is what Supabase recommends for serverless.
+ * Transaction mode is the usual serverless advice because it multiplexes, and
+ * this used to rewrite :5432 -> :6543 automatically.
  *
- * Rewriting the port here (rather than relying on the connection string being
- * correct everywhere) makes the app safe even if the env var is managed by an
- * integration or was set to the session-mode string. Escape hatch:
- * DB_KEEP_SESSION_PORT=1. `prepare: false` below is already what transaction
- * mode requires.
+ * That rewrite is now OPT-IN, because against this stack it broke the app:
+ * queries Drizzle emits with a parameterised `LIMIT $n` crashed inside
+ * postgres-js ("Cannot read properties of undefined (reading 'length')") and
+ * other pages hung until Postgres' 120s statement_timeout. The same pages are
+ * fast and stable on session mode. Session mode's ceiling is the pooler's Pool
+ * Size, so keep that comfortably above peak concurrency (raised to 40) rather
+ * than switching modes.
+ *
+ * Set DB_FORCE_TRANSACTION_POOLER=1 to re-enable the rewrite.
  */
 const SUPABASE_SESSION_PORT = /(@[^/@\s]*\.pooler\.supabase\.com):5432\b/;
 
 function preferTransactionPooler(rawUrl: string): string {
-  if (process.env.DB_KEEP_SESSION_PORT === "1") return rawUrl;
+  if (process.env.DB_FORCE_TRANSACTION_POOLER !== "1") return rawUrl;
   if (!SUPABASE_SESSION_PORT.test(rawUrl)) return rawUrl;
-  console.warn(
-    "[db] DATABASE_URL points at Supabase session mode (:5432); using transaction mode (:6543) instead."
-  );
+  console.warn("[db] DB_FORCE_TRANSACTION_POOLER=1 — rewriting pooler port :5432 -> :6543.");
   // String replace rather than a URL round-trip so credentials are not re-encoded.
   return rawUrl.replace(SUPABASE_SESSION_PORT, "$1:6543");
 }
