@@ -3,6 +3,7 @@ import { and, eq, desc, asc, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
 import { projects, categories, drafts, images } from "@/db/schema";
 import { countMetrics } from "@/lib/text";
+import { createSignedImageUrls } from "@/lib/image/storage";
 import { FilterBar } from "./filter-bar";
 import { IconNew } from "@/components/icons";
 import { LibraryItem } from "./library-item";
@@ -52,12 +53,13 @@ export default async function LibraryPage({
   }
 
   const latestImageByProject = new Map<string, string>();
+  const latestImagePathByProject = new Map<string, string>();
   const readTimeByProject = new Map<string, number>();
   if (rows.length > 0) {
     const projectIds = rows.map((row) => row.id);
     const [imageRows, draftRows] = await Promise.all([
       db
-        .select({ id: images.id, projectId: images.projectId })
+        .select({ id: images.id, projectId: images.projectId, storagePath: images.storagePath })
         .from(images)
         .where(inArray(images.projectId, projectIds))
         .orderBy(desc(images.createdAt)),
@@ -68,7 +70,10 @@ export default async function LibraryPage({
         .orderBy(desc(drafts.isSelected), desc(drafts.createdAt)),
     ]);
     for (const image of imageRows) {
-      if (!latestImageByProject.has(image.projectId)) latestImageByProject.set(image.projectId, image.id);
+      if (!latestImageByProject.has(image.projectId)) {
+        latestImageByProject.set(image.projectId, image.id);
+        latestImagePathByProject.set(image.projectId, image.storagePath);
+      }
     }
     for (const draft of draftRows) {
       if (readTimeByProject.has(draft.projectId)) continue;
@@ -76,6 +81,18 @@ export default async function LibraryPage({
       const minutes = metric.isThai ? Math.ceil(metric.chars / 500) : Math.ceil(metric.words / 200);
       readTimeByProject.set(draft.projectId, Math.max(1, minutes));
     }
+  }
+
+  // One batched signing request lets the browser load every card image straight
+  // from Supabase Storage. Without it, each card hits /api/images/[id], and a
+  // full grid means ~27 serverless invocations each opening a DB connection.
+  const signedUrlByPath = await createSignedImageUrls([...latestImagePathByProject.values()]);
+  const imageUrlByProject = new Map<string, string>();
+  for (const [projectId, imageId] of latestImageByProject) {
+    const storagePath = latestImagePathByProject.get(projectId);
+    const signed = storagePath ? signedUrlByPath.get(storagePath) : undefined;
+    // Fall back to the API route for legacy `local:` images or if signing failed.
+    imageUrlByProject.set(projectId, signed ?? `/api/images/${imageId}`);
   }
 
   const sort = ["updated_desc", "created_desc", "title_asc", "title_desc"].includes(sp.sort)
@@ -131,7 +148,7 @@ export default async function LibraryPage({
                 month: "short",
                 day: "numeric",
               });
-              return <LibraryItem key={r.id} id={r.id} title={r.topic?.title || "Untitled project"} category={r.categoryName || "Uncategorized"} dateLabel={dateLabel} readMinutes={readTimeByProject.get(r.id) ?? null} status={r.status} imageId={latestImageByProject.get(r.id) ?? null} />;
+              return <LibraryItem key={r.id} id={r.id} title={r.topic?.title || "Untitled project"} category={r.categoryName || "Uncategorized"} dateLabel={dateLabel} readMinutes={readTimeByProject.get(r.id) ?? null} status={r.status} imageUrl={imageUrlByProject.get(r.id) ?? null} />;
             })}
           </div>
         )}

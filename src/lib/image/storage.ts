@@ -104,6 +104,67 @@ export async function resolveImage(
   return null;
 }
 
+/**
+ * Batch-create signed URLs so the browser can fetch images straight from
+ * Supabase Storage — bypassing our serverless functions and Postgres entirely.
+ * A grid of N images otherwise costs N function invocations, each opening a DB
+ * connection just to look up a storage path, which exhausts the pooler.
+ *
+ * Returns storagePath -> absolute signed URL. Paths that aren't Supabase-backed
+ * (legacy `local:`) or any failure are simply omitted; callers fall back to the
+ * /api/images/[id] route for those. One request per bucket, not per image.
+ */
+export async function createSignedImageUrls(
+  storagePaths: string[],
+  expiresInSeconds = 3600
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const sb = supabase();
+  if (!sb) return out;
+
+  // bucket -> (objectName -> original storagePath)
+  const byBucket = new Map<string, Map<string, string>>();
+  for (const storagePath of new Set(storagePaths)) {
+    if (!storagePath?.startsWith("supabase:")) continue;
+    const relative = storagePath.slice("supabase:".length);
+    const separator = relative.indexOf("/");
+    if (separator <= 0) continue;
+    const bucket = relative.slice(0, separator);
+    const objectName = relative.slice(separator + 1);
+    if (!objectName) continue;
+    if (!byBucket.has(bucket)) byBucket.set(bucket, new Map());
+    byBucket.get(bucket)!.set(objectName, storagePath);
+  }
+
+  await Promise.all(
+    [...byBucket].map(async ([bucket, objects]) => {
+      try {
+        const response = await fetch(`${sb.url}/storage/v1/object/sign/${bucket}`, {
+          method: "POST",
+          headers: { ...supabaseAuthHeaders(sb.key), "content-type": "application/json" },
+          body: JSON.stringify({ expiresIn: expiresInSeconds, paths: [...objects.keys()] }),
+          signal: AbortSignal.timeout(15000),
+        });
+        if (!response.ok) return;
+        const rows = (await response.json()) as {
+          path?: string;
+          signedURL?: string;
+        }[];
+        if (!Array.isArray(rows)) return;
+        for (const row of rows) {
+          if (!row?.signedURL || !row.path) continue;
+          const storagePath = objects.get(row.path);
+          if (storagePath) out.set(storagePath, `${sb.url}/storage/v1${row.signedURL}`);
+        }
+      } catch {
+        // Signing is an optimisation — fall back to the API route silently.
+      }
+    })
+  );
+
+  return out;
+}
+
 /** Resolve any stored image to bytes for sending to an upstream model. */
 export async function loadStoredImage(storagePath: string): Promise<{ data: Buffer; mimeType: string } | null> {
   const resolved = await resolveImage(storagePath);

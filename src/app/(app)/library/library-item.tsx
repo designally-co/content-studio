@@ -10,14 +10,15 @@ import { Card } from "@/components/ui/card";
 import type { ProjectStatus } from "@/db/schema";
 import { deleteArticleAction } from "./actions";
 
-export function LibraryItem({ id, title, category, dateLabel, readMinutes, status, imageId }: {
+export function LibraryItem({ id, title, category, dateLabel, readMinutes, status, imageUrl }: {
   id: string;
   title: string;
   category: string;
   dateLabel: string;
   readMinutes: number | null;
   status: ProjectStatus;
-  imageId: string | null;
+  /** Signed Supabase URL when available, else the /api/images/[id] fallback. */
+  imageUrl: string | null;
 }) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
@@ -40,9 +41,9 @@ export function LibraryItem({ id, title, category, dateLabel, readMinutes, statu
     <article className="h-full">
       <Card size="sm" className="h-full gap-0 py-0 shadow-none transition-[border-color,box-shadow] duration-(--duration-base) hover:border-line-strong hover:shadow-[var(--shadow-card)]">
         <Link href={`/pipeline/${id}`} aria-label={`Open ${title}`} className="group/image relative block overflow-hidden bg-sunken focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/50">
-          {imageId ? (
+          {imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={`/api/images/${imageId}`} alt="" loading="lazy" decoding="async" className="aspect-2/1 w-full object-cover transition-transform duration-(--duration-slow) ease-(--ease-out) group-hover/image:scale-[1.025]" />
+            <img src={imageUrl} alt="" loading="lazy" decoding="async" className="aspect-2/1 w-full object-cover transition-transform duration-(--duration-slow) ease-(--ease-out) group-hover/image:scale-[1.025]" />
           ) : (
             <div className="grid aspect-2/1 place-items-center px-6 text-center">
               <div>
