@@ -16,6 +16,7 @@ import {
   finalizeProjectAction,
   saveDraftContentAction,
 } from "../actions";
+import { publishToHubAction } from "../publish-actions";
 import {
   generateImagesAction,
   deleteGeneratedImageAction,
@@ -69,6 +70,8 @@ export function FinalizeStage({
   initialView,
   anthropicReady,
   brandLogo,
+  hubConfigured,
+  publishedHubUrl,
 }: {
   projectId: string;
   /** Article title — also used as the publishing frontmatter title. */
@@ -85,6 +88,10 @@ export function FinalizeStage({
   initialView: "images" | "complete";
   anthropicReady: boolean;
   brandLogo: BrandLogo;
+  /** Whether HUB_BASE_URL + HUB_API_KEY are set on the server. */
+  hubConfigured: boolean;
+  /** Existing Knowledge Hub URL if this article was already published there. */
+  publishedHubUrl?: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -123,7 +130,14 @@ export function FinalizeStage({
       ) : (
         <div>
           <FinalizePanel projectId={projectId} finalized={finalized} />
-          <PublishMetadataPanel publish={publish} title={title} draftMd={draftMd} />
+          <PublishMetadataPanel
+            projectId={projectId}
+            publish={publish}
+            title={title}
+            draftMd={draftMd}
+            hubConfigured={hubConfigured}
+            publishedHubUrl={publishedHubUrl}
+          />
           <BrandReviewPanel projectId={projectId} anthropicReady={anthropicReady} />
         </div>
       )}
@@ -767,13 +781,19 @@ function FinalizePanel({
  * the direction the article was created under — nothing to fill in here.
  */
 function PublishMetadataPanel({
+  projectId,
   publish,
   title,
   draftMd,
+  hubConfigured,
+  publishedHubUrl,
 }: {
+  projectId: string;
   publish: PublishMetadata;
   title?: string;
   draftMd: string;
+  hubConfigured: boolean;
+  publishedHubUrl?: string;
 }) {
   const hasTaxonomy = publish.category !== "" || publish.tags.length > 0;
 
@@ -830,7 +850,97 @@ function PublishMetadataPanel({
           derived. Set a direction to publish it into a pillar.
         </p>
       )}
+
+      <PublishToHubBlock
+        projectId={projectId}
+        canPublish={publish.tags.length > 0}
+        hubConfigured={hubConfigured}
+        publishedHubUrl={publishedHubUrl}
+      />
     </section>
+  );
+}
+
+/**
+ * One-click publish to the Designally Knowledge Hub. Posts the article as a
+ * DRAFT (review + go live inside the Hub admin). Tags come from the content
+ * direction; a one-sentence dek is auto-generated server-side.
+ */
+function PublishToHubBlock({
+  projectId,
+  canPublish,
+  hubConfigured,
+  publishedHubUrl,
+}: {
+  projectId: string;
+  canPublish: boolean;
+  hubConfigured: boolean;
+  publishedHubUrl?: string;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [url, setUrl] = useState<string | undefined>(publishedHubUrl);
+  const [error, setError] = useState<string | null>(null);
+
+  function publish() {
+    setError(null);
+    startTransition(async () => {
+      try {
+        const result = await publishToHubAction(projectId);
+        setUrl(result.url);
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "Publishing to the Hub failed.");
+      }
+    });
+  }
+
+  return (
+    <div className="mt-6 rounded-lg border border-line bg-sunken px-4 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-ink">Knowledge Hub</p>
+          <p className="mt-1 max-w-[52ch] text-xs leading-relaxed text-ink-3">
+            {url
+              ? "Published to the Hub as a draft — review and set it live in the Hub admin."
+              : "Send this article to the Knowledge Hub as a draft, ready to review and publish there."}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={publish}
+          disabled={pending || !hubConfigured || !canPublish}
+          className="cs-btn shrink-0"
+        >
+          {pending ? "Publishing…" : url ? "Publish again" : "Publish to Knowledge Hub"}
+        </button>
+      </div>
+
+      {url && (
+        <p className="mt-3 text-sm">
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-accent-ink hover:underline"
+          >
+            View draft in Hub →
+          </a>
+        </p>
+      )}
+      {!hubConfigured && (
+        <p className="mt-3 text-xs text-ink-3">
+          Set <code>HUB_BASE_URL</code> and <code>HUB_API_KEY</code> in the server environment to
+          enable publishing.
+        </p>
+      )}
+      {hubConfigured && !canPublish && (
+        <p className="mt-3 text-xs text-ink-3">Set a content direction first — the Hub needs a tag.</p>
+      )}
+      {error && (
+        <p className="mt-3 text-sm text-danger" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }
 

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { loadProject } from "@/lib/projects";
 import { publishMetadata } from "@/lib/publish-meta";
 import { isAnthropicConfigured } from "@/lib/anthropic";
+import { isHubConfigured } from "@/lib/hub";
 import { imageGenerationOptions } from "@/lib/image/registry";
 import { Stepper } from "@/components/stepper";
 import { SimpleDirectionStage } from "./stages/simple-direction-stage";
@@ -105,6 +106,10 @@ export default async function PipelinePage({
             finalized={loaded.project.status === "finalized"}
             initialView={finalizeView}
             anthropicReady={anthropicReady}
+            hubConfigured={isHubConfigured()}
+            publishedHubUrl={
+              (loaded.project.publishedTo as Record<string, string> | null)?.knowledgeHub
+            }
           />
         )}
       </div>
