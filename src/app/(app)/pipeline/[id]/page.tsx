@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { loadProject } from "@/lib/projects";
+import { publishMetadata } from "@/lib/publish-meta";
 import { isAnthropicConfigured } from "@/lib/anthropic";
 import { imageGenerationOptions } from "@/lib/image/registry";
 import { Stepper } from "@/components/stepper";
@@ -74,6 +75,7 @@ export default async function PipelinePage({
           <FinalizeStage
             projectId={id}
             title={title ?? "Untitled project"}
+            publish={publishMetadata(loaded.category?.name)}
             draftId={(loaded.drafts.find((d) => d.isSelected) ?? loaded.drafts[0])?.id ?? ""}
             longForm={loaded.articleRules.longForm}
             draftMd={

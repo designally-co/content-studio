@@ -8,6 +8,8 @@ import { LogoOverlayControls, LogoOverlayPreview } from "@/components/logo-overl
 import { StageShell } from "./stage-shell";
 import { countMetrics } from "@/lib/text";
 import { markdownToPlainText } from "@/lib/plain";
+import { withFrontmatter, type PublishMetadata } from "@/lib/publish-meta";
+import { Badge } from "@/components/ui/badge";
 import {
   generateImagePromptAction,
   reviewBrandAlignmentAction,
@@ -55,6 +57,8 @@ type BrandLogo = { hasLogo: boolean; defaultOverlay: LogoOverlay };
 
 export function FinalizeStage({
   projectId,
+  title,
+  publish,
   draftId,
   longForm,
   draftMd,
@@ -67,8 +71,10 @@ export function FinalizeStage({
   brandLogo,
 }: {
   projectId: string;
-  /** shown in the pipeline header; not needed inside this stage */
+  /** Article title — also used as the publishing frontmatter title. */
   title?: string;
+  /** Category (pillar) + tags (direction) for the external platform. */
+  publish: PublishMetadata;
   draftId: string;
   longForm: boolean;
   draftMd: string;
@@ -117,6 +123,7 @@ export function FinalizeStage({
       ) : (
         <div>
           <FinalizePanel projectId={projectId} finalized={finalized} />
+          <PublishMetadataPanel publish={publish} title={title} draftMd={draftMd} />
           <BrandReviewPanel projectId={projectId} anthropicReady={anthropicReady} />
         </div>
       )}
@@ -751,6 +758,79 @@ function FinalizePanel({
       </button>
       {finalized && <span className="sr-only" role="status">Article saved to your Library.</span>}
     </div>
+  );
+}
+
+/**
+ * Publishing taxonomy for the external platform: the pillar as the single
+ * top-level Category, the content direction(s) as Tags. Both are derived from
+ * the direction the article was created under — nothing to fill in here.
+ */
+function PublishMetadataPanel({
+  publish,
+  title,
+  draftMd,
+}: {
+  publish: PublishMetadata;
+  title?: string;
+  draftMd: string;
+}) {
+  const hasTaxonomy = publish.category !== "" || publish.tags.length > 0;
+
+  const markdownWithMeta = useMemo(
+    () => withFrontmatter(draftMd, publish, { title }),
+    [draftMd, publish, title]
+  );
+  const metadataJson = useMemo(
+    () => JSON.stringify({ title: title ?? "", category: publish.category, tags: publish.tags }, null, 2),
+    [publish, title]
+  );
+
+  return (
+    <section aria-labelledby="publish-meta-heading" className="mt-10 border-t border-line pt-8">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h3 id="publish-meta-heading" className="text-[length:var(--text-h3)] text-ink">Publishing</h3>
+          <p className="mt-1.5 max-w-[58ch] text-sm leading-relaxed text-ink-3">
+            Category and tags for the external platform, derived from the content
+            direction. Copy the article with these baked in as frontmatter, or the
+            metadata on its own.
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <CopyButton text={markdownWithMeta} label="Copy article + metadata" className="cs-btn" />
+          <CopyButton text={metadataJson} label="Copy metadata (JSON)" className="cs-btn" />
+        </div>
+      </div>
+
+      {hasTaxonomy ? (
+        <dl className="mt-6 grid gap-5 sm:grid-cols-[8rem_1fr]">
+          <dt className="text-sm font-medium text-ink-2">Category</dt>
+          <dd>
+            {publish.category ? (
+              <Badge variant="secondary" className="bg-accent-soft text-accent-press">{publish.category}</Badge>
+            ) : (
+              <span className="text-sm text-ink-3">None</span>
+            )}
+          </dd>
+          <dt className="text-sm font-medium text-ink-2">Tags</dt>
+          <dd className="flex flex-wrap gap-1.5">
+            {publish.tags.length > 0 ? (
+              publish.tags.map((tag) => (
+                <Badge key={tag} variant="secondary" className="bg-sunken text-ink-2">{tag}</Badge>
+              ))
+            ) : (
+              <span className="text-sm text-ink-3">None</span>
+            )}
+          </dd>
+        </dl>
+      ) : (
+        <p className="mt-4 rounded-lg bg-sunken px-3 py-2 text-sm text-ink-3">
+          This article has no content direction, so no category or tags could be
+          derived. Set a direction to publish it into a pillar.
+        </p>
+      )}
+    </section>
   );
 }
 
