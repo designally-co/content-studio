@@ -7,9 +7,18 @@ import { imageGenerationOptions } from "@/lib/image/registry";
 import { Stepper } from "@/components/stepper";
 import { SimpleDirectionStage } from "./stages/simple-direction-stage";
 import { DraftsStage } from "./stages/drafts-stage";
-import { FinalizeStage } from "./stages/finalize-stage";
+import { PublishStage } from "./stages/publish-stage";
 
 export const dynamic = "force-dynamic";
+
+/** Parse an aspect-ratio string ("16:9", "3:2", "1:1") to width/height. Falls
+ * back to 3:2 when unset or malformed; clamped to a sane range. */
+function parseAspectRatio(raw: string | undefined): number {
+  const m = raw?.match(/^\s*(\d+(?:\.\d+)?)\s*[:/xX]\s*(\d+(?:\.\d+)?)\s*$/);
+  const ratio = m ? Number(m[1]) / Number(m[2]) : NaN;
+  if (!Number.isFinite(ratio) || ratio <= 0) return 1.5;
+  return Math.min(3, Math.max(0.4, ratio));
+}
 
 export default async function PipelinePage({
   params,
@@ -30,9 +39,14 @@ export default async function PipelinePage({
   const anthropicReady = await isAnthropicConfigured();
   const imageOptions = await imageGenerationOptions();
   const title = loaded.project.selectedTopic?.title;
+  const published = loaded.project.status === "published";
+  // Cover aspect ratio (width / height) — drives the preview hero's 50% overflow.
+  const coverAspectRatio = parseAspectRatio(
+    loaded.images[0]?.aspectRatio ?? loaded.project.inputs.imageAspectRatio,
+  );
   const finalizeView: "images" | "complete" = viewParam === "images" || viewParam === "complete"
     ? viewParam
-    : loaded.project.status === "finalized" ? "complete" : "images";
+    : published ? "complete" : "images";
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -41,7 +55,7 @@ export default async function PipelinePage({
           <h1 className="text-[length:var(--text-h1)] font-bold text-ink">
             {title || "Untitled article"}
           </h1>
-          <Stepper projectId={id} current={current} reached={reached} finalized={loaded.project.status === "finalized"} finalizeView={finalizeView} />
+          <Stepper projectId={id} current={current} reached={reached} published={published} finalizeView={finalizeView} />
         </div>
       </header>
 
@@ -73,7 +87,7 @@ export default async function PipelinePage({
           />
         )}
         {current === 6 && (
-          <FinalizeStage
+          <PublishStage
             projectId={id}
             title={title ?? "Untitled project"}
             publish={publishMetadata(loaded.category?.name)}
@@ -82,6 +96,10 @@ export default async function PipelinePage({
             draftMd={
               (loaded.drafts.find((d) => d.isSelected) ?? loaded.drafts[0])?.contentMd ?? ""
             }
+            coverImageUrl={loaded.images[0] ? `/api/images/${loaded.images[0].id}` : null}
+            coverAspectRatio={coverAspectRatio}
+            initialDek={loaded.project.inputs.publishDek ?? null}
+            published={published}
             images={loaded.images.map((img) => ({
               id: img.id,
               url: `/api/images/${img.id}`,
@@ -103,7 +121,6 @@ export default async function PipelinePage({
               aspectRatio: loaded.project.inputs.imageAspectRatio ?? "1:1",
             }}
             options={imageOptions}
-            finalized={loaded.project.status === "finalized"}
             initialView={finalizeView}
             anthropicReady={anthropicReady}
             hubConfigured={isHubConfigured()}

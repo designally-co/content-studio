@@ -11,7 +11,7 @@ import {
 
 /** Languages a project can target. "both" generates paired TH + EN versions. */
 export type Language = "th" | "en" | "both";
-export type ProjectStatus = "draft" | "in_pipeline" | "finalized" | "rejected";
+export type ProjectStatus = "draft" | "published";
 export type ApprovalOutcome = "approved_first" | "approved_edited" | "rejected";
 
 export const users = pgTable("users", {
@@ -146,6 +146,11 @@ export type ProjectInputs = {
   imageAspectRatio?: string;
   /** Selected saved image-provider key; unset uses that provider's default/env key. */
   imageApiKeyId?: string;
+  /**
+   * Cached one-sentence dek (subtitle) shown in the Publish-stage Hub preview and
+   * reused as the summary when publishing — generated once, not on every publish.
+   */
+  publishDek?: string;
 };
 
 export type SelectedTopic = {

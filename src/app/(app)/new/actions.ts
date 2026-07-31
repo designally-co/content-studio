@@ -179,7 +179,7 @@ export async function createProjectAction(formData: FormData) {
     .values({
       categoryId,
       language,
-      status: "in_pipeline",
+      status: "draft",
       stage: selectedTopic ? 3 : 2,
       inputs,
       selectedTopic,

@@ -45,9 +45,8 @@ export function FilterBar({
       key: "status",
       label: "All statuses",
       options: [
-        { value: "in_pipeline", label: "In pipeline" },
-        { value: "finalized", label: "Finalized" },
         { value: "draft", label: "Draft" },
+        { value: "published", label: "Published" },
       ],
     },
   ];

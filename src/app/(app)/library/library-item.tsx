@@ -55,8 +55,13 @@ export function LibraryItem({ id, title, category, dateLabel, readMinutes, statu
           <div className="absolute bottom-3 left-3 flex max-w-[calc(100%_-_1.5rem)] gap-1.5">
             <Badge variant="secondary" className="max-w-[15rem] bg-surface text-ink shadow-sm"><span className="truncate">{category}</span></Badge>
           </div>
-          {status !== "finalized" && (
-            <Badge variant="secondary" className="absolute right-3 top-3 bg-surface text-ink shadow-sm">
+          {status === "published" ? (
+            <Badge variant="secondary" className="absolute right-3 top-3 gap-1 bg-ok-soft text-ok-ink shadow-sm">
+              <span className="size-1.5 rounded-full bg-ok" aria-hidden="true" />
+              Published
+            </Badge>
+          ) : (
+            <Badge variant="secondary" className="absolute right-3 top-3 bg-surface text-ink-2 shadow-sm">
               Draft
             </Badge>
           )}

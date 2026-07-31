@@ -728,24 +728,6 @@ export async function reviewBrandAlignmentAction(projectId: string): Promise<Bra
   return data;
 }
 
-export async function finalizeProjectAction(formData: FormData) {
-  await requireUser();
-  const projectId = String(formData.get("projectId"));
-  if (!projectId) return;
-
-  const db = await getDb();
-  await db
-    .update(projects)
-    .set({
-      approvalOutcome: null,
-      status: "finalized",
-      updatedAt: new Date(),
-    })
-    .where(eq(projects.id, projectId));
-  revalidatePath(`/pipeline/${projectId}`);
-  revalidatePath("/");
-}
-
 /**
  * Persist edited article text back to the selected draft (block-editor autosave
  * on the Finalize step). No revalidate — the client holds the editing state.

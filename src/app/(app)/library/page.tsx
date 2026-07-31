@@ -27,9 +27,7 @@ export default async function LibraryPage({
   const conds = [];
   if (sp.category) conds.push(eq(projects.categoryId, sp.category));
   if (sp.status)
-    conds.push(
-      eq(projects.status, sp.status as "draft" | "in_pipeline" | "finalized" | "rejected")
-    );
+    conds.push(eq(projects.status, sp.status as "draft" | "published"));
 
   let rows = await db
     .select({

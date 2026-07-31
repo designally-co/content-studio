@@ -2,21 +2,22 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Eye } from "lucide-react";
 import { Markdown } from "@/components/markdown";
 import { CopyButton } from "@/components/copy-button";
 import { LogoOverlayControls, LogoOverlayPreview } from "@/components/logo-overlay";
 import { StageShell } from "./stage-shell";
 import { countMetrics } from "@/lib/text";
 import { markdownToPlainText } from "@/lib/plain";
-import { withFrontmatter, type PublishMetadata } from "@/lib/publish-meta";
+import { type PublishMetadata } from "@/lib/publish-meta";
 import { Badge } from "@/components/ui/badge";
 import {
   generateImagePromptAction,
   reviewBrandAlignmentAction,
-  finalizeProjectAction,
   saveDraftContentAction,
 } from "../actions";
-import { publishToHubAction } from "../publish-actions";
+import { publishToHubAction, ensurePublishDekAction } from "../publish-actions";
+import { HubArticlePreview } from "./hub-article-preview";
 import {
   generateImagesAction,
   deleteGeneratedImageAction,
@@ -56,17 +57,20 @@ type ImageModelOption = {
 
 type BrandLogo = { hasLogo: boolean; defaultOverlay: LogoOverlay };
 
-export function FinalizeStage({
+export function PublishStage({
   projectId,
   title,
   publish,
   draftId,
   longForm,
   draftMd,
+  coverImageUrl,
+  coverAspectRatio,
+  initialDek,
+  published,
   images,
   imageConfig,
   options,
-  finalized,
   initialView,
   anthropicReady,
   brandLogo,
@@ -74,17 +78,24 @@ export function FinalizeStage({
   publishedHubUrl,
 }: {
   projectId: string;
-  /** Article title — also used as the publishing frontmatter title. */
-  title?: string;
+  /** Article title — the masthead headline in the Hub preview. */
+  title: string;
   /** Category (pillar) + tags (direction) for the external platform. */
   publish: PublishMetadata;
   draftId: string;
   longForm: boolean;
   draftMd: string;
+  /** Cover image (first generated image) shown in the preview, if any. */
+  coverImageUrl: string | null;
+  /** Cover width / height — drives the hero's 50% overflow in the preview. */
+  coverAspectRatio: number;
+  /** Cached dek, if one was generated on a previous visit. */
+  initialDek: string | null;
+  /** Whether the article is live on the Knowledge Hub. */
+  published: boolean;
   images: GeneratedImageView[];
   imageConfig: { optionId: string; count: number; aspectRatio: string };
   options: ImageModelOption[];
-  finalized: boolean;
   initialView: "images" | "complete";
   anthropicReady: boolean;
   brandLogo: BrandLogo;
@@ -102,45 +113,49 @@ export function FinalizeStage({
     router.replace(`/pipeline/${projectId}?stage=6&view=${view}`, { scroll: false });
   }
 
+  if (showCompletion) {
+    return (
+      <StageShell title="Publish" wide hideHeader>
+        <PublishComposer
+          projectId={projectId}
+          title={title}
+          publish={publish}
+          draftMd={draftMd}
+          coverImageUrl={coverImageUrl}
+          coverAspectRatio={coverAspectRatio}
+          initialDek={initialDek}
+          published={published}
+          anthropicReady={anthropicReady}
+          hubConfigured={hubConfigured}
+          publishedHubUrl={publishedHubUrl}
+        />
+      </StageShell>
+    );
+  }
+
   return (
     <StageShell
       title="Generate images"
       description="Create optional companion images for the finished article."
       wide
-      hideHeader={showCompletion}
     >
-      {!showCompletion ? (
-        <div>
-          <ArticlePanel
-            projectId={projectId}
-            draftId={draftId}
-            longForm={longForm}
-            draftMd={draftMd}
-            images={images}
-            defaultOptionId={imageConfig.optionId}
-            defaultCount={imageConfig.count}
-            defaultAspectRatio={imageConfig.aspectRatio}
-            options={options}
-            anthropicReady={anthropicReady}
-            brandLogo={brandLogo}
-            tab="images"
-            onNext={() => show("complete")}
-          />
-        </div>
-      ) : (
-        <div>
-          <FinalizePanel projectId={projectId} finalized={finalized} />
-          <PublishMetadataPanel
-            projectId={projectId}
-            publish={publish}
-            title={title}
-            draftMd={draftMd}
-            hubConfigured={hubConfigured}
-            publishedHubUrl={publishedHubUrl}
-          />
-          <BrandReviewPanel projectId={projectId} anthropicReady={anthropicReady} />
-        </div>
-      )}
+      <div>
+        <ArticlePanel
+          projectId={projectId}
+          draftId={draftId}
+          longForm={longForm}
+          draftMd={draftMd}
+          images={images}
+          defaultOptionId={imageConfig.optionId}
+          defaultCount={imageConfig.count}
+          defaultAspectRatio={imageConfig.aspectRatio}
+          options={options}
+          anthropicReady={anthropicReady}
+          brandLogo={brandLogo}
+          tab="images"
+          onNext={() => show("complete")}
+        />
+      </div>
     </StageShell>
   );
 }
@@ -739,274 +754,266 @@ function BrandableImage({ img, brandLogo, onDeleted }: { img: GeneratedImageView
   );
 }
 
-function FinalizePanel({
+/**
+ * The Publish stage: a faithful preview of the article as it will appear on the
+ * Knowledge Hub (left) beside the publish action rail (right). The rail is the
+ * decision surface; the preview answers "what am I shipping?". Stacks to
+ * preview-then-rail on narrow screens.
+ */
+function PublishComposer({
   projectId,
-  finalized: initiallyFinalized,
+  title,
+  publish,
+  draftMd,
+  coverImageUrl,
+  coverAspectRatio,
+  initialDek,
+  published,
+  anthropicReady,
+  hubConfigured,
+  publishedHubUrl,
 }: {
   projectId: string;
-  finalized: boolean;
+  title: string;
+  publish: PublishMetadata;
+  draftMd: string;
+  coverImageUrl: string | null;
+  coverAspectRatio: number;
+  initialDek: string | null;
+  published: boolean;
+  anthropicReady: boolean;
+  hubConfigured: boolean;
+  publishedHubUrl?: string;
 }) {
-  const [pending, startTransition] = useTransition();
-  const [finalized, setFinalized] = useState(initiallyFinalized);
+  const [dek, setDek] = useState<string | null>(initialDek);
+  // Pending from first render when there's no cached dek — avoids a synchronous
+  // setState inside the effect below.
+  const [dekPending, setDekPending] = useState(!initialDek);
 
-  function finalize() {
-    const fd = new FormData();
-    fd.set("projectId", projectId);
-    startTransition(async () => {
-      await finalizeProjectAction(fd);
-      setFinalized(true);
-    });
-  }
+  // Generate the dek once when the stage opens so the preview shows the real
+  // subtitle; it's cached server-side and reused verbatim at publish time.
+  useEffect(() => {
+    if (dek) return;
+    let active = true;
+    ensurePublishDekAction(projectId)
+      .then((value) => {
+        if (active && value) setDek(value);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setDekPending(false);
+      });
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
+
+  const readMinutes = Math.max(1, Math.round(countMetrics(draftMd).words / 220));
 
   return (
-    <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h2 className="text-[length:var(--text-h2)] text-ink">{finalized ? "Article saved" : "Save article"}</h2>
-        <p className="mt-1.5 max-w-[52ch] text-sm leading-relaxed text-ink-3">
-          {finalized ? "This article is available in your Library." : "Save the finished article to your Library. Run the optional review below if you want one final check."}
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8">
+      <div className="min-w-0">
+        <p className="mb-2.5 flex items-center gap-1.5 text-xs font-medium text-ink-3">
+          <Eye aria-hidden="true" className="size-3.5" strokeWidth={1.8} />
+          Preview — how it appears on the Knowledge Hub
         </p>
+        <HubArticlePreview
+          title={title}
+          dek={dek}
+          dekPending={dekPending}
+          tags={publish.tags}
+          coverImageUrl={coverImageUrl}
+          coverAspectRatio={coverAspectRatio}
+          bodyMarkdown={draftMd}
+          meta={`${readMinutes} min read`}
+        />
       </div>
-      <button onClick={finalize} disabled={pending || finalized} className="cs-btn-primary min-w-36 shrink-0">
-        {finalized && <IconCheck width={16} height={16} />}
-        {pending ? "Saving…" : finalized ? "Saved" : "Save article"}
-      </button>
-      {finalized && <span className="sr-only" role="status">Article saved to your Library.</span>}
+
+      <div className="lg:sticky lg:top-24">
+        <PublishRail
+          projectId={projectId}
+          publish={publish}
+          published={published}
+          anthropicReady={anthropicReady}
+          hubConfigured={hubConfigured}
+          publishedHubUrl={publishedHubUrl}
+        />
+      </div>
     </div>
   );
 }
 
 /**
- * Publishing taxonomy for the external platform: the pillar as the single
- * top-level Category, the content direction(s) as Tags. Both are derived from
- * the direction the article was created under — nothing to fill in here.
+ * The action rail beside the preview: article status, the taxonomy it will
+ * publish under, the publish actions (live — inline-confirmed — or a Hub draft
+ * to review the Thai translation first), and a quiet brand review with inline
+ * findings. Category/tags derive from the content direction; the dek and Thai
+ * translation are handled Hub-side.
  */
-function PublishMetadataPanel({
+function PublishRail({
   projectId,
   publish,
-  title,
-  draftMd,
+  published,
+  anthropicReady,
   hubConfigured,
   publishedHubUrl,
 }: {
   projectId: string;
   publish: PublishMetadata;
-  title?: string;
-  draftMd: string;
+  published: boolean;
+  anthropicReady: boolean;
   hubConfigured: boolean;
   publishedHubUrl?: string;
 }) {
-  const hasTaxonomy = publish.category !== "" || publish.tags.length > 0;
-
-  const markdownWithMeta = useMemo(
-    () => withFrontmatter(draftMd, publish, { title }),
-    [draftMd, publish, title]
+  const [busy, setBusy] = useState<"draft" | "published" | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [result, setResult] = useState<{ url: string; status: string } | undefined>(
+    publishedHubUrl ? { url: publishedHubUrl, status: published ? "published" : "draft" } : undefined,
   );
-  const metadataJson = useMemo(
-    () => JSON.stringify({ title: title ?? "", category: publish.category, tags: publish.tags }, null, 2),
-    [publish, title]
-  );
-
-  return (
-    <section aria-labelledby="publish-meta-heading" className="mt-10 border-t border-line pt-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h3 id="publish-meta-heading" className="text-[length:var(--text-h3)] text-ink">Publishing</h3>
-          <p className="mt-1.5 max-w-[58ch] text-sm leading-relaxed text-ink-3">
-            Category and tags for the external platform, derived from the content
-            direction. Copy the article with these baked in as frontmatter, or the
-            metadata on its own.
-          </p>
-        </div>
-        <div className="flex shrink-0 flex-wrap gap-2">
-          <CopyButton text={markdownWithMeta} label="Copy article + metadata" className="cs-btn" />
-          <CopyButton text={metadataJson} label="Copy metadata (JSON)" className="cs-btn" />
-        </div>
-      </div>
-
-      {hasTaxonomy ? (
-        <dl className="mt-6 grid gap-5 sm:grid-cols-[8rem_1fr]">
-          <dt className="text-sm font-medium text-ink-2">Category</dt>
-          <dd>
-            {publish.category ? (
-              <Badge variant="secondary" className="bg-accent-soft text-accent-press">{publish.category}</Badge>
-            ) : (
-              <span className="text-sm text-ink-3">None</span>
-            )}
-          </dd>
-          <dt className="text-sm font-medium text-ink-2">Tags</dt>
-          <dd className="flex flex-wrap gap-1.5">
-            {publish.tags.length > 0 ? (
-              publish.tags.map((tag) => (
-                <Badge key={tag} variant="secondary" className="bg-sunken text-ink-2">{tag}</Badge>
-              ))
-            ) : (
-              <span className="text-sm text-ink-3">None</span>
-            )}
-          </dd>
-        </dl>
-      ) : (
-        <p className="mt-4 rounded-lg bg-sunken px-3 py-2 text-sm text-ink-3">
-          This article has no content direction, so no category or tags could be
-          derived. Set a direction to publish it into a pillar.
-        </p>
-      )}
-
-      <PublishToHubBlock
-        projectId={projectId}
-        canPublish={publish.tags.length > 0}
-        hubConfigured={hubConfigured}
-        publishedHubUrl={publishedHubUrl}
-      />
-    </section>
-  );
-}
-
-/**
- * One-click publish to the Designally Knowledge Hub. Posts the article as a
- * DRAFT (review + go live inside the Hub admin). Tags come from the content
- * direction; a one-sentence dek is auto-generated server-side.
- */
-function PublishToHubBlock({
-  projectId,
-  canPublish,
-  hubConfigured,
-  publishedHubUrl,
-}: {
-  projectId: string;
-  canPublish: boolean;
-  hubConfigured: boolean;
-  publishedHubUrl?: string;
-}) {
-  const [pending, startTransition] = useTransition();
-  const [url, setUrl] = useState<string | undefined>(publishedHubUrl);
   const [error, setError] = useState<string | null>(null);
+  const [reviewing, startReview] = useTransition();
+  const [review, setReview] = useState<BrandReviewResult | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
-  function publish() {
+  const canPublish = publish.tags.length > 0;
+  const disabled = busy !== null || !hubConfigured || !canPublish;
+  const isLive = published || result?.status === "published";
+
+  async function send(status: "draft" | "published") {
     setError(null);
-    startTransition(async () => {
-      try {
-        const result = await publishToHubAction(projectId);
-        setUrl(result.url);
-      } catch (cause) {
-        setError(cause instanceof Error ? cause.message : "Publishing to the Hub failed.");
-      }
-    });
+    setConfirming(false);
+    setBusy(status);
+    try {
+      const r = await publishToHubAction(projectId, status);
+      setResult({ url: r.url, status: r.status });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Publishing to the Hub failed.");
+    } finally {
+      setBusy(null);
+    }
   }
 
-  return (
-    <div className="mt-6 rounded-lg border border-line bg-sunken px-4 py-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium text-ink">Knowledge Hub</p>
-          <p className="mt-1 max-w-[52ch] text-xs leading-relaxed text-ink-3">
-            {url
-              ? "Published to the Hub as a draft — review and set it live in the Hub admin."
-              : "Send this article to the Knowledge Hub as a draft, ready to review and publish there."}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={publish}
-          disabled={pending || !hubConfigured || !canPublish}
-          className="cs-btn shrink-0"
-        >
-          {pending ? "Publishing…" : url ? "Publish again" : "Publish to Knowledge Hub"}
-        </button>
-      </div>
-
-      {url && (
-        <p className="mt-3 text-sm">
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-accent-ink hover:underline"
-          >
-            View draft in Hub →
-          </a>
-        </p>
-      )}
-      {!hubConfigured && (
-        <p className="mt-3 text-xs text-ink-3">
-          Set <code>HUB_BASE_URL</code> and <code>HUB_API_KEY</code> in the server environment to
-          enable publishing.
-        </p>
-      )}
-      {hubConfigured && !canPublish && (
-        <p className="mt-3 text-xs text-ink-3">Set a content direction first — the Hub needs a tag.</p>
-      )}
-      {error && (
-        <p className="mt-3 text-sm text-danger" role="alert">
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function BrandReviewPanel({
-  projectId,
-  anthropicReady,
-}: {
-  projectId: string;
-  anthropicReady: boolean;
-}) {
-  const [pending, startTransition] = useTransition();
-  const [review, setReview] = useState<BrandReviewResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
   function reviewArticle() {
-    setError(null);
-    startTransition(async () => {
+    setReviewError(null);
+    startReview(async () => {
       try {
         setReview(await reviewBrandAlignmentAction(projectId));
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : "The brand review could not be completed.");
+        setReviewError(cause instanceof Error ? cause.message : "The brand review could not be completed.");
       }
     });
   }
 
   const findings = review?.checks.filter((check) => check.status === "review") ?? [];
+  const quiet =
+    "inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-ink-2 hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50";
 
   return (
-    <section aria-labelledby="article-review-heading" className="mt-10 border-t border-line pt-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h3 id="article-review-heading" className="text-[length:var(--text-h3)] text-ink">Review article</h3>
-          <p className="mt-1.5 max-w-[58ch] text-sm leading-relaxed text-ink-3">
-            Check facts, sources, and editorial consistency before saving.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={reviewArticle}
-          disabled={pending || !anthropicReady}
-          className="cs-btn shrink-0"
-        >
-          <IconSpark width={16} height={16} />
-          {pending ? "Reviewing…" : review ? "Review again" : "Review article"}
-        </button>
+    <section aria-labelledby="publish-heading" className="cs-card p-5">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <h2 id="publish-heading" className="text-[length:var(--text-h3)] text-ink">
+          Publish to the Hub
+        </h2>
+        {isLive ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-ok-soft px-2.5 py-0.5 text-xs font-semibold text-ok-ink">
+            <span className="size-1.5 rounded-full bg-ok" aria-hidden="true" />
+            Published
+          </span>
+        ) : (
+          <span className="inline-flex items-center rounded-full bg-deep px-2.5 py-0.5 text-xs font-semibold text-ink-2">
+            Draft
+          </span>
+        )}
       </div>
-      {!anthropicReady && <p className="mt-3 text-sm text-ink-3">Configure Anthropic to run the brand review.</p>}
-      {error && <p className="mt-3 text-sm text-danger" role="alert">{error}</p>}
-      {review && (
-        <div className="mt-6" aria-live="polite">
-          <p className={`text-sm font-medium ${findings.length ? "text-ink" : "text-ok"}`}>
-            {findings.length ? review.summary : "Review complete — no issues need attention."}
-          </p>
-          {findings.length > 0 && (
-            <ul className="mt-3 divide-y divide-line border-y border-line">
-              {findings.map((check, index) => (
-                <li key={`${check.criterion}-${index}`} className="py-4">
-                  <p className="text-sm font-semibold text-ink">{check.criterion}</p>
-                  <p className="mt-1 text-sm leading-relaxed text-ink-2">{check.finding}</p>
-                  <p className="mt-1.5 text-sm font-medium text-accent-ink">Suggested edit: {check.suggestion}</p>
-                </li>
+
+      <div className="mt-4">
+        {canPublish ? (
+          <>
+            <p className="text-xs font-medium text-ink-3">Publishing under</p>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              {publish.category && (
+                <Badge variant="secondary" className="bg-accent-soft text-accent-press">{publish.category}</Badge>
+              )}
+              {publish.tags.map((tag) => (
+                <Badge key={tag} variant="secondary" className="bg-sunken text-ink-2">{tag}</Badge>
               ))}
-            </ul>
-          )}
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-ink-3">No content direction set — add one to publish.</p>
+        )}
+      </div>
+
+      <div className="mt-5 space-y-2.5">
+        {confirming ? (
+          <>
+            <p className="text-sm leading-relaxed text-ink-2" aria-live="polite">
+              Goes live and public on the Hub, auto-translated to Thai — editable in the Hub after.
+            </p>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setConfirming(false)} disabled={busy !== null} className="cs-btn flex-1">
+                Cancel
+              </button>
+              <button type="button" onClick={() => void send("published")} disabled={busy !== null} className="cs-btn-primary flex-1">
+                {busy === "published" ? "Publishing…" : "Publish live"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <button type="button" onClick={() => setConfirming(true)} disabled={disabled} className="cs-btn-primary w-full">
+              {isLive ? "Republish to Hub" : "Publish to Hub"}
+            </button>
+            <button type="button" onClick={() => void send("draft")} disabled={disabled} className="cs-btn w-full">
+              {busy === "draft" ? "Saving…" : "Save draft to Hub"}
+            </button>
+          </>
+        )}
+      </div>
+
+      {result?.url && !confirming && (
+        <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+          <IconCheck width={16} height={16} className="text-ok" />
+          <span className="text-ink-2">{isLive ? "Live on the Hub" : "Saved as a Hub draft"}</span>
+          <a href={result.url} target="_blank" rel="noopener noreferrer" className="font-medium text-accent-ink hover:underline">
+            {isLive ? "View on Hub →" : "Review in Hub →"}
+          </a>
         </div>
       )}
+      {!hubConfigured && (
+        <p className="mt-3 text-xs text-ink-3">
+          Set <code>HUB_BASE_URL</code> and <code>HUB_API_KEY</code> to enable publishing.
+        </p>
+      )}
+      {error && <p className="mt-3 text-sm text-danger" role="alert">{error}</p>}
+
+      <div className="mt-4 border-t border-line pt-4">
+        <button type="button" onClick={reviewArticle} disabled={reviewing || !anthropicReady} className={quiet}>
+          <IconSpark width={15} height={15} />
+          {reviewing ? "Reviewing…" : review ? "Review again" : "Review article"}
+        </button>
+        {!anthropicReady && <p className="mt-2 text-xs text-ink-3">Configure Anthropic to run the review.</p>}
+        {reviewError && <p className="mt-2 text-sm text-danger" role="alert">{reviewError}</p>}
+        {review && (
+          <div className="mt-3" aria-live="polite">
+            <p className={`text-sm font-medium ${findings.length ? "text-ink" : "text-ok"}`}>
+              {findings.length ? review.summary : "Review complete — no issues need attention."}
+            </p>
+            {findings.length > 0 && (
+              <ul className="mt-3 divide-y divide-line border-t border-line">
+                {findings.map((check, index) => (
+                  <li key={`${check.criterion}-${index}`} className="py-3">
+                    <p className="text-sm font-semibold text-ink">{check.criterion}</p>
+                    <p className="mt-1 text-sm leading-relaxed text-ink-2">{check.finding}</p>
+                    <p className="mt-1.5 text-sm font-medium text-accent-ink">Suggested edit: {check.suggestion}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
     </section>
   );
 }
