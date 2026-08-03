@@ -94,7 +94,7 @@ export default async function SettingsPage() {
     <div className="min-h-screen">
       <header className="sticky top-0 z-(--z-sticky) border-b border-line bg-bg">
         <div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-5 lg:px-12 xl:px-16">
-          <div className="max-w-3xl">
+          <div className="mx-auto max-w-3xl">
             <h1 className="text-[length:var(--text-h1)] font-bold">Settings</h1>
             <p className="mt-1.5 text-sm leading-relaxed text-ink-3 sm:text-base">
               Manage credentials, content structure, generation models, and your account.
@@ -103,7 +103,7 @@ export default async function SettingsPage() {
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-12 lg:py-8 xl:px-16">
+      <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         <Tabs defaultValue="brand" className="gap-6">
           <TabsList className="grid !h-auto w-full grid-cols-2 gap-1 sm:w-fit sm:grid-cols-4">
             <TabsTrigger value="brand">Brand</TabsTrigger>

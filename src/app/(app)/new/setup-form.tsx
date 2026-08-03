@@ -81,7 +81,7 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
 
   return (
     <form ref={formRef} action={createProjectAction} onSubmit={() => setPending(true)} className="mx-auto w-full max-w-7xl px-4 pb-16 pt-6 sm:px-6 sm:pb-20 sm:pt-8 lg:px-12 lg:pb-24 xl:px-16">
-      <div className="max-w-3xl">
+      <div className="mx-auto max-w-3xl">
       <input type="hidden" name="articleMode" value="editorial" />
       <input type="hidden" name="language" value="en" />
       <input ref={chosenTopicRef} type="hidden" name="chosenTopic" />
@@ -99,7 +99,7 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
 
       <fieldset className="mt-8">
         <legend className="cs-label">What do you have?</legend>
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid grid-cols-3 gap-2">
           {([
             ["topic", "A topic", PenLine],
             ["brief", "A brief", FileText],
@@ -109,7 +109,7 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
             return (
               <label
                 key={value}
-                className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-3 text-sm font-semibold transition-colors ${
+                className={`flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border px-2 py-3 text-center text-sm font-semibold transition-colors sm:flex-row sm:gap-2 sm:px-3 ${
                   active ? "border-accent bg-accent-soft text-accent-press" : "border-line bg-surface text-ink hover:border-line-strong"
                 }`}
               >
