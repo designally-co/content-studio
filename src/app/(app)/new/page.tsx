@@ -18,6 +18,7 @@ export default async function NewContentPage() {
     .filter((pillar) => pillar.active)
     .map((pillar) => ({
       id: pillar.id,
+      slug: pillar.slug,
       name: pillar.name,
       tagline: pillar.tagline,
       directions: catRows

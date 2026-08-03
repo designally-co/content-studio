@@ -4,10 +4,12 @@ import { useRef, useState } from "react";
 import type { SelectedTopic } from "@/db/schema";
 import { createProjectAction, generateTopicIdeasAction } from "./actions";
 import { PillarDirectionPicker } from "./pillar-direction-picker";
-import { IconArrowRight, IconSpark } from "@/components/icons";
+import { Sparkles, PenLine, FileText } from "lucide-react";
+import OrbitingCirclesGlobe from "@/components/ui/orbiting-circles-02";
 
 export type PillarGroup = {
   id: string;
+  slug: string;
   name: string;
   tagline: string;
   directions: { id: string; name: string }[];
@@ -59,8 +61,27 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
     formRef.current?.requestSubmit();
   }
 
+  // The content direction (pillar + direction) is the first step and required —
+  // it becomes the article's category and publishing tags, and in "No idea yet"
+  // it's the basis for the generated topic ideas (so changing it clears them).
+  const directionPicker = (
+    <div>
+      <span className="cs-label">Content pillar &amp; direction</span>
+      <PillarDirectionPicker
+        pillars={pillars}
+        pillarId={selection.pillarId}
+        directionId={selection.directionId}
+        onChange={(next) => {
+          setSelection(next);
+          setTopics([]);
+        }}
+      />
+    </div>
+  );
+
   return (
-    <form ref={formRef} action={createProjectAction} onSubmit={() => setPending(true)} className="mx-auto w-full max-w-3xl px-4 pb-16 pt-6 sm:px-6 sm:pb-20 sm:pt-8 lg:px-8 lg:pb-24">
+    <form ref={formRef} action={createProjectAction} onSubmit={() => setPending(true)} className="mx-auto w-full max-w-7xl px-4 pb-16 pt-6 sm:px-6 sm:pb-20 sm:pt-8 lg:px-12 lg:pb-24 xl:px-16">
+      <div className="max-w-3xl">
       <input type="hidden" name="articleMode" value="editorial" />
       <input type="hidden" name="language" value="en" />
       <input ref={chosenTopicRef} type="hidden" name="chosenTopic" />
@@ -74,81 +95,106 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
         </div>
       )}
 
-      <fieldset>
+      {directionPicker}
+
+      <fieldset className="mt-8">
         <legend className="cs-label">What do you have?</legend>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-3">
           {([
-            ["topic", "A topic", "Research and draft the subject you already have."],
-            ["brief", "A brief", "Turn your context into one researched article."],
-            ["discover", "No idea yet", "Choose a pillar and generate timely topics."],
-          ] as const).map(([value, label, description]) => (
-            <label key={value} className={`cursor-pointer rounded-xl border p-4 transition-colors ${startMode === value ? "border-accent bg-accent-soft" : "border-line bg-surface hover:border-line-strong"}`}>
-              <input type="radio" name="startMode" value={value} checked={startMode === value} onChange={() => setStartMode(value)} className="sr-only" />
-              <span className="block text-sm font-semibold text-ink">{label}</span>
-              <span className="mt-1 block text-xs leading-relaxed text-ink-3">{description}</span>
-            </label>
-          ))}
+            ["topic", "A topic", PenLine],
+            ["brief", "A brief", FileText],
+            ["discover", "No idea yet", Sparkles],
+          ] as const).map(([value, label, Icon]) => {
+            const active = startMode === value;
+            return (
+              <label
+                key={value}
+                className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-3 text-sm font-semibold transition-colors ${
+                  active ? "border-accent bg-accent-soft text-accent-press" : "border-line bg-surface text-ink hover:border-line-strong"
+                }`}
+              >
+                <input type="radio" name="startMode" value={value} checked={active} onChange={() => setStartMode(value)} className="sr-only" />
+                <Icon aria-hidden className={`size-4 shrink-0 ${active ? "text-accent-press" : "text-ink-3"}`} strokeWidth={1.8} />
+                {label}
+              </label>
+            );
+          })}
         </div>
       </fieldset>
 
       <div className="mt-7 space-y-6">
         {startMode === "topic" && (
-          <Field label="Topic or working title" htmlFor="exact-topic" hint="Be specific when timing matters, for example: The best new typefaces for July 2026.">
-            <input id="exact-topic" name="exactTopic" className="cs-input" placeholder="The best new typefaces for July 2026" required />
+          <Field label="Topic or working title" htmlFor="exact-topic">
+            <input id="exact-topic" name="exactTopic" className="cs-input" placeholder="e.g. The best new typefaces for July 2026 — be specific when timing matters" required />
           </Field>
         )}
         {startMode === "brief" && (
-          <Field label="Article brief" htmlFor="project-brief" hint="Describe the subject, useful context, and what the finished article should cover.">
-            <textarea id="project-brief" name="brief" rows={7} className="cs-textarea text-base leading-relaxed" placeholder="What should this article explore?" required />
+          <Field label="Article brief" htmlFor="project-brief">
+            <textarea id="project-brief" name="brief" rows={7} className="cs-textarea text-base leading-relaxed" placeholder="Describe the subject, useful context, and what the finished article should cover." required />
           </Field>
         )}
         {startMode === "discover" && (
-          <div className="space-y-5">
-            <div>
-              <span className="cs-label">Content pillar &amp; direction</span>
-              <PillarDirectionPicker
-                pillars={pillars}
-                pillarId={selection.pillarId}
-                directionId={selection.directionId}
-                onChange={(next) => { setSelection(next); setTopics([]); }}
-              />
-              <p className="mt-1.5 text-sm text-ink-3">AI will research timely topic ideas inside this content direction.</p>
-            </div>
-            <button type="button" onClick={generateTopics} disabled={generatingTopics || !anthropicReady} className="cs-btn-primary">
-              <IconSpark width={16} height={16} />
-              {generatingTopics ? "Finding timely ideas…" : topics.length ? "Generate different ideas" : "Generate topic ideas"}
-            </button>
-            {topicError && <p className="rounded-xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{topicError}</p>}
-            {generatingTopics && (
+          <div className="space-y-4">
+            {generatingTopics ? (
               <div className="space-y-3" aria-label="Generating topic ideas">
-                {[0, 1, 2].map((item) => <div key={item} className="h-28 animate-pulse rounded-xl border border-line bg-sunken/50" />)}
-              </div>
-            )}
-            {!generatingTopics && topics.length > 0 && (
-              <div className="divide-y divide-line border-y border-line">
-                {topics.map((topic, index) => (
-                  <article key={`${topic.title}-${index}`} className="flex flex-col gap-4 py-5 sm:flex-row sm:items-start">
-                    <div className="min-w-0 flex-1">
-                      {index === 0 && <p className="mb-1 text-xs font-semibold text-accent-ink">Recommended</p>}
-                      <h3 className="font-semibold tracking-tight text-ink">{topic.title}</h3>
-                      {topic.angle && <p className="mt-2 text-sm leading-relaxed text-ink-3">{topic.angle}</p>}
-                    </div>
-                    <button type="button" onClick={() => chooseTopic(topic)} disabled={pending} className={index === 0 ? "cs-btn-primary shrink-0" : "cs-btn shrink-0"}>Select topic</button>
-                  </article>
+                {[0, 1, 2].map((item) => (
+                  <div key={item} className="h-24 animate-pulse rounded-xl border border-line bg-sunken/50" />
                 ))}
               </div>
+            ) : topics.length === 0 ? (
+              <div className="overflow-hidden rounded-2xl border border-line bg-sunken/50 text-center">
+                <div className="px-6 pt-8">
+                  <h3 className="font-heading text-lg font-bold tracking-tight text-ink">Find timely topic ideas</h3>
+                  <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-ink-3">
+                    AI researches your content direction and suggests on-brand topics worth writing right now.
+                  </p>
+                  <button type="button" onClick={generateTopics} disabled={!anthropicReady} className="cs-btn-primary mt-5">
+                    <Sparkles width={16} height={16} />
+                    Generate topic ideas
+                  </button>
+                </div>
+                {/* Full-width, flush to the card's bottom edge — the globe sits on the base. */}
+                <div className="mt-6">
+                  <OrbitingCirclesGlobe />
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <span className="text-sm font-semibold text-ink">Pick a topic to draft</span>
+                  <button type="button" onClick={generateTopics} disabled={!anthropicReady} className="cs-btn shrink-0 !h-9 text-sm">
+                    <Sparkles width={15} height={15} />
+                    Regenerate
+                  </button>
+                </div>
+                <div className="divide-y divide-line border-y border-line">
+                  {topics.map((topic, index) => (
+                    <article key={`${topic.title}-${index}`} className="flex flex-col gap-4 py-5 sm:flex-row sm:items-start">
+                      <div className="min-w-0 flex-1">
+                        {index === 0 && <p className="mb-1 text-xs font-semibold text-accent-ink">Recommended</p>}
+                        <h3 className="font-semibold tracking-tight text-ink">{topic.title}</h3>
+                        {topic.angle && <p className="mt-2 text-sm leading-relaxed text-ink-3">{topic.angle}</p>}
+                      </div>
+                      <button type="button" onClick={() => chooseTopic(topic)} disabled={pending} className={index === 0 ? "cs-btn-primary shrink-0" : "cs-btn shrink-0"}>Select topic</button>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            )}
+            {topicError && !generatingTopics && (
+              <p className="rounded-xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{topicError}</p>
             )}
           </div>
         )}
       </div>
 
-      <div className="mt-10 flex justify-end border-t border-line pt-6">
+      <div className="mt-8 flex justify-end">
         {startMode !== "discover" && (
           <button type="submit" disabled={pending} className="cs-btn-primary h-12 w-full px-6 text-base sm:w-auto">
             {pending ? "Creating article…" : "Continue to draft"}
-            {!pending && <IconArrowRight width={18} height={18} />}
           </button>
         )}
+      </div>
       </div>
     </form>
   );

@@ -120,6 +120,12 @@ export async function createProjectAction(formData: FormData) {
     categoryId = categoryRaw;
   }
 
+  // A content direction is required — it becomes the article's category and its
+  // publishing tags, without which the Hub can't accept the article.
+  if (!categoryId) {
+    throw new Error("Choose a content direction before generating a draft.");
+  }
+
   const brief = String(formData.get("brief") ?? "").trim();
   const startMode = String(formData.get("startMode") ?? "brief");
   const exactTopic = String(formData.get("exactTopic") ?? "").trim();
