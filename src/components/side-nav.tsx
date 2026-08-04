@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import {
   IconNew,
   IconLibrary,
@@ -11,14 +11,15 @@ import {
 } from "./icons";
 
 const NAV = [
-  { href: "/", label: "Library", icon: IconLibrary, exact: true },
   { href: "/new", label: "Create", icon: IconNew, exact: false },
+  { href: "/", label: "Library", icon: IconLibrary, exact: true },
   { href: "/settings", label: "Settings", icon: IconSettings, exact: false },
 ];
 
 export function SideNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(pathname === "/new");
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -84,20 +85,38 @@ export function SideNav() {
         </div>
       )}
 
-      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col self-start border-r border-line bg-surface lg:flex">
-      <div className="flex items-center gap-3 px-5 pb-8 pt-6">
-        <BrandMark size={36} />
-        <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[var(--tracking-caps)] text-accent-ink">
-            Designally
-          </p>
-          <p className="font-heading text-base font-bold tracking-tight text-ink">
-            Content Studio
-          </p>
-        </div>
-      </div>
+      <aside
+        className={`relative hidden min-h-dvh shrink-0 self-stretch border-r border-line bg-surface transition-[width] duration-200 ease-(--ease-out) lg:block ${
+          collapsed ? "w-20" : "w-60"
+        }`}
+      >
+        <div className="sticky top-0 flex h-dvh flex-col">
+        <button
+          type="button"
+          onClick={() => setCollapsed((value) => !value)}
+          className="absolute -right-5 top-5 z-10 grid size-10 place-items-center rounded-full border border-line bg-surface text-ink-2 shadow-[0_2px_8px_rgba(36,31,28,0.10)] transition-colors hover:border-line-strong hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? <PanelLeftOpen aria-hidden className="size-4.5" /> : <PanelLeftClose aria-hidden className="size-4.5" />}
+        </button>
 
-        <NavLinks pathname={pathname} />
+        <div className={`flex items-center pb-8 pt-6 ${collapsed ? "justify-center px-0" : "gap-3 px-5"}`}>
+          <BrandMark size={collapsed ? 32 : 36} />
+          {!collapsed && (
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[var(--tracking-caps)] text-accent-ink">
+                Designally
+              </p>
+              <p className="font-heading text-base font-bold tracking-tight text-ink">
+                Content Studio
+              </p>
+            </div>
+          )}
+        </div>
+
+        <NavLinks pathname={pathname} collapsed={collapsed} />
+        </div>
       </aside>
     </>
   );
@@ -134,9 +153,9 @@ function MobileBrand() {
   );
 }
 
-function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+function NavLinks({ pathname, onNavigate, collapsed = false }: { pathname: string; onNavigate?: () => void; collapsed?: boolean }) {
   return (
-    <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4" aria-label="Primary navigation">
+    <nav className={`flex-1 space-y-1 overflow-y-auto py-4 ${collapsed ? "px-2" : "px-4"}`} aria-label="Primary navigation">
       {NAV.map(({ href, label, icon: Icon, exact }) => {
           const active = exact
             ? pathname === href
@@ -147,7 +166,8 @@ function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
               href={href}
               onClick={onNavigate}
               aria-current={active ? "page" : undefined}
-              className={`flex min-h-11 items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors duration-(--duration-fast) ease-(--ease-out) ${
+              title={collapsed ? label : undefined}
+              className={`flex min-h-11 items-center rounded-lg py-2.5 text-sm transition-colors duration-(--duration-fast) ease-(--ease-out) ${collapsed ? "justify-center px-0" : "gap-2.5 px-3"} ${
                 active
                   ? "bg-accent-soft font-semibold text-accent-ink"
                   : "text-ink-2 hover:bg-sunken hover:text-ink"
@@ -155,10 +175,10 @@ function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
             >
               <Icon
                 className={active ? "text-accent" : "text-ink-3"}
-                width={18}
-                height={18}
+                width={collapsed ? 20 : 18}
+                height={collapsed ? 20 : 18}
               />
-              {label}
+              <span className={collapsed ? "sr-only" : ""}>{label}</span>
             </Link>
           );
         })}

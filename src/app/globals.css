@@ -78,7 +78,9 @@
   --info-soft: var(--blue-100);
 
   /* type scale */
-  --text-hero: 28px;
+  /* Canvas display step. A discrete size, not a clamp — the ban on fluid
+     display type inside the app shell still holds; this is one more rung. */
+  --text-hero: 40px;
   --text-h1: 28px;
   --text-h2: 22px;
   --text-h3: 18px;
@@ -425,10 +427,13 @@
   background: var(--accent-press);
 }
 
+/* The outline is a hairline, not a boundary: these controls are identified by
+   their label and hover fill, so the border only needs to hint at the shape.
+   It matches the Rule Line used on cards rather than sitting heavier than one. */
 .cs-btn {
   background: transparent;
   color: var(--ink);
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--border);
 }
 .cs-btn:hover:not(:disabled) {
   background: var(--surface-sunken);
@@ -450,6 +455,24 @@
   color: var(--ink);
 }
 
+/* A destructive or secondary action that should not compete while browsing.
+   Revealed by pointer or keyboard intent, and always present on touch, where
+   there is no hover to reveal it with. */
+.cs-reveal {
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+.group:hover .cs-reveal,
+.group:focus-within .cs-reveal,
+.cs-reveal:focus-visible {
+  opacity: 1;
+}
+@media (pointer: coarse) {
+  .cs-reveal {
+    opacity: 1;
+  }
+}
+
 .cs-chip {
   display: inline-flex;
   align-items: center;
@@ -461,6 +484,114 @@
   color: var(--ink-secondary);
   border: 1px solid var(--border);
   font-size: var(--text-sm);
+}
+
+/* ---- composer dock ----
+   A borderless white working surface lifted from the page by soft depth. */
+.cs-dock {
+  position: relative;
+  background: var(--surface);
+  border: 0;
+  border-radius: var(--radius-xl);
+  box-shadow: 0 10px 30px rgba(36, 31, 28, 0.09);
+  transition: box-shadow var(--duration-fast) var(--ease-out);
+}
+.cs-dock:focus-within {
+  box-shadow: 0 14px 36px rgba(36, 31, 28, 0.13);
+}
+/* 12px, not 16px: line-height 1.6 already contributes ~6px of half-leading
+   above the first cap, so a numerically smaller top inset is what reads as
+   equal to the 16px side gutter. */
+.cs-dock-input-viewport {
+  position: relative;
+  overflow: hidden;
+  padding-top: 0.75rem;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+}
+.cs-dock-input-viewport::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 1;
+  height: 0.75rem;
+  background: var(--surface);
+  pointer-events: none;
+}
+.cs-dock-input {
+  display: block;
+  width: 100%;
+  min-height: 5.25rem;
+  max-height: 20rem;
+  padding: 0 1rem 0.25rem;
+  background: transparent;
+  border: 0;
+  outline: none;
+  resize: none;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  font-size: var(--text-md);
+  line-height: var(--leading-body);
+  color: var(--ink);
+}
+.cs-dock-input::placeholder {
+  color: var(--ink-faint);
+}
+.cs-dock-input::-webkit-scrollbar {
+  width: 6px;
+}
+.cs-dock-input::-webkit-scrollbar-track {
+  background: transparent;
+  margin-block: 0.75rem;
+}
+.cs-dock-input::-webkit-scrollbar-thumb {
+  background: transparent;
+  border: 10px solid transparent;
+  border-inline-width: 2px;
+  border-radius: var(--radius-pill);
+  background-clip: padding-box;
+}
+.cs-dock-input--scrollable {
+  overflow-y: auto;
+  scrollbar-color: rgba(36, 31, 28, 0.12) transparent;
+}
+.cs-dock-input--scrollable::-webkit-scrollbar-thumb {
+  background: rgba(36, 31, 28, 0.12);
+}
+.cs-dock-input--scrollable:hover::-webkit-scrollbar-thumb {
+  background: rgba(36, 31, 28, 0.2);
+}
+/* 8px side gutter + 8px of control padding puts control ink on the same 16px
+   left edge as the field's text, while the pill and the circle overhang it by
+   8px — the optical allowance a rounded edge needs to read as aligned. */
+.cs-dock-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.5rem 0.625rem;
+}
+/* Dock actions share one 40px pill geometry. `.cs-dock-btn` is icon-only where
+   the row can't hold three controls and picks its label back up at the sm
+   breakpoint; `.cs-dock-btn-icon` stays a circle at every width. Both pair with
+   .cs-btn / .cs-btn-primary, which they override by source order. */
+.cs-dock-btn,
+.cs-dock-btn-icon {
+  height: 2.5rem;
+  width: 2.5rem;
+  padding: 0;
+  border-radius: var(--radius-4xl);
+}
+@media (min-width: 40rem) {
+  .cs-dock-btn {
+    width: auto;
+    /* The leading orb is concentric with the pill's left cap, so its clearance
+       is identical around the whole arc and equal to the vertical clearance.
+       padding-left = height/2 − orb/2 − border = 20 − 13 − 1. A flat 1rem would
+       push the orb 10px past the cap's centre and read as left-heavy. */
+    padding-right: 1rem;
+    padding-left: 0.375rem;
+  }
 }
 } /* @layer components */
 
@@ -486,6 +617,17 @@
     min-height: 44px;
     min-width: 44px;
   }
+}
+
+/* The centered composer can expand outside its in-flow route box. Keep the
+   route shell and document canvas on the same surface so overflow never
+   exposes the application's default white background. */
+html:has(.cs-create-page),
+body:has(.cs-create-page),
+body:has(.cs-create-page) > div,
+main:has(.cs-create-page),
+.cs-create-page {
+  background-color: var(--surface-sunken) !important;
 }
 /*
   ---break---

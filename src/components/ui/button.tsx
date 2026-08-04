@@ -12,7 +12,7 @@ const buttonVariants = cva(
         default:
           "bg-accent text-white hover:bg-accent-hover active:bg-accent-press",
         outline:
-          "border-line-strong bg-transparent text-ink hover:bg-sunken aria-expanded:bg-sunken",
+          "border-line bg-transparent text-ink hover:bg-sunken aria-expanded:bg-sunken",
         secondary:
           "bg-sunken text-ink hover:bg-deep aria-expanded:bg-deep",
         ghost: "text-ink-2 hover:bg-sunken hover:text-ink aria-expanded:bg-sunken",
