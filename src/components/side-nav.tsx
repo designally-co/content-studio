@@ -86,7 +86,9 @@ export function SideNav() {
       )}
 
       <aside
-        className={`relative hidden min-h-dvh shrink-0 self-stretch border-r border-line bg-surface transition-[width] duration-200 ease-(--ease-out) lg:block ${
+        // z-(--z-nav) both lifts the nav over a route's sticky header and gives
+        // the overhanging toggle a stacking context of its own to live in.
+        className={`relative z-(--z-nav) hidden min-h-dvh shrink-0 self-stretch border-r border-line bg-surface transition-[width] duration-(--duration-base) ease-(--ease-out) lg:block ${
           collapsed ? "w-20" : "w-60"
         }`}
       >
@@ -94,15 +96,18 @@ export function SideNav() {
         <button
           type="button"
           onClick={() => setCollapsed((value) => !value)}
-          className="absolute -right-5 top-5 z-10 grid size-10 place-items-center rounded-full border border-line bg-surface text-ink-2 shadow-[0_2px_8px_rgba(36,31,28,0.10)] transition-colors hover:border-line-strong hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+          className="absolute -right-4 top-5 z-10 grid size-8 place-items-center rounded-full border border-line bg-surface text-ink-2 shadow-[var(--shadow-card)] transition-colors duration-(--duration-fast) ease-(--ease-out) hover:border-line-strong hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          {collapsed ? <PanelLeftOpen aria-hidden className="size-4.5" /> : <PanelLeftClose aria-hidden className="size-4.5" />}
+          {collapsed ? <PanelLeftOpen aria-hidden className="size-4" /> : <PanelLeftClose aria-hidden className="size-4" />}
         </button>
 
-        <div className={`flex items-center pb-8 pt-6 ${collapsed ? "justify-center px-0" : "gap-3 px-5"}`}>
-          <BrandMark size={collapsed ? 32 : 36} />
+        {/* The brandmark holds one position across both states — only the
+            wordmark beside it appears and disappears, so collapsing reads as
+            the panel narrowing rather than as the logo jumping. */}
+        <div className={`flex h-16 shrink-0 items-center ${collapsed ? "justify-center px-0" : "gap-3 px-4"}`}>
+          <BrandMark size={32} />
           {!collapsed && (
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[var(--tracking-caps)] text-accent-ink">
@@ -114,6 +119,7 @@ export function SideNav() {
             </div>
           )}
         </div>
+        <div className={`h-px shrink-0 bg-line ${collapsed ? "mx-3" : "mx-4"}`} />
 
         <NavLinks pathname={pathname} collapsed={collapsed} />
         </div>
@@ -167,7 +173,9 @@ function NavLinks({ pathname, onNavigate, collapsed = false }: { pathname: strin
               onClick={onNavigate}
               aria-current={active ? "page" : undefined}
               title={collapsed ? label : undefined}
-              className={`flex min-h-11 items-center rounded-lg py-2.5 text-sm transition-colors duration-(--duration-fast) ease-(--ease-out) ${collapsed ? "justify-center px-0" : "gap-2.5 px-3"} ${
+              // Collapsed rows are square and centred. A full-width pill behind
+              // a lone centred icon reads as a mis-sized target, not a state.
+              className={`flex min-h-11 items-center rounded-lg text-sm transition-colors duration-(--duration-fast) ease-(--ease-out) ${collapsed ? "mx-auto size-11 justify-center px-0" : "gap-2.5 px-3 py-2.5"} ${
                 active
                   ? "bg-accent-soft font-semibold text-accent-ink"
                   : "text-ink-2 hover:bg-sunken hover:text-ink"

@@ -253,6 +253,10 @@
 :root {
   --z-dropdown: 30;
   --z-sticky: 40;
+  /* App chrome outranks page chrome: the side navigation and anything that
+     straddles its edge must paint over a route's sticky header, which would
+     otherwise clip whatever overhangs into the content area. */
+  --z-nav: 45;
   --z-backdrop: 50;
   --z-modal: 60;
   --z-toast: 70;

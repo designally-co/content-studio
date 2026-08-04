@@ -279,7 +279,10 @@ The Create page's single input. One borderless Clean Sheet object on Draft Bed, 
 ### Navigation
 
 - The side navigation uses Clean Sheet, a right Rule Line, and compact 44px rows, ordered Create → Library → Settings. Active destinations use Markup Wash, Press Orange text, and an orange icon; inactive destinations remain neutral until hover.
-- It is collapsible between `240px` and `80px`, animating width over 200ms. Collapsed, rows center a 20px icon and keep their label available to assistive technology and as a tooltip. The toggle is a circular Clean Sheet button straddling the right Rule Line. Canvas surfaces open with the navigation collapsed so the working object holds the page.
+- It is collapsible between `240px` and `80px`, animating width over 200ms. Collapsed, rows become square `44px` targets centred in the panel and keep their label available to assistive technology and as a tooltip — a full-width pill behind a lone centred icon reads as a mis-sized target rather than as a state. The brandmark holds one size and position across both states so collapsing reads as the panel narrowing, not as the logo jumping. Canvas surfaces open with the navigation collapsed so the working object holds the page.
+- The toggle is a `32px` circular Clean Sheet button straddling the right Rule Line at Workbench Surface elevation.
+
+**App chrome outranks page chrome.** The side navigation sits on its own `--z-nav` step above `--z-sticky`, because anything straddling its edge overhangs into the content area and would otherwise be painted over by a route's own sticky header. Giving the panel that z-index also gives it a stacking context, so the toggle's own layering stays local instead of competing at the root.
 - The six-stage stepper is horizontally scrollable on narrow screens. Current, completed, available, and locked steps must remain visually distinct without relying on color alone.
 
 ### Generation Workbench
