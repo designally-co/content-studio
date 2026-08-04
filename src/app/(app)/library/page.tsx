@@ -105,15 +105,50 @@ export default async function LibraryPage({
     return b.updatedAt.getTime() - a.updatedAt.getTime();
   });
   const hasActiveFilters = Boolean(sp.category || sp.status || query);
+  const publishedCount = rows.filter((row) => row.status === "published").length;
+  const draftCount = rows.length - publishedCount;
+  const noun = rows.length === 1 ? "article" : "articles";
+  // The most recently worked-on article leads, because resuming it is the
+  // reason this page gets opened. Not worth doing for a handful of items.
+  const [featured, ...rest] = rows;
+  const showFeatured = rows.length >= 4;
+
+  const toItemProps = (row: (typeof rows)[number]) => ({
+    id: row.id,
+    title: row.topic?.title || "Untitled project",
+    category: row.categoryName || "Uncategorized",
+    dateLabel: new Date(row.updatedAt).toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    }),
+    readMinutes: readTimeByProject.get(row.id) ?? null,
+    status: row.status,
+    imageUrl: imageUrlByProject.get(row.id) ?? null,
+  });
 
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-(--z-sticky) border-b border-line bg-bg">
         <div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-5 lg:px-12 xl:px-16">
           <div className="max-w-3xl">
-            <h1 className="text-[length:var(--text-h1)] font-bold">Your content</h1>
-            <p className="mt-1.5 text-sm leading-relaxed text-ink-3 sm:text-base">
-              Find your drafts and finalized articles, then continue where you left off.
+            <h1 className="font-heading text-[length:var(--text-h1)] font-bold leading-[1.1] tracking-[-0.02em] text-ink">
+              Everything on the desk.
+            </h1>
+            {/* The counts were already computed for the grid. Stating them costs
+                nothing and tells an editor more than a sentence of prose. */}
+            <p className="mt-2 text-sm leading-relaxed text-ink-2 sm:text-base">
+              {hasActiveFilters ? (
+                `${rows.length} matching ${noun}.`
+              ) : (
+                <>
+                  {rows.length} {noun}
+                  <span aria-hidden className="px-2 text-line-strong">/</span>
+                  {draftCount} in draft
+                  <span aria-hidden className="px-2 text-line-strong">/</span>
+                  {publishedCount} published
+                </>
+              )}
             </p>
           </div>
 
@@ -127,11 +162,11 @@ export default async function LibraryPage({
 
       <main className="mx-auto w-full max-w-7xl px-4 pb-16 pt-6 sm:px-6 sm:pb-20 sm:pt-8 lg:px-12 lg:pb-24 xl:px-16">
         {rows.length === 0 ? (
-          <div className="grid place-items-center px-6 py-12 text-center">
-            <p className="text-ink-3">
+          <div className="grid place-items-center px-6 py-20 text-center">
+            <p className="max-w-md text-balance leading-relaxed text-ink-2">
               {hasActiveFilters
-                ? "Nothing matches those filters. Try clearing a few?"
-                : "Nothing here yet. Give us a topic and we'll take the first swing."}
+                ? "Nothing matches those filters."
+                : "Nothing here yet. The first article you start will land here."}
             </p>
             <Link href="/new" className="cs-btn-primary mt-6">
               <IconNew width={16} height={16} />
@@ -139,16 +174,18 @@ export default async function LibraryPage({
             </Link>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {rows.map((r) => {
-              const dateLabel = new Date(r.updatedAt).toLocaleDateString(undefined, {
-                year: "numeric",
-                month: "short",
-                day: "numeric",
-              });
-              return <LibraryItem key={r.id} id={r.id} title={r.topic?.title || "Untitled project"} category={r.categoryName || "Uncategorized"} dateLabel={dateLabel} readMinutes={readTimeByProject.get(r.id) ?? null} status={r.status} imageUrl={imageUrlByProject.get(r.id) ?? null} />;
-            })}
-          </div>
+          <>
+            {showFeatured && (
+              <div className="mb-4">
+                <LibraryItem {...toItemProps(featured)} featured />
+              </div>
+            )}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {(showFeatured ? rest : rows).map((r) => (
+                <LibraryItem key={r.id} {...toItemProps(r)} />
+              ))}
+            </div>
+          </>
         )}
       </main>
     </div>
