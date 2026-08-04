@@ -1,12 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
-import { Shapes, Newspaper, Palette, Sparkles, Layers, type LucideIcon } from "lucide-react";
-import { MenuSelect } from "@/components/ui/menu-select";
+import { useEffect, useRef, useState } from "react";
+import { Check, ChevronLeft, ChevronRight, Layers, Newspaper, Palette, Shapes, Sparkles, type LucideIcon } from "lucide-react";
+import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
 import type { PillarGroup } from "./setup-form";
 
-/** A representative icon per pillar (keyed by slug); a neutral fallback covers
- *  any pillar added later without a mapping. */
 const PILLAR_ICONS: Record<string, LucideIcon> = {
   design: Palette,
   "new-update": Newspaper,
@@ -14,72 +12,135 @@ const PILLAR_ICONS: Record<string, LucideIcon> = {
   "ai-with-design": Sparkles,
 };
 
-/**
- * Compact two-level content picker: a row of pillar chips narrows the direction
- * dropdown beneath them. Emits a single hidden `categoryId` (the selected
- * direction) for the create-article form; the pillar is derived from it. The
- * caller supplies the field label. No free-form additions.
- */
+export function pillarIcon(slug: string | undefined): LucideIcon {
+  return (slug && PILLAR_ICONS[slug]) || Layers;
+}
+
+type Selection = { pillarId: string; directionId: string };
+
+/** Compact pillar → direction drill-down menu for the composer dock. */
 export function PillarDirectionPicker({
   pillars,
-  pillarId,
-  directionId,
+  selection,
+  open,
+  onOpenChange,
   onChange,
+  children,
 }: {
   pillars: PillarGroup[];
-  pillarId: string;
-  directionId: string;
-  onChange: (next: { pillarId: string; directionId: string }) => void;
+  selection: Selection;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onChange: (next: Selection) => void;
+  children: React.ReactNode;
 }) {
-  const activePillar = useMemo(
-    () => pillars.find((pillar) => pillar.id === pillarId) ?? pillars[0],
-    [pillars, pillarId]
-  );
+  const [activePillarId, setActivePillarId] = useState<string | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const activePillar = pillars.find((pillar) => pillar.id === activePillarId);
 
-  if (pillars.length === 0) {
-    return (
-      <p className="rounded-xl border border-line bg-sunken/50 px-4 py-3 text-sm text-ink-3">
-        No content pillars are configured yet.
-      </p>
-    );
+  useEffect(() => {
+    if (!open) return;
+    const frame = requestAnimationFrame(() => {
+      contentRef.current?.querySelector<HTMLElement>("[role=menuitem]")?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [activePillarId, open]);
+
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) setActivePillarId(null);
+    onOpenChange(nextOpen);
+  }
+
+  function choose(next: Selection) {
+    onChange(next);
+    onOpenChange(false);
   }
 
   return (
-    <div className="space-y-2.5">
-      <input type="hidden" name="categoryId" value={directionId} />
+    <DropdownMenuPrimitive.Root open={open} onOpenChange={handleOpenChange} modal={false}>
+      <DropdownMenuPrimitive.Trigger asChild>{children}</DropdownMenuPrimitive.Trigger>
+      <DropdownMenuPrimitive.Portal>
+        <DropdownMenuPrimitive.Content
+          ref={contentRef}
+          side="bottom"
+          align="start"
+          sideOffset={8}
+          avoidCollisions={false}
+          className="z-(--z-dropdown) max-h-[calc(50svh-2rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-y-auto rounded-2xl border border-line bg-surface p-1.5 text-ink shadow-[0_4px_8px_rgba(36,31,28,0.08),0_12px_32px_rgba(36,31,28,0.12)] outline-none duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none"
+          aria-label={activePillar ? `${activePillar.name} directions` : "Content direction"}
+        >
+          {activePillar ? (
+            <div key={activePillar.id} className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-right-2 motion-safe:duration-150">
+              <MenuItem
+                onSelect={(event) => {
+                  event.preventDefault();
+                  setActivePillarId(null);
+                }}
+              >
+                <ChevronLeft aria-hidden className="size-4 text-ink-3" />
+                <span>All pillars</span>
+              </MenuItem>
+              <DropdownMenuPrimitive.Label className="px-3 pb-1.5 pt-3 text-xs font-semibold text-ink-3">
+                {activePillar.name}
+              </DropdownMenuPrimitive.Label>
+              {activePillar.directions.map((direction) => (
+                <MenuItem
+                  key={direction.id}
+                  onSelect={() => choose({ pillarId: activePillar.id, directionId: direction.id })}
+                >
+                  <span className="min-w-0 flex-1 leading-snug">{direction.name}</span>
+                  {selection.directionId === direction.id && <Check aria-hidden className="size-4 shrink-0 text-accent-press" />}
+                </MenuItem>
+              ))}
+            </div>
+          ) : (
+            <div key="pillars" className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-left-2 motion-safe:duration-150">
+              <DropdownMenuPrimitive.Label className="px-3 pb-1.5 pt-2 text-xs font-semibold text-ink-3">
+                Content direction
+              </DropdownMenuPrimitive.Label>
+              <MenuItem onSelect={() => choose({ pillarId: "", directionId: "" })}>
+                <Sparkles aria-hidden className="size-4 shrink-0 text-ink-3" />
+                <span className="min-w-0 flex-1">
+                  <span className="block leading-snug">Auto direction</span>
+                  <span className="mt-0.5 block text-xs font-normal leading-snug text-ink-3">Choose the best fit from your input</span>
+                </span>
+                {!selection.directionId && <Check aria-hidden className="size-4 shrink-0 text-accent-press" />}
+              </MenuItem>
+              <DropdownMenuPrimitive.Separator className="my-1 h-px bg-line" />
+              {pillars.map((pillar) => {
+                const Icon = pillarIcon(pillar.slug);
+                const selected = pillar.id === selection.pillarId;
+                return (
+                  <MenuItem
+                    key={pillar.id}
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      setActivePillarId(pillar.id);
+                    }}
+                  >
+                    {/* The pillar holding the current direction is the only row
+                        without a check of its own, so it still needs to be
+                        distinguishable — full ink against the muted default
+                        carries that without spending the accent. */}
+                    <Icon aria-hidden className={`size-4 shrink-0 ${selected ? "text-ink" : "text-ink-3"}`} strokeWidth={1.8} />
+                    <span className="min-w-0 flex-1 truncate leading-snug">{pillar.name}</span>
+                    <ChevronRight aria-hidden className="size-4 shrink-0 text-ink-3" />
+                  </MenuItem>
+                );
+              })}
+            </div>
+          )}
+        </DropdownMenuPrimitive.Content>
+      </DropdownMenuPrimitive.Portal>
+    </DropdownMenuPrimitive.Root>
+  );
+}
 
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Content pillar">
-        {pillars.map((pillar) => {
-          const selected = pillar.id === activePillar?.id;
-          const Icon = PILLAR_ICONS[pillar.slug] ?? Layers;
-          return (
-            <button
-              key={pillar.id}
-              type="button"
-              aria-pressed={selected}
-              onClick={() =>
-                onChange({ pillarId: pillar.id, directionId: pillar.directions[0]?.id ?? "" })
-              }
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${
-                selected
-                  ? "border-accent bg-accent-soft text-accent-press"
-                  : "border-line bg-surface text-ink-2 hover:border-line-strong hover:text-ink"
-              }`}
-            >
-              <Icon aria-hidden className="size-3.5 shrink-0" strokeWidth={1.8} />
-              {pillar.name}
-            </button>
-          );
-        })}
-      </div>
-
-      <MenuSelect
-        id="direction-select"
-        ariaLabel="Content direction"
-        value={directionId}
-        options={(activePillar?.directions ?? []).map((direction) => ({ value: direction.id, label: direction.name }))}
-        onChange={(value) => onChange({ pillarId: activePillar!.id, directionId: value })}
-      />
-    </div>
+function MenuItem({ className = "", ...props }: React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item>) {
+  return (
+    <DropdownMenuPrimitive.Item
+      className={`flex min-h-11 cursor-default select-none items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold outline-none transition-colors data-highlighted:bg-sunken data-disabled:pointer-events-none data-disabled:opacity-50 ${className}`}
+      {...props}
+    />
   );
 }
