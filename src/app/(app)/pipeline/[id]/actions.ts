@@ -27,6 +27,7 @@ import {
   editorialOutlineTask,
   editorialReviewTask,
   editorialArticlePlanTask,
+  recencyWindow,
 } from "@/prompts/tasks";
 import { outlineToMarkdown, type OutlineJson } from "@/lib/outline";
 import { pillarForDirection } from "@/lib/content-pillars";
@@ -349,6 +350,9 @@ export async function generateTopicsAction(projectId: string): Promise<SelectedT
       pillarName: pillar?.name,
       pillarPurpose: pillar?.purpose,
       examples: pillar?.examples,
+      // This call has no web tool, so it stays on the conservative branch: date
+      // anchored, but making no claim of recency it cannot support.
+      ...recencyWindow(),
     }),
     schema: {
       type: "object",

@@ -7,7 +7,25 @@ import {
 } from "@/lib/image/visual-brief";
 
 /** Task layer — stage-specific instructions. Versioned per template. */
-export const TASKS_VERSION = "tasks@1.4.0";
+export const TASKS_VERSION = "tasks@1.5.0";
+
+/** How far back a news-driven idea may sit and still count as current. */
+const RECENCY_DAYS = 90;
+
+const formatDay = (date: Date) =>
+  date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
+
+/**
+ * The clock the topic prompts run against. Without it the model has no idea
+ * when "now" is, and anchors "timely" on the densest part of its training data.
+ */
+export function recencyWindow(): { today: string; since: string } {
+  const now = new Date();
+  return {
+    today: formatDay(now),
+    since: formatDay(new Date(now.getTime() - RECENCY_DAYS * 24 * 60 * 60 * 1000)),
+  };
+}
 
 const marketFor = (language: Language) =>
   language === "th"
@@ -138,34 +156,103 @@ Respond as JSON with a working title, concise introduction angle, 4–8 purposef
 }
 
 export function topicsTask(params: {
-  categoryName: string;
+  /** Omit to range across every available direction instead of one. */
+  categoryName?: string;
   language: Language;
   pillarName?: string;
   pillarPurpose?: string;
   examples?: string[];
+  /** Selectable direction names, required when `categoryName` is omitted. */
+  directionNames?: string[];
+  /** Today, written out. Without it the model infers "now" from its training data. */
+  today: string;
+  /** Start of the window a news-driven idea must fall inside to count as current. */
+  since: string;
+  /** True when the web tool is available and ideas should carry real sources. */
+  researchLive?: boolean;
 }): string {
-  const pillarLine = params.pillarName
+  const open = !params.categoryName;
+  const scopeLine = open
+    ? `Suggest timely, researchable article ideas from anywhere in Designally's editorial territory in ${marketFor(params.language)}. Range widely: the set you return must span at least four different content directions, so the editor sees genuine variety rather than variations on one subject.`
+    : `Suggest timely, researchable directions for the content direction "${params.categoryName}" in ${marketFor(params.language)}.`;
+  const pillarLine = !open && params.pillarName
     ? `\nThis direction lives under the "${params.pillarName}" content pillar${params.pillarPurpose ? ` — ${params.pillarPurpose}` : ""}. Every idea must serve that pillar's intent.`
     : "";
   const examplesBlock = params.examples?.length
     ? `\n\nExample headlines that fit this pillar (match their tone and specificity; do not reuse them verbatim):\n${params.examples.map((example) => `- ${example}`).join("\n")}`
     : "";
+  const directionBlock = open
+    ? `\n\nAssign every idea to exactly one of these content directions, copying the name verbatim:\n${(params.directionNames ?? []).map((name) => `- ${name}`).join("\n")}`
+    : "";
+  const directionField = open ? `, "direction": string` : "";
+  const sourcesField = params.researchLive ? `, "sources": [{ "name": string, "url": string }]` : "";
+
+  const researchBlock = params.researchLive
+    ? `\n\nUse web search before proposing anything news-driven. Confirm that what you are describing has actually happened, and that it happened on or after ${params.since}. For every idea, return 1–3 real sources you actually consulted, copying their URLs exactly. Never fabricate a URL, and never pad the list with a homepage that does not cover the specific development. An evergreen craft idea may return an empty source list.`
+    : `\n\nLive source lookup is unavailable for this request. Return an empty source list, favor evergreen craft subjects over news-driven ones, and do not claim that anything is new, recent, trending, or newly released. Do not invent source URLs; live source research happens only after the editor selects a topic.`;
+
   return `## Task: suggest topics
-Suggest timely, researchable directions for the content direction "${params.categoryName}" in ${marketFor(params.language)}.${pillarLine} Prioritize concrete resources, releases, developments, and genuine questions that matter to designers. Each direction must be specific enough for the next stage to research and useful enough to become a complete creative-industry article.${examplesBlock}
+Today is ${params.today}.
+
+${scopeLine}${pillarLine} Prioritize concrete resources, releases, developments, and genuine questions that matter to designers. Each direction must be specific enough for the next stage to research and useful enough to become a complete creative-industry article.${examplesBlock}${directionBlock}
 
 Stay within Designally's editorial territory:
 ${EDITORIAL_SCOPE_TEXT}
 
+Anchor every idea in time:
+- A news-driven idea — a release, launch, acquisition, industry development, or newly published resource — counts only if it happened on or after ${params.since}. Begin its "whyTimely" with the date or month it happened.
+- An evergreen craft idea — a principle, method, system, or reference collection — is welcome, but its "whyTimely" must give a real reason to publish it now and must not dress it up as news.
+- Never present something from before ${params.since} as new, recent, or trending, and never state a date you cannot support. If you are unsure when something happened, treat it as evergreen and say so.
+- Do not reuse a year or season from memory as a stand-in for the present. The only dates you may treat as current are the ones you can support for this request.${researchBlock}
+
 Favor useful editorial formats such as curated resources, notable new releases, practical reference collections, informed explainers, design-principle analysis, and evidence-led perspectives on changes affecting designers. Reject broad topics that do not have a strong creative-agency or designer angle.
 
-Return 5–8 topic ideas. For each: a proposed title, the angle, why it is relevant now, and the likely reader intent. Do not invent source URLs; live source research happens only after the editor selects a topic.
+Return 5–8 topic ideas. For each: a proposed title, the angle, why it is relevant now, and the likely reader intent.
 
 Respond as JSON:
 {
   "topics": [
-    { "title": string, "angle": string, "whyTimely": string, "searchIntent": string }
+    { "title": string, "angle": string, "whyTimely": string, "searchIntent": string${directionField}${sourcesField} }
   ]
 }`;
+}
+
+/**
+ * Reads an editor's free-text article input. Used at submit time to fill only
+ * what the form could not determine on its own: the content direction when the
+ * editor left it on auto, and a working title when the input is a brief rather
+ * than a usable headline.
+ */
+export function articleSetupTask(params: {
+  text: string;
+  needDirection: boolean;
+  needTitle: boolean;
+  directionNames: string[];
+}): string {
+  const wants = [
+    params.needDirection ? "the content direction it belongs to" : null,
+    params.needTitle ? "a working title" : null,
+  ].filter(Boolean);
+
+  const directionBlock = params.needDirection
+    ? `\n\nChoose exactly one content direction, copying the name verbatim from this list:\n${params.directionNames.map((name) => `- ${name}`).join("\n")}\nPick the direction the finished article would be filed under, not the one the wording superficially resembles.`
+    : "";
+  const titleBlock = params.needTitle
+    ? `\n\nWrite a working title: a specific, factual headline of at most 12 words describing the article this input asks for. Use the editor's own subject and constraints. Do not add claims, numbers, dates, or superlatives the input does not support, and do not write a title that merely restates the instruction ("Article from brief" and similar are unacceptable).`
+    : "";
+
+  return `## Task: read the article input
+An editor has described the article they want. Determine ${wants.join(" and ")}.
+
+Stay within Designally's editorial territory:
+${EDITORIAL_SCOPE_TEXT}
+
+Editor's input:
+"""
+${params.text}
+"""${directionBlock}${titleBlock}
+
+Respond as JSON with only the requested fields.`;
 }
 
 export function outlineTask(params: {
