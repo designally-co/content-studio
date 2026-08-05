@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, ChevronDown, LoaderCircle, Maximize2, Minimize2, Send, Sparkles } from "lucide-react";
-import { ThinkingOrb } from "thinking-orbs";
+import { AccentOrb } from "@/components/accent-orb";
 import OrbitingCirclesGlobe from "@/components/ui/orbiting-circles-02";
 import {
   createProjectAction,
@@ -148,22 +148,6 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
             </h1>
           </div>
 
-          {/* thinking-orbs paints greyscale only — it exposes no colour prop and
-              never reads `currentColor`. This maps its ink ramp onto the brand
-              orange (#c03e21 near → #ffa78f far) while passing alpha through
-              untouched, so the depth the orb encodes in both channels survives. */}
-          <svg aria-hidden focusable="false" className="pointer-events-none absolute size-0">
-            <filter id="orb-accent" colorInterpolationFilters="sRGB">
-              <feColorMatrix
-                type="matrix"
-                values="0.247 0 0 0 0.753
-                        0.412 0 0 0 0.243
-                        0.431 0 0 0 0.129
-                        0     0 0 1 0"
-              />
-            </filter>
-          </svg>
-
           {/* Sibling, not child: as a child it would paint over the dock's own
               white background instead of sitting behind it. */}
           <div aria-hidden className="cs-dock-glow" />
@@ -271,27 +255,8 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                   title="Generate ideas"
                 >
                   {/* Always running — the button's disabled state, not the orb,
-                      is what reports that the ideas path is off the table. The
-                      library idles its own loop off-screen or on a hidden tab,
-                      and renders a single frame under reduced motion. The theme
-                      is pinned light — the dark end of its ramp — so the accent
-                      filter above has depth to work with, instead of following
-                      the visitor's OS as `auto` would. */}
-                  <ThinkingOrb
-                    state="composing"
-                    size={20}
-                    theme="light"
-                    speed={0.5}
-                    aria-hidden
-                    className="shrink-0"
-                    // The library ships only two presets, 64 and 20, and they
-                    // are separate designs rather than a scale factor. 20 is the
-                    // one tuned for inline use, so it stays the render size and
-                    // CSS carries it to 26px — the library spreads our style
-                    // last, so this overrides its own width/height. A field of
-                    // soft-edged dots takes a 1.3x upscale without showing it.
-                    style={{ filter: "url(#orb-accent)", width: 26, height: 26 }}
-                  />
+                      is what reports that the ideas path is off the table. */}
+                  <AccentOrb />
                   <span className="cs-swap cs-swap--sm-open" data-show={!hasInput}>
                     {/* The 8px sits inside the clipped track, so it collapses
                         with the label instead of holding the orb off centre. */}
