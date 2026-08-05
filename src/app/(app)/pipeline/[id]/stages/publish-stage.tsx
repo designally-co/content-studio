@@ -17,7 +17,7 @@ import {
   saveDraftContentAction,
 } from "../actions";
 import { publishToHubAction, ensurePublishDekAction } from "../publish-actions";
-import { HubArticlePreview } from "./hub-article-preview";
+import { HubArticlePreview, HubPreviewFrame } from "./hub-article-preview";
 import {
   generateImagesAction,
   deleteGeneratedImageAction,
@@ -59,6 +59,26 @@ type ImageModelOption = {
 };
 
 type BrandLogo = { hasLogo: boolean; defaultOverlay: LogoOverlay };
+
+/**
+ * How tall the image prompt grows before it scrolls and offers to expand.
+ * Lower than the home composer's, because this dock is anchored to the bottom
+ * of a page whose subject is the images above it — an auto-drafted prompt is
+ * long enough to take a third of the viewport at the shared cap. Must match the
+ * `max-h-40` on the field itself.
+ */
+const PROMPT_COLLAPSED_MAX = 160;
+
+/**
+ * How tall a lone generated image is allowed to be.
+ *
+ * Applied as a max-*width* derived from the image's own ratio, not as a
+ * max-height: a height cap fights the aspect-ratio box, and with `object-cover`
+ * it crops — so a square was being trimmed at exactly the moment the editor is
+ * deciding whether to publish it. Driving from height also keeps a 1:1 and a
+ * 16:9 at the same visual weight instead of one towering over the other.
+ */
+const FEATURE_MAX_HEIGHT = 460;
 
 export function PublishStage({
   projectId,
@@ -142,14 +162,9 @@ export function PublishStage({
   return (
     <StageShell title="Generate images" wide flushBottom>
       <div>
-        {/* The only stage that never showed which article was being worked on:
-            the draft renders its own title and Publish shows it in the preview,
-            but the image panel had nothing. */}
-        <h2 className="mb-6 max-w-[46ch] text-balance font-heading text-[length:var(--text-h2)] font-bold leading-tight tracking-tight text-ink">
-          {title}
-        </h2>
         <ArticlePanel
           projectId={projectId}
+          title={title}
           draftId={draftId}
           longForm={longForm}
           draftMd={draftMd}
@@ -171,6 +186,7 @@ export function PublishStage({
 
 function ArticlePanel({
   projectId,
+  title,
   draftId,
   longForm,
   draftMd,
@@ -186,6 +202,7 @@ function ArticlePanel({
   onNext,
 }: {
   projectId: string;
+  title: string;
   draftId: string;
   longForm: boolean;
   draftMd: string;
@@ -226,6 +243,7 @@ function ArticlePanel({
         <>
       <ImagePanel
         projectId={projectId}
+        title={title}
         existing={images}
         defaultOptionId={defaultOptionId}
         defaultCount={defaultCount}
@@ -322,6 +340,7 @@ function ContentPanel({
 
 function ImagePanel({
   projectId,
+  title,
   existing,
   defaultOptionId,
   defaultCount,
@@ -333,6 +352,7 @@ function ImagePanel({
   onNext,
 }: {
   projectId: string;
+  title: string;
   existing: GeneratedImageView[];
   defaultOptionId: string;
   defaultCount: number;
@@ -367,6 +387,7 @@ function ImagePanel({
   const [error, setError] = useState<string | null>(null);
   const [promptExpanded, setPromptExpanded] = useState(false);
   const [promptNeedsExpansion, setPromptNeedsExpansion] = useState(false);
+  const [openPanel, setOpenPanel] = useState<"style" | "brief" | null>(null);
   // Optimistic: the route resolves the cover on reload, but the choice has to
   // register the instant it is clicked or the control feels broken.
   const [chosenCoverId, setChosenCoverId] = useState<string | null>(coverImageId);
@@ -376,6 +397,24 @@ function ImagePanel({
     () => options.find((option) => option.optionId === optionId) ?? options[0],
     [optionId, options]
   );
+
+  // Measured from the value, not from `onInput`. Auto-draft sets the prompt
+  // programmatically, and `onInput` only fires for user typing — so the longest
+  // prompts on this stage, the generated ones, never triggered a measurement and
+  // the expand control never appeared. Keying on `prompt` covers both sources.
+  // The write happens inside the frame callback rather than the effect body, so
+  // it is not a synchronous setState in an effect.
+  useEffect(() => {
+    const field = promptRef.current;
+    if (!field) return;
+    const frame = requestAnimationFrame(() => {
+      field.style.height = "auto";
+      const needsExpansion = field.scrollHeight > PROMPT_COLLAPSED_MAX;
+      setPromptNeedsExpansion(needsExpansion);
+      field.style.height = `${promptExpanded ? field.scrollHeight : Math.min(field.scrollHeight, PROMPT_COLLAPSED_MAX)}px`;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [prompt, promptExpanded]);
 
   function selectModel(nextOptionId: string) {
     const next = options.find((option) => option.optionId === nextOptionId);
@@ -480,24 +519,29 @@ function ImagePanel({
       {/* Results lead. Only one of these travels to the Hub, so choosing it is
           the real decision on this stage — and a decision belongs above the
           controls that produce more options, not buried under them. */}
+      {/* Title and forward action on one row: they are the same altitude, and a
+          14px count heading beside a 48px button was a label being shouted over.
+          The count sits under the title and only appears when there is actually
+          a choice — with one image the tile's own badge already says it. */}
+      <header className="flex flex-wrap items-center justify-between gap-x-8 gap-y-3">
+        <div className="min-w-0 flex-1">
+          <h2 className="max-w-[46ch] text-balance font-heading text-[length:var(--text-h2)] font-bold leading-tight tracking-tight text-ink">
+            {title}
+          </h2>
+          {imgs.length > 1 && (
+            <p className="mt-1.5 text-sm text-ink-2">
+              {imgs.length} images — choose the one to publish.
+            </p>
+          )}
+        </div>
+        <button type="button" onClick={onNext} className="cs-cta group shrink-0">
+          Continue to publish
+          <span aria-hidden className="cs-cta-disc"><IconCheck width={15} height={15} /></span>
+        </button>
+      </header>
+
       {imgs.length > 0 && (
         <section aria-label="Generated images">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-            <div>
-              <h3 className="text-sm font-semibold text-ink">
-                {imgs.length} image{imgs.length > 1 ? "s" : ""}
-              </h3>
-              <p className="mt-0.5 text-sm text-ink-2">
-                {imgs.length > 1 ? "Choose the one to publish." : "This one will be published."}
-              </p>
-            </div>
-            {/* The forward action belongs with the choice it carries, not on a
-                second bar competing with the composer for the bottom edge. */}
-            <button type="button" onClick={onNext} className="cs-cta group shrink-0">
-              Continue to publish
-              <span aria-hidden className="cs-cta-disc"><IconCheck width={15} height={15} /></span>
-            </button>
-          </div>
           {/* Four across at full width. Two made a wall of a page out of six
               images; the tiles carry their own controls now, so they can be
               small without losing anything. */}
@@ -547,61 +591,6 @@ function ImagePanel({
           <p className="text-sm text-ink-3">This model supports text-to-image only.</p>
         )}
         {error && <p className="text-sm text-danger" role="alert">{error}</p>}
-
-        <details className="group/adv">
-          <summary className="cs-tool cursor-pointer list-none">
-            Style overrides
-            {(artDirection !== "designally_ci" || direction !== "auto") && (
-              <span className="text-accent-ink">Customized</span>
-            )}
-          </summary>
-          <div className="mt-3 grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <label htmlFor="art-direction" className="text-sm font-semibold text-ink">Visual style</label>
-              <MenuSelect
-                id="art-direction"
-                ariaLabel="Visual style override"
-                className="w-full text-sm"
-                value={artDirection}
-                onChange={(value) => {
-                  setArtDirection(value as ArtDirectionSelection);
-                  setVisualBrief(null);
-                  setPrompt("");
-                }}
-                options={ART_DIRECTION_PRESETS.map((item) => ({ value: item.value, label: item.label, description: item.description }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="image-direction" className="text-sm font-semibold text-ink">Composition</label>
-              <MenuSelect
-                id="image-direction"
-                ariaLabel="Composition override"
-                className="w-full text-sm"
-                value={direction}
-                onChange={(value) => {
-                  setDirection(value as ImageDirection);
-                  setVisualBrief(null);
-                  setPrompt("");
-                }}
-                options={IMAGE_DIRECTIONS.map((item) => ({ value: item.value, label: item.label, description: item.description }))}
-              />
-            </div>
-          </div>
-        </details>
-
-        {visualBrief && (
-          <details>
-            <summary className="cs-tool cursor-pointer list-none">What the prompt was built from</summary>
-            <dl className="mt-3 grid gap-x-6 gap-y-4 rounded-2xl bg-sunken px-5 py-4 text-sm sm:grid-cols-2">
-              <div><dt className="font-semibold text-ink">Main subject</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.mainSubject}</dd></div>
-              <div><dt className="font-semibold text-ink">Visual style</dt><dd className="mt-1 leading-relaxed text-ink-2">{ART_DIRECTION_PRESETS.find((item) => item.value === visualBrief.artDirection)?.label ?? visualBrief.artDirection}</dd></div>
-              <div className="sm:col-span-2"><dt className="font-semibold text-ink">Why this style</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.artDirectionReason}</dd></div>
-              <div><dt className="font-semibold text-ink">Image role</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.imageRole}</dd></div>
-              <div><dt className="font-semibold text-ink">Composition</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.composition}</dd></div>
-              <div><dt className="font-semibold text-ink">Reference guidance</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.referenceGuidance}</dd></div>
-            </dl>
-          </details>
-        )}
       </div>
 
       <p className="sr-only" aria-live="polite">
@@ -616,10 +605,97 @@ function ImagePanel({
           Everything else is a setting on the prompt, so the settings compress
           into chips in the control row. Structure, growth and controls all
           mirror the composer on the home surface. */}
-      <div className="sticky bottom-0 z-20 mt-auto pb-6 pt-6">
+      {/* 64px clear of the bottom edge, held by both the sticky offset and the
+          margin: the offset governs while the page overflows, the margin while
+          it does not, and this dock moves between those two states depending on
+          how many images there are. Padding cannot do it — `bottom` pins the
+          element's own edge, so padding sits inside that and reads as nothing. */}
+      <div className="sticky bottom-16 z-20 mt-auto mb-16 pt-6">
+        {/* Panels open above their chips, because the dock is at the foot of the
+            page and there is nowhere below to open into. */}
+        {openPanel === "style" && (
+          <div className="mb-2 rounded-2xl border border-line bg-surface p-4 shadow-[var(--shadow-pop)] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-200">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label htmlFor="art-direction" className="text-sm font-semibold text-ink">Visual style</label>
+                <MenuSelect
+                  id="art-direction"
+                  ariaLabel="Visual style override"
+                  className="w-full text-sm"
+                  value={artDirection}
+                  onChange={(value) => {
+                    setArtDirection(value as ArtDirectionSelection);
+                    setVisualBrief(null);
+                    setPrompt("");
+                  }}
+                  options={ART_DIRECTION_PRESETS.map((item) => ({ value: item.value, label: item.label, description: item.description }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="image-direction" className="text-sm font-semibold text-ink">Composition</label>
+                <MenuSelect
+                  id="image-direction"
+                  ariaLabel="Composition override"
+                  className="w-full text-sm"
+                  value={direction}
+                  onChange={(value) => {
+                    setDirection(value as ImageDirection);
+                    setVisualBrief(null);
+                    setPrompt("");
+                  }}
+                  options={IMAGE_DIRECTIONS.map((item) => ({ value: item.value, label: item.label, description: item.description }))}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+        {openPanel === "brief" && visualBrief && (
+          <dl className="mb-2 grid gap-x-6 gap-y-4 rounded-2xl border border-line bg-surface p-4 text-sm shadow-[var(--shadow-pop)] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-200 sm:grid-cols-2">
+            <div><dt className="font-semibold text-ink">Main subject</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.mainSubject}</dd></div>
+            <div><dt className="font-semibold text-ink">Visual style</dt><dd className="mt-1 leading-relaxed text-ink-2">{ART_DIRECTION_PRESETS.find((item) => item.value === visualBrief.artDirection)?.label ?? visualBrief.artDirection}</dd></div>
+            <div className="sm:col-span-2"><dt className="font-semibold text-ink">Why this style</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.artDirectionReason}</dd></div>
+            <div><dt className="font-semibold text-ink">Image role</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.imageRole}</dd></div>
+            <div><dt className="font-semibold text-ink">Composition</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.composition}</dd></div>
+            <div><dt className="font-semibold text-ink">Reference guidance</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.referenceGuidance}</dd></div>
+          </dl>
+        )}
+
+        {/* Chips sit on the dock's own edge rather than up the page: they are
+            settings on the prompt, so they belong with it. */}
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setOpenPanel((current) => (current === "style" ? null : "style"))}
+            aria-expanded={openPanel === "style"}
+            className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-sm font-semibold transition-colors duration-(--duration-fast) ease-(--ease-spring) focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] ${
+              openPanel === "style" ? "border-line-strong bg-sunken text-ink" : "border-line bg-surface text-ink-2 hover:border-line-strong hover:text-ink"
+            }`}
+          >
+            Style overrides
+            {(artDirection !== "designally_ci" || direction !== "auto") && (
+              <span aria-hidden className="size-1.5 rounded-full bg-accent" />
+            )}
+          </button>
+          {visualBrief && (
+            <button
+              type="button"
+              onClick={() => setOpenPanel((current) => (current === "brief" ? null : "brief"))}
+              aria-expanded={openPanel === "brief"}
+              className={`inline-flex min-h-9 items-center rounded-full border px-3 text-sm font-semibold transition-colors duration-(--duration-fast) ease-(--ease-spring) focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] ${
+                openPanel === "brief" ? "border-line-strong bg-sunken text-ink" : "border-line bg-surface text-ink-2 hover:border-line-strong hover:text-ink"
+              }`}
+            >
+              What the prompt was built from
+            </button>
+          )}
+        </div>
+
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[calc(100%+2rem)] bg-linear-to-t from-bg from-72% to-transparent"
+          // Reaches past the gap: with the dock held 64px off the bottom, a
+          // scrim stopping at its edge would leave a strip for images to scroll
+          // through underneath it.
+          className="pointer-events-none absolute inset-x-0 -bottom-16 -z-10 h-[calc(100%+8rem)] bg-linear-to-t from-bg from-72% to-transparent"
         />
         <div className="cs-bezel motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:duration-500">
         <div className="cs-bezel-core relative">
@@ -631,16 +707,8 @@ function ImagePanel({
               rows={3}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              onInput={(event) => {
-                const field = event.currentTarget;
-                field.style.height = "auto";
-                const needsExpansion = field.scrollHeight > 320;
-                setPromptNeedsExpansion(needsExpansion);
-                if (!needsExpansion && promptExpanded) setPromptExpanded(false);
-                field.style.height = `${promptExpanded ? field.scrollHeight : Math.min(field.scrollHeight, 320)}px`;
-              }}
               placeholder="Describe the image, or auto-draft one from the article…"
-              className={`cs-dock-input ${promptNeedsExpansion ? "cs-dock-input--scrollable pr-12" : ""} ${promptExpanded ? "max-h-none" : ""}`}
+              className={`cs-dock-input ${promptNeedsExpansion ? "cs-dock-input--scrollable pr-12" : ""} ${promptExpanded ? "max-h-none" : "max-h-40"}`}
             />
           </div>
           {promptNeedsExpansion && (
@@ -800,6 +868,8 @@ function BrandableImage({ img, brandLogo, feature = false, selected, onSelect, o
 
   const branded = branding !== null;
   const downloadUrl = branded ? `/api/images/${img.id}/branded` : img.url;
+  const [ratioW, ratioH] = img.aspectRatio.split(":").map(Number);
+  const ratio = ratioW && ratioH ? ratioW / ratioH : 1;
 
   function save(next: LogoOverlay | null) {
     setBranding(next);
@@ -826,6 +896,7 @@ function BrandableImage({ img, brandLogo, feature = false, selected, onSelect, o
 
   return (
     <figure
+      style={feature ? { maxWidth: Math.round(FEATURE_MAX_HEIGHT * ratio) } : undefined}
       className={`group overflow-hidden rounded-lg transition-shadow duration-(--duration-base) ease-(--ease-spring) ${
         selected
           ? "shadow-[0_0_0_2px_var(--accent),var(--shadow-plate)]"
@@ -862,7 +933,7 @@ function BrandableImage({ img, brandLogo, feature = false, selected, onSelect, o
             logoSrc="/api/brand-logo"
             overlay={branding}
             aspectRatio={img.aspectRatio}
-            className={`rounded-none border-0 ${feature ? "max-h-[70svh]" : ""}`}
+            className="rounded-none border-0"
           />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
@@ -871,7 +942,7 @@ function BrandableImage({ img, brandLogo, feature = false, selected, onSelect, o
             alt={`Generated companion image, variation ${img.variationNo}`}
             loading="lazy"
             decoding="async"
-            className={`w-full object-cover ${feature ? "max-h-[70svh]" : ""}`}
+            className="w-full object-cover"
             style={{ aspectRatio: img.aspectRatio.replace(":", " / ") }}
           />
         )}
@@ -907,23 +978,29 @@ function BrandableImage({ img, brandLogo, feature = false, selected, onSelect, o
       {deleteError && <p className="bg-danger-soft px-3 py-2 text-xs text-danger" role="alert">{deleteError}</p>}
 
       {brandLogo.hasLogo && (
-        <div className="relative z-20 bg-surface">
-          <div className="flex items-center justify-between gap-2 px-3 py-2">
-            <label className="flex items-center gap-2 text-sm text-ink-2">
-              <input
-                type="checkbox"
-                checked={branded}
-                onChange={(e) => toggleBranding(e.target.checked)}
-                className="size-4 accent-[var(--accent)]"
-              />
+        // A pill toggle on a sunken bed, not a native checkbox on white. The
+        // checkbox was the only unstyled control on the surface, and it read as
+        // one — the state is carried by fill here, the way every other toggle
+        // in the product carries it.
+        <div className="relative z-20 bg-sunken">
+          <div className="flex items-center justify-between gap-2 px-2 py-2">
+            <button
+              type="button"
+              onClick={() => toggleBranding(!branded)}
+              aria-pressed={branded}
+              className={`inline-flex min-h-8 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold transition-colors duration-(--duration-fast) ease-(--ease-spring) focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] ${
+                branded ? "bg-accent-soft text-accent-press" : "text-ink-2 hover:bg-deep hover:text-ink"
+              }`}
+            >
+              {branded && <IconCheck width={11} height={11} />}
               Logo
-            </label>
+            </button>
             {branded && (
               <button
                 type="button"
                 onClick={() => setAdjustOpen((o) => !o)}
                 aria-expanded={adjustOpen}
-                className="rounded-full px-2 py-1 text-xs font-semibold text-accent-ink transition-colors hover:bg-accent-soft focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+                className="inline-flex min-h-8 items-center rounded-full px-2.5 text-xs font-semibold text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-spring) hover:bg-deep hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
               >
                 {adjustOpen ? "Done" : "Adjust"}
               </button>
@@ -1002,16 +1079,18 @@ function PublishComposer({
       {/* No label above the preview: it renders the Hub's own masthead and
           chrome, which says what it is more convincingly than a caption. */}
       <div className="min-w-0">
-        <HubArticlePreview
-          title={title}
-          dek={dek}
-          dekPending={dekPending}
-          tags={publish.tags}
-          coverImageUrl={coverImageUrl}
-          coverAspectRatio={coverAspectRatio}
-          bodyMarkdown={draftMd}
-          meta={`${readMinutes} min read`}
-        />
+        <HubPreviewFrame>
+          <HubArticlePreview
+            title={title}
+            dek={dek}
+            dekPending={dekPending}
+            tags={publish.tags}
+            coverImageUrl={coverImageUrl}
+            coverAspectRatio={coverAspectRatio}
+            bodyMarkdown={draftMd}
+            meta={`${readMinutes} min read`}
+          />
+        </HubPreviewFrame>
       </div>
 
       {/* Clears the floating pill (68px) and its scrim, which is only fully
@@ -1095,45 +1174,6 @@ function PublishRail({
 
   return (
     <div aria-labelledby="publish-heading" className="space-y-4">
-      {/* Check before act. The review can only prevent a mistake if it is read
-          before the button, so it leads rather than trailing beneath it. */}
-      <section className="cs-bezel">
-        <div className="cs-bezel-core p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-ink">Brand check</h3>
-            <button type="button" onClick={reviewArticle} disabled={reviewing || !anthropicReady} className="cs-tool">
-              <IconSpark width={15} height={15} />
-              {reviewing ? "Reviewing…" : review ? "Again" : "Run"}
-            </button>
-          </div>
-          {!anthropicReady && <p className="mt-2 text-sm text-ink-2">Configure Anthropic to run the review.</p>}
-          {reviewError && <p className="mt-2 text-sm text-danger" role="alert">{reviewError}</p>}
-          {!review && anthropicReady && !reviewing && (
-            <p className="mt-2 text-sm leading-relaxed text-ink-2">
-              Reads the finished article against the brand profile before it goes out.
-            </p>
-          )}
-          {review && (
-            <div className="mt-3" aria-live="polite">
-              <p className={`text-sm font-medium ${findings.length ? "text-ink" : "text-ok-ink"}`}>
-                {findings.length ? review.summary : "No issues need attention."}
-              </p>
-              {findings.length > 0 && (
-                <ul className="mt-3 space-y-3 border-t border-line pt-3">
-                  {findings.map((check, index) => (
-                    <li key={`${check.criterion}-${index}`}>
-                      <p className="text-sm font-semibold text-ink">{check.criterion}</p>
-                      <p className="mt-1 text-sm leading-relaxed text-ink-2">{check.finding}</p>
-                      <p className="mt-1.5 text-sm font-medium text-accent-ink">Suggested edit: {check.suggestion}</p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </div>
-      </section>
-
       {/* Where it lands and the act of sending it are one decision, so they are
           one block: taxonomy above the rule, actions below it. Publishing is
           public and the draft save is not, so the two stop being full-width
@@ -1227,6 +1267,46 @@ function PublishRail({
           )}
           {error && <p className="text-sm text-danger" role="alert">{error}</p>}
           </div>
+        </div>
+      </section>
+
+      {/* Sits below the publish block. The check reads the finished article
+          against the brand profile; running it before publishing is still the
+          useful order, so its findings stay open above the fold once run. */}
+      <section className="cs-bezel">
+        <div className="cs-bezel-core p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-ink">Brand check</h3>
+            <button type="button" onClick={reviewArticle} disabled={reviewing || !anthropicReady} className="cs-tool">
+              <IconSpark width={15} height={15} />
+              {reviewing ? "Reviewing…" : review ? "Again" : "Run"}
+            </button>
+          </div>
+          {!anthropicReady && <p className="mt-2 text-sm text-ink-2">Configure Anthropic to run the review.</p>}
+          {reviewError && <p className="mt-2 text-sm text-danger" role="alert">{reviewError}</p>}
+          {!review && anthropicReady && !reviewing && (
+            <p className="mt-2 text-sm leading-relaxed text-ink-2">
+              Reads the finished article against the brand profile before it goes out.
+            </p>
+          )}
+          {review && (
+            <div className="mt-3" aria-live="polite">
+              <p className={`text-sm font-medium ${findings.length ? "text-ink" : "text-ok-ink"}`}>
+                {findings.length ? review.summary : "No issues need attention."}
+              </p>
+              {findings.length > 0 && (
+                <ul className="mt-3 space-y-3 border-t border-line pt-3">
+                  {findings.map((check, index) => (
+                    <li key={`${check.criterion}-${index}`}>
+                      <p className="text-sm font-semibold text-ink">{check.criterion}</p>
+                      <p className="mt-1 text-sm leading-relaxed text-ink-2">{check.finding}</p>
+                      <p className="mt-1.5 text-sm font-medium text-accent-ink">Suggested edit: {check.suggestion}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </div>
       </section>
     </div>
