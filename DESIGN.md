@@ -301,9 +301,20 @@ The Create page's single input. One borderless Clean Sheet object on Draft Bed, 
 **App chrome outranks page chrome.** The side navigation sits on its own `--z-nav` step above `--z-sticky`, because anything straddling its edge overhangs into the content area and would otherwise be painted over by a route's own sticky header. Giving the panel that z-index also gives it a stacking context, so the toggle's own layering stays local instead of competing at the root.
 - The six-stage stepper is horizontally scrollable on narrow screens. Current, completed, available, and locked steps must remain visually distinct without relying on color alone.
 
-### Draft Stage — a sanctioned departure
+### Pipeline — a sanctioned departure
 
-The draft-and-edit stage runs on its own visual rules. It is the only screen where an editor sits for a long stretch reading and reworking a single artefact, and the system's flat bordered vocabulary reads as scaffolding around the thing they came for. Everything below is scoped to this stage and must not spread.
+The pipeline runs on its own visual rules: the shell every stage sits in, and the draft-and-edit stage inside it. This is where an editor sits for a long stretch reading and reworking a single artefact, and the system's flat bordered vocabulary reads as scaffolding around the thing they came for. Everything below is scoped to the pipeline and must not spread to Library, Settings, or the canvas.
+
+**The shell.**
+
+- **A floating pill, not a bar.** The chrome detaches from the top edge, centres itself, and holds the stepper alone on a translucent surface with a blurred backdrop instead of a hairline rule. Content scrolls beneath it. Blur is affordable here precisely because the element is sticky — it is composited once rather than repainted with the scroll.
+- **The chrome does not name the article.** Every stage already shows the title in its own body — the draft renders it, the image panel states it, Publish shows it in the Hub preview — so repeating it above says nothing the content is not already saying. Identity for anyone scanning across windows is carried by the browser tab, which means **every pipeline route must set `generateMetadata`**; a static app-wide document title makes two open articles indistinguishable.
+- **Steps are connected by a rule that carries progress,** not by a chevron that only points: the connector fills with Approval Green once the step behind it completes. A `›` glyph is punctuation standing in for structure.
+- **The stage heading is screen-reader only, and it is the page's `h1`.** The stepper names the current stage visibly, so printing it again in the body says nothing — but the chrome carries no heading, and a page with no top-level heading leaves heading navigation nowhere to start.
+- **A stage carries a description only when it says something the screen cannot** — why a wait is happening, or what an unusual state means. A sentence narrating what the visible controls already do is instruction nobody asked for, and it pushes the actual work down the page. Most stages have none.
+- **A preview of another site's page never holds this page's `h1`.** The Hub preview's title is an `h2`; it is showing someone else's document inside ours.
+
+**The draft stage.**
 
 - **Double bezel.** The article and the revision rail are each a plate seated in a tray: a Draft Bed shell with an inset hairline, `6px` of padding, and a `28px` radius, holding a Clean Sheet core whose radius is the outer minus that padding. **Concentric radii are the whole point** — an inner radius that does not subtract the padding leaves the curves drifting apart at the corners, which is what makes nested containers look like a card inside a card. This is the one place the prohibition on nesting is lifted.
 - **Plate elevation** (`--shadow-plate`): wide, low-contrast, and largely downward. Softer and further-reaching than Workbench Surface, because the plate is a resting object rather than a floating one.
@@ -315,6 +326,11 @@ The draft-and-edit stage runs on its own visual rules. It is the only screen whe
 ### Generation Workbench
 
 Model, ratio, reference, variation, prompt, and result controls must read as one progressive task rather than independent cards. Capability-dependent controls disappear or become explicitly unavailable.
+
+- **The prompt leads; everything else is a setting on it.** The field the editor writes in sits at the top of the surface, and model, ratio, count and reference compress into chips in a control row beneath — the same composer the home surface uses. Stacking settings above the field makes configuration outrank the work being configured.
+- **An option's rationale belongs in its dropdown, not under its control.** `MenuSelect` carries a description per option, which puts the explanation at the moment of choosing instead of as helper text stacked under a control nobody is looking at yet. Four lines of prose left this surface that way with nothing lost.
+- **A setting never takes the accent.** A selected aspect ratio rendered as a filled primary button means one control is always shouting for a preference nobody needs reminding of. Settings are chips; only the action that generates carries Proofing Orange.
+- **Results are a section, not a footer.** What the stage produced gets its own heading and count above the grid, rather than trailing the controls that made it.
 
 ## Do's and Don'ts
 
