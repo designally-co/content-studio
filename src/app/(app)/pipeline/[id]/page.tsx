@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { loadProject } from "@/lib/projects";
 import { publishMetadata } from "@/lib/publish-meta";
@@ -10,6 +11,19 @@ import { DraftsStage } from "./stages/drafts-stage";
 import { PublishStage } from "./stages/publish-stage";
 
 export const dynamic = "force-dynamic";
+
+/** Every pipeline tab used to read "Designally Content Studio", so two open
+ *  articles were indistinguishable from the tab strip alone. */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const loaded = await loadProject(id);
+  const name = loaded?.project.selectedTopic?.title?.trim();
+  return { title: `${name || "Untitled article"} · Content Studio` };
+}
 
 /** Parse an aspect-ratio string ("16:9", "3:2", "1:1") to width/height. Falls
  * back to 3:2 when unset or malformed; clamped to a sane range. */
@@ -40,9 +54,15 @@ export default async function PipelinePage({
   const imageOptions = await imageGenerationOptions();
   const title = loaded.project.selectedTopic?.title;
   const published = loaded.project.status === "published";
+  // Only one image reaches the Hub. The editor's choice wins; without one, the
+  // most recent image stands in, which is what this stage did implicitly before
+  // choosing was possible. A deleted choice falls back the same way.
+  const chosenCoverId = loaded.project.inputs.coverImageId;
+  const cover =
+    loaded.images.find((image) => image.id === chosenCoverId) ?? loaded.images[0];
   // Cover aspect ratio (width / height) — drives the preview hero's 50% overflow.
   const coverAspectRatio = parseAspectRatio(
-    loaded.images[0]?.aspectRatio ?? loaded.project.inputs.imageAspectRatio,
+    cover?.aspectRatio ?? loaded.project.inputs.imageAspectRatio,
   );
   const finalizeView: "images" | "complete" = viewParam === "images" || viewParam === "complete"
     ? viewParam
@@ -50,14 +70,26 @@ export default async function PipelinePage({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-(--z-sticky) border-b border-line bg-bg">
-        <div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-5 lg:px-12 xl:px-16">
-          <h1 className="text-[length:var(--text-h1)] font-bold text-ink">
-            {title || "Untitled article"}
-          </h1>
+      {/* A floating pill carrying only the stepper. Each stage names the article
+          in its own body, so repeating it in the chrome said nothing the content
+          was not already saying; the browser tab carries identity for anyone
+          scanning across windows. */}
+      <div className="sticky top-0 z-(--z-sticky) flex justify-center px-3 pt-3">
+        {/* A floating pill leaves the page exposed either side of it and above
+            it, so content would ride up alongside the steps. The scrim is what
+            makes the form legible: page colour at the very top, fading out
+            below the pill, so anything scrolling under it dissolves rather than
+            colliding with it. Functional, not decoration. */}
+        <div
+          aria-hidden
+          // Solid past the pill's own bottom edge (~68px) before it starts to
+          // fade, so nothing shows through beside the steps themselves.
+          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-28 bg-linear-to-b from-bg from-65% to-transparent"
+        />
+        <header className="cs-island max-w-full overflow-x-auto rounded-full px-2 py-2">
           <Stepper projectId={id} current={current} reached={reached} published={published} finalizeView={finalizeView} />
-        </div>
-      </header>
+        </header>
+      </div>
 
       <div className="flex-1">
         {current <= 3 && (
@@ -95,8 +127,9 @@ export default async function PipelinePage({
             draftMd={
               (loaded.drafts.find((d) => d.isSelected) ?? loaded.drafts[0])?.contentMd ?? ""
             }
-            coverImageUrl={loaded.images[0] ? `/api/images/${loaded.images[0].id}` : null}
+            coverImageUrl={cover ? `/api/images/${cover.id}` : null}
             coverAspectRatio={coverAspectRatio}
+            coverImageId={cover?.id ?? null}
             initialDek={loaded.project.inputs.publishDek ?? null}
             published={published}
             images={loaded.images.map((img) => ({

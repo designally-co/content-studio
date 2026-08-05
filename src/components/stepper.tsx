@@ -37,37 +37,38 @@ export function Stepper({
   published: boolean;
   finalizeView?: "images" | "complete";
 }) {
+  const currentVisible = visibleStage(current, finalizeView);
+  const reachedVisible = visibleStage(reached);
+
   return (
-    <nav className="mt-3" aria-label="Content pipeline">
+    <nav aria-label="Content pipeline">
       <ol className="flex items-center gap-1 overflow-x-auto">
         {STAGES.map((s, i) => {
-          const currentVisible = visibleStage(current, finalizeView);
-          const reachedVisible = visibleStage(reached);
           const done = s.n < currentVisible || (s.n === 3 && published);
           const active = s.n === currentVisible;
           const navigable = s.n <= reachedVisible;
           const content = (
             <span
-              className={`flex min-h-11 items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors ${
+              className={`flex min-h-10 items-center gap-2 whitespace-nowrap rounded-full px-3.5 text-sm font-semibold transition-colors duration-(--duration-fast) ease-(--ease-spring) ${
                 active
-                  ? "bg-accent-soft font-medium text-accent-ink"
+                  ? "bg-accent-soft text-accent-press"
                   : navigable
-                    ? "text-ink-2 hover:bg-sunken"
+                    ? "text-ink-2 hover:bg-sunken hover:text-ink"
                     : "text-ink-3"
               }`}
             >
               <span
-                className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-xs font-semibold ${
+                className={`grid size-5 shrink-0 place-items-center rounded-full text-xs font-bold transition-colors duration-(--duration-fast) ease-(--ease-spring) ${
                   active
                     ? "bg-accent text-white"
                     : done
                       ? "bg-ok text-white"
                       : navigable
                         ? "bg-sunken text-ink-2"
-                        : "border border-line text-ink-3"
+                        : "bg-deep text-ink-3"
                 }`}
               >
-                {done ? <IconCheck width={12} height={12} /> : s.n}
+                {done ? <IconCheck width={11} height={11} /> : s.n}
               </span>
               {s.label}
             </span>
@@ -75,14 +76,24 @@ export function Stepper({
           return (
             <li key={s.n} className="flex items-center">
               {navigable && !active ? (
-                <Link href={`/pipeline/${projectId}?stage=${s.target}${s.n === 2 ? "&view=images" : s.n === 3 ? "&view=complete" : ""}`}>{content}</Link>
+                <Link
+                  href={`/pipeline/${projectId}?stage=${s.target}${s.n === 2 ? "&view=images" : s.n === 3 ? "&view=complete" : ""}`}
+                  className="rounded-full focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+                >
+                  {content}
+                </Link>
               ) : (
                 <span aria-current={active ? "step" : undefined}>{content}</span>
               )}
+              {/* A rule that carries progress, rather than a chevron that only
+                  points. It fills once the step behind it is complete. */}
               {i < STAGES.length - 1 && (
-                <span className="mx-0.5 text-ink-3" aria-hidden>
-                  ›
-                </span>
+                <span
+                  aria-hidden
+                  className={`mx-1 h-px w-4 shrink-0 rounded-full transition-colors duration-(--duration-base) ease-(--ease-spring) sm:w-6 ${
+                    done ? "bg-ok" : "bg-line"
+                  }`}
+                />
               )}
             </li>
           );

@@ -175,7 +175,7 @@ export function DraftsStage({
   if (!anthropicReady) return <StageShell title="Draft & edit"><ApiNotReady /></StageShell>;
 
   return (
-    <StageShell title="Draft & edit" description="Generate, edit, and revise one article while every meaningful version stays restorable." wide>
+    <StageShell title="Draft & edit" wide>
       <div className={`grid items-start gap-6 ${drawerOpen ? "xl:grid-cols-[minmax(0,1fr)_22rem]" : ""}`}>
         {/* Tray and plate. The article is the product on this screen, so it is
             seated as an object rather than boxed by a header and footer strip. */}

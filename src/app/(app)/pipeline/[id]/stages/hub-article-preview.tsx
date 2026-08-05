@@ -75,7 +75,10 @@ export function HubArticlePreview({
             </div>
           )}
 
-          <h1 className="hubprev__title">{title}</h1>
+          {/* h2, not h1: this is a preview of the Hub's page rendered inside
+              ours, so it must not compete with this page's own top-level
+              heading. The class keeps the Hub's type unchanged. */}
+          <h2 className="hubprev__title">{title}</h2>
 
           {dek ? (
             <p className="hubprev__dek">{dek}</p>
