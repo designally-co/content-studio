@@ -168,7 +168,7 @@ export default async function LibraryPage({
                 ? "Nothing matches those filters."
                 : "Nothing here yet. The first article you start will land here."}
             </p>
-            <Link href="/new" className="cs-btn-primary mt-6">
+            <Link href="/" className="cs-btn-primary mt-6">
               <IconNew width={16} height={16} />
               New content
             </Link>

@@ -11,15 +11,23 @@ import {
 } from "./icons";
 
 const NAV = [
-  { href: "/new", label: "Create", icon: IconNew, exact: false },
-  { href: "/", label: "Library", icon: IconLibrary, exact: true },
+  { href: "/", label: "Create", icon: IconNew, exact: true },
+  { href: "/library", label: "Library", icon: IconLibrary, exact: true },
   { href: "/settings", label: "Settings", icon: IconSettings, exact: false },
 ];
+
+/** Routes that open with the panel out of the way. */
+const COLLAPSED_ROUTES = new Set(["/"]);
 
 export function SideNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(pathname === "/new");
+  // Collapse follows the route, and a manual toggle overrides it only for the
+  // route it was made on. Derived during render rather than synced in an
+  // effect, so navigating to a canvas surface actually collapses the panel
+  // instead of only doing so on a cold load.
+  const [override, setOverride] = useState<{ path: string; value: boolean } | null>(null);
+  const collapsed = override?.path === pathname ? override.value : COLLAPSED_ROUTES.has(pathname);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -95,7 +103,7 @@ export function SideNav() {
         <div className="sticky top-0 flex h-dvh flex-col">
         <button
           type="button"
-          onClick={() => setCollapsed((value) => !value)}
+          onClick={() => setOverride({ path: pathname, value: !collapsed })}
           className="absolute -right-4 top-5 z-10 grid size-8 place-items-center rounded-full border border-line bg-surface text-ink-2 shadow-[var(--shadow-card)] transition-colors duration-(--duration-fast) ease-(--ease-out) hover:border-line-strong hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
