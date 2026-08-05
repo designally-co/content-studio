@@ -32,7 +32,7 @@ The interface must not resemble a generic AI chatbot, a noisy analytics dashboar
 
 ## Design Principles
 
-1. **Keep the workflow legible.** The product follows one path: Create → Draft & edit → Generate images → Done.
+1. **Keep the workflow legible.** Create is the home surface and the entry point, not a stage: an article begins there, and once it exists it follows one path — Draft & edit → Generate images → Publish. Nothing in that path returns to Create, so the pipeline never shows it as a step.
 2. **Ask only for useful input.** Start from a topic, a brief, or a creative category when the editor needs topic ideas.
 3. **Research before writing.** Draft generation creates one lightweight, source-backed article plan without exposing a candidate or curation pipeline.
 4. **Support human judgment.** Editing, fact-checking, image generation, and finalization remain explicit decisions.

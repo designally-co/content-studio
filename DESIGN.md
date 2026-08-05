@@ -186,7 +186,7 @@ The palette combines a vivid editorial orange with warm brown-leaning neutrals t
 
 **The Interface-Type Rule.** Product labels remain compact and fixed-size. Fluid display typography is forbidden inside the authenticated application shell — Canvas Display is a discrete rung on the ramp with a discrete breakpoint, never a `clamp()`.
 
-**The Two-Tone Headline.** A canvas headline may split its own line by weight of colour, setting the framing clause in `ink-secondary` and the operative phrase in `ink`, so the eye lands on the question rather than reading left to right through the setup. The split is a step, never a drop: `ink-muted` is for supporting text beside a headline, not for half of one, and using it here reads as washed out rather than as hierarchy. This is the only sanctioned decoration on a headline — no kicker, no eyebrow, no badge, no gradient.
+**The Single-Message Rule.** A canvas surface asks one question, in one line, in one colour. No second paragraph restating it, no split tone, no kicker, no eyebrow, no badge, no gradient. Anything that explains an input belongs on the input — a placeholder reaches the editor at the moment they are looking at the field, which a sentence above the fold does not.
 
 **The Bilingual Rhythm Rule.** Thai and English must retain equal visual authority; never shrink Thai text or tighten its line-height to force matching geometry.
 
@@ -205,6 +205,15 @@ Elevation is structural almost everywhere: full borders and tonal surface change
 
 **The Canvas Exception.** A canvas surface inverts that order: the page takes Draft Bed, its working objects take Clean Sheet with no border, and Canvas Lift separates them. This is only legitimate when the page is a single authoring act with one object of attention. It is not a licence to drop borders elsewhere, and a canvas page still uses the ordinary bordered vocabulary for anything below the fold that is a list, a result, or a form.
 
+**Sunset Backlight.** The composer dock on a canvas surface is lit from behind. This is the one sanctioned glow in the product, and it is built as light rather than as decoration:
+
+- **It takes the silhouette of the thing it lights.** The element is the dock's own box and radius, sitting directly beneath it, and the light is thrown by layered `box-shadow` — not painted as a background. A radial gradient can only draw an ellipse *near* an object; a shadow wraps its actual shape, including its rounded corners, which is what makes the light read as coming from behind rather than from a shape placed underneath.
+- **The hue warms outward.** Three layers stepping through the brand ramp — Proofing Orange at the rim, `orange-300` through the mid, `orange-200` at the furthest spread. A sunset is a progression of hues; one colour at falling opacity reads as a stain.
+- **High key.** Nothing in the effect darkens the page. No ring, no hard edge, no `filter: blur()`, no pulse, and never a second one on the same screen.
+- **Sibling before, never child.** As a child it paints over the surface's own background instead of behind it.
+
+Colour is carried by `color-mix` against ramp variables rather than literal rgba, so the glow stays on the palette and re-tints with it.
+
 **Known gap.** The Create composer currently signals focus by deepening Canvas Lift rather than applying the Focus Halo, and its textarea suppresses the native outline. That does not meet the Focus Halo rule or WCAG 2.2 AA focus appearance, and it is recorded here as an open item rather than as sanctioned behavior.
 
 ## Components
@@ -214,6 +223,7 @@ Components are refined and restrained: predictable at first glance, precise unde
 ### Buttons
 
 - **Shape:** full pill for actions (`999px`), 40px default height, 20px horizontal padding.
+- **A circular button sizes both axes from one value.** A pill radius on a box that is not square is an oval, and the two dimensions drift apart easily — the coarse-pointer rule that lifts controls to a 44px touch target raises `min-height` alone, and any later rule can move one without the other. A single custom property feeding both the height and a `min-width` floor keeps them locked while still letting a labelled variant grow past it. `aspect-ratio` also holds the circle but pins width to height absolutely, which blocks that growth — and a width that cannot grow cannot be animated.
 - **Primary:** Proofing Orange with white text; one clear primary action per local task region.
 - **Hover / Focus:** deepen to Press Orange in 120ms; focus uses the three-pixel Focus Halo; active state scales to 98%.
 - **Secondary / Ghost:** transparent or sunken backgrounds with Editorial Ink; inactive controls never compete with the primary action.
@@ -240,7 +250,11 @@ The Create page's single input. One borderless Clean Sheet object on Draft Bed, 
 - **Container:** `16px` radius, no border, Canvas Lift, `position: relative`.
 - **Field:** auto-growing textarea, `84px` minimum and `320px` maximum height, transparent background, no border or outline. Beyond the maximum it scrolls, and an expand control appears at the top-right to release the cap.
 - **Masked top edge:** the field's viewport carries `12px` of top padding and a Clean Sheet mask across that band, so scrolled text disappears cleanly instead of colliding with the dock's rounded top.
-- **Control row:** direction chip at the left, then generate-ideas and submit at the right. `8px` above and at the sides, `10px` below. Both right-hand actions are `40px` tall on the full pill radius.
+- **Control row:** direction chip at the left, then generate-ideas and submit at the right. `8px` above and at the sides, `10px` below. Both right-hand actions are `40px` tall on the full pill radius, rising to `44px` square on coarse pointers.
+- **A collapsible flex item needs `min-width: 0` on itself, not only on its child.** Flex items default to `min-width: auto`, which resolves to min-content — so an element can animate its own track to zero while still reserving its content's full width, holding everything beside it off centre. This is the most common reason a collapse "does nothing".
+- **Spacing beside a collapsible element belongs inside it, never as a flex `gap`.** A gap is reserved even when the item next to it has collapsed to zero width, so it survives the very thing it was spacing — leaving a leading icon off its button's centre, or a dead gutter beside a hidden control. Put the space in the collapsing element's own padding or margin so it disappears with it.
+- **A control that appears or widens does so over `--duration-base`, never instantly.** `display: none` has nothing to interpolate and `width: auto` has no computed value to tween from, so both snap regardless of the duration set on them. Reveal instead through a grid track moving between `0fr` and `1fr` with the wrapper clipping its child: that value does interpolate, the child is measured smaller each frame, and the parent's automatic width follows continuously. Fixed pixel widths are not an acceptable substitute — they break the moment the label changes or the font loads late.
+- **Below `640px` the two actions trade the label rather than both shrinking.** At rest, generate carries its words and submit is not rendered at all — nothing can be sent yet, so an inert control is the one worth dropping. Once there is input, submit appears and generate falls back to its orb alone. Compressing both to fit is the worse answer: it leaves two cramped controls where one of them has nothing to do.
 - **Direction chip:** `36px` pill with `8px` inner padding and no outline, taking a Draft Bed fill only on hover and while its menu is open. A chosen direction is shown in full Editorial Ink against the muted default — the way a select distinguishes a value from its placeholder — and never in the accent. Opens a pillar → direction drill-down menu at Popover Lift.
 - **Generate:** a Markup Wash pill with a Press Orange label and an outline one ramp step past its own fill. It goes properly `disabled` the moment the editor writes something, taking the standard disabled fade — the ideas path is off the table, and a control that is off the table should say so rather than merely go quiet. The wash is what gives the orb a ground: at outline weight the orb reads as a stray dot, and as one object with the pill it reads as the live control. Icon-only below `640px`, labelled above it.
 - **The orb:** `26px` at half speed, rendered in Proofing Orange through the brand ramp — near dots at Press Orange, far dots lightening toward `#ffa78f`. Slow enough to read as ambient rather than as a spinner reporting progress. It runs continuously, fading with its button rather than stopping — availability is the button's job to report, not the orb's. It idles when off-screen or on a hidden tab, and falls back to a single frame under reduced motion.
@@ -279,11 +293,24 @@ The Create page's single input. One borderless Clean Sheet object on Draft Bed, 
 ### Navigation
 
 - The side navigation uses Clean Sheet, a right Rule Line, and compact 44px rows, ordered Create → Library → Settings. Create is the home route: the studio opens on the act it exists for, not on an inventory of past work. Active destinations use Markup Wash, Press Orange text, and an orange icon; inactive destinations remain neutral until hover.
-- It is collapsible between `240px` and `80px`, animating width over 200ms. Collapsed, rows become square `44px` targets centred in the panel and keep their label available to assistive technology and as a tooltip — a full-width pill behind a lone centred icon reads as a mis-sized target rather than as a state. The brandmark holds one size and position across both states so collapsing reads as the panel narrowing, not as the logo jumping. Canvas surfaces open with the navigation collapsed so the working object holds the page. That state follows the route and is derived during render, not synced from an effect — a manual toggle overrides it only for the route it was made on, so arriving at a canvas surface collapses the panel every time rather than only on a cold load.
+- It is collapsible between `240px` and `80px`, animating width over 200ms. Collapsed, rows become square `44px` targets centred in the panel and keep their label available to assistive technology and as a tooltip — a full-width pill behind a lone centred icon reads as a mis-sized target rather than as a state. The brandmark holds one size and position across both states so collapsing reads as the panel narrowing, not as the logo jumping. Canvas surfaces open with the navigation collapsed so the working object holds the page.
+
+**The route sets the panel; navigation never moves it.** The collapsed state is decided once, from the route the visitor arrives on, and after that only the toggle changes it. Following a link must never reflow the panel: the width change costs more attention than the labels are worth, and it makes the link feel like it did something other than navigate.
 - The toggle is a `32px` circular Clean Sheet button straddling the right Rule Line at Workbench Surface elevation.
 
 **App chrome outranks page chrome.** The side navigation sits on its own `--z-nav` step above `--z-sticky`, because anything straddling its edge overhangs into the content area and would otherwise be painted over by a route's own sticky header. Giving the panel that z-index also gives it a stacking context, so the toggle's own layering stays local instead of competing at the root.
 - The six-stage stepper is horizontally scrollable on narrow screens. Current, completed, available, and locked steps must remain visually distinct without relying on color alone.
+
+### Draft Stage — a sanctioned departure
+
+The draft-and-edit stage runs on its own visual rules. It is the only screen where an editor sits for a long stretch reading and reworking a single artefact, and the system's flat bordered vocabulary reads as scaffolding around the thing they came for. Everything below is scoped to this stage and must not spread.
+
+- **Double bezel.** The article and the revision rail are each a plate seated in a tray: a Draft Bed shell with an inset hairline, `6px` of padding, and a `28px` radius, holding a Clean Sheet core whose radius is the outer minus that padding. **Concentric radii are the whole point** — an inner radius that does not subtract the padding leaves the curves drifting apart at the corners, which is what makes nested containers look like a card inside a card. This is the one place the prohibition on nesting is lifted.
+- **Plate elevation** (`--shadow-plate`): wide, low-contrast, and largely downward. Softer and further-reaching than Workbench Surface, because the plate is a resting object rather than a floating one.
+- **Spring easing** (`--ease-spring`, `cubic-bezier(.32,.72,0,1)`): a heavier, longer-tailed curve than `--ease-out`, used only here so the surface reads as having mass. Motion may run to `--duration-slow` on this stage.
+- **Nested trailing icon.** The primary action carries its glyph in its own disc, flush to the button's inner edge, and that disc holds the hover motion by itself rather than the whole button sliding.
+- **Quiet toolbar controls.** Controls over a reading surface carry no outline at rest and take a tonal fill only while holding a mode open. Outlining every one of them gives a destructive action the same weight as a view toggle.
+- **Still no eyebrows, no glass over content, no dark register.** `backdrop-blur` stays on the sticky action bar, where it is doing a job. The stage is an exception in structure and motion, not an invitation to redecorate.
 
 ### Generation Workbench
 
@@ -303,7 +330,7 @@ Model, ratio, reference, variation, prompt, and result controls must read as one
 
 - **Don't** make the interface resemble a generic AI chatbot. The composer dock is an input affordance, not a conversation: no message transcript, no turn-taking, no assistant persona, no scrollback. It takes one turn and renders structured results below itself.
 - **Don't** make it a noisy analytics dashboard; metrics support decisions and never dominate the content task.
-- **Don't** use an over-decorated “futuristic AI” aesthetic, neon glow, decorative gradients, or glassmorphism.
-- **Don't** introduce nested cards, colored side-stripe borders, gradient text, or decorative grids. Wide soft shadows are permitted only as Canvas Lift on a canvas surface's working object; anywhere else they remain ghost-card decoration.
+- **Don't** use an over-decorated “futuristic AI” aesthetic, neon glow, decorative gradients, or glassmorphism. The composer's Ambient Warmth is the single exception, and it is defined narrowly enough not to become a licence — see Elevation.
+- **Don't** introduce nested cards, colored side-stripe borders, gradient text, or decorative grids. The draft stage's double bezel is the single exception, and it earns it only by holding its radii concentric — see Draft Stage. Wide soft shadows are permitted only as Canvas Lift on a canvas surface's working object; anywhere else they remain ghost-card decoration.
 - **Don't** invent novel controls for standard actions or use motion that does not communicate state.
 - **Don't** use color alone for brand-review findings, warning, error, progress, or provider availability.

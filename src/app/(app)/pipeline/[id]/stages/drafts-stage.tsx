@@ -2,10 +2,8 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Markdown } from "@/components/markdown";
-import { CopyButton } from "@/components/copy-button";
 import { IconArrowRight, IconCheck, IconSpark } from "@/components/icons";
 import { streamNdjson } from "@/lib/ndjson-client";
-import { markdownToPlainText } from "@/lib/plain";
 import { ApiNotReady, StageShell } from "./stage-shell";
 import { goToFinalizeAction, saveDraftContentAction } from "../actions";
 
@@ -178,73 +176,112 @@ export function DraftsStage({
 
   return (
     <StageShell title="Draft & edit" description="Generate, edit, and revise one article while every meaningful version stays restorable." wide>
-      <div className={`grid items-start gap-5 ${drawerOpen ? "lg:grid-cols-[minmax(0,1fr)_20rem]" : ""}`}>
-        <article className="overflow-hidden rounded-xl border border-line bg-surface">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3 sm:px-7">
-            <div>
-              <p className="text-sm font-medium text-ink">Article draft</p>
-              <p className="mt-0.5 text-xs text-ink-3" aria-live="polite">
-                {draft.streaming ? "Writing draft…" : revising ? "Applying revision…" : dirty || pending ? "Saving…" : draft.contentMd ? `Saved · Target ${targetLength}` : `Target ${targetLength}`}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={toggleEditing} disabled={!draft.contentMd || draft.streaming || revising} className="cs-btn">{editing ? "Preview" : "Edit"}</button>
-              <button type="button" onClick={() => setDrawerOpen((value) => !value)} disabled={!draft.id || draft.streaming} className="cs-btn" aria-expanded={drawerOpen}>{drawerOpen ? "Close revisions" : `Revise & history${revisions.length ? ` (${revisions.length})` : ""}`}</button>
-              <button type="button" onClick={regenerate} disabled={draft.streaming || revising || dirty || pending} className="cs-btn">{draft.streaming ? "Writing…" : "Regenerate"}</button>
-            </div>
-          </div>
+      <div className={`grid items-start gap-6 ${drawerOpen ? "xl:grid-cols-[minmax(0,1fr)_22rem]" : ""}`}>
+        {/* Tray and plate. The article is the product on this screen, so it is
+            seated as an object rather than boxed by a header and footer strip. */}
+        <article className="cs-bezel motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:duration-500">
+          <div className="cs-bezel-core">
+            <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 px-5 pb-4 pt-5 sm:px-8 sm:pt-6">
+              <div className="min-w-0">
+                <p className="font-heading text-[length:var(--text-h3)] font-bold tracking-tight text-ink">Article draft</p>
+                <p className="mt-1 text-sm text-ink-2" aria-live="polite">
+                  {draft.streaming ? "Writing draft…" : revising ? "Applying revision…" : dirty || pending ? "Saving…" : draft.contentMd ? `Saved · Target ${targetLength}` : `Target ${targetLength}`}
+                </p>
+              </div>
+              {/* Quiet at rest, tonal while a mode is held open. Three equal
+                  outlines gave a destructive action the same weight as a view
+                  toggle. */}
+              <div className="flex flex-wrap items-center gap-1">
+                <button type="button" onClick={toggleEditing} disabled={!draft.contentMd || draft.streaming || revising} className="cs-tool" aria-pressed={editing}>
+                  {editing ? "Preview" : "Edit"}
+                </button>
+                <button type="button" onClick={() => setDrawerOpen((value) => !value)} disabled={!draft.id || draft.streaming} className="cs-tool" aria-expanded={drawerOpen}>
+                  Revisions{revisions.length ? <span className="text-ink-3">{revisions.length}</span> : null}
+                </button>
+                <button type="button" onClick={regenerate} disabled={draft.streaming || revising || dirty || pending} className="cs-tool">
+                  {draft.streaming ? "Writing…" : "Regenerate"}
+                </button>
+              </div>
+            </header>
 
-          {draft.error && <p className="m-5 rounded-lg border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{draft.error}</p>}
+            {draft.error && <p className="mx-5 mb-2 rounded-2xl bg-danger-soft px-4 py-3 text-sm text-danger sm:mx-8" role="alert">{draft.error}</p>}
 
-          {editing ? (
-            <div className="p-5 sm:p-8">
-              <textarea value={draft.contentMd} onChange={(event) => { setDraft((current) => ({ ...current, contentMd: event.target.value })); setDirty(true); }} className="cs-textarea min-h-[38rem] text-sm leading-relaxed" aria-label="Article Markdown" />
-            </div>
-          ) : (
-            <div className="mx-auto min-h-[38rem] max-w-[76ch] px-5 py-8 sm:px-8 sm:py-12">
-              {draft.contentMd ? <Markdown>{draft.contentMd}</Markdown> : <p className="py-16 text-center text-sm text-ink-3">Preparing the article…</p>}
-              {(draft.streaming || revising) && <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-accent align-text-bottom" />}
-            </div>
-          )}
+            {editing ? (
+              <div className="px-5 pb-8 sm:px-8">
+                <textarea value={draft.contentMd} onChange={(event) => { setDraft((current) => ({ ...current, contentMd: event.target.value })); setDirty(true); }} className="cs-textarea min-h-[38rem] rounded-2xl text-sm leading-relaxed" aria-label="Article Markdown" />
+              </div>
+            ) : (
+              <div className="mx-auto min-h-[38rem] max-w-[74ch] px-5 pb-16 pt-6 sm:px-8 sm:pb-24 sm:pt-10">
+                {draft.contentMd ? <Markdown>{draft.contentMd}</Markdown> : <p className="py-20 text-center text-sm text-ink-2">Preparing the article…</p>}
+                {(draft.streaming || revising) && <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded-full bg-accent align-text-bottom motion-reduce:animate-none" />}
+              </div>
+            )}
 
-          <div className="sticky bottom-0 flex flex-col-reverse gap-2 border-t border-line bg-surface/95 px-5 py-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-7">
-            <div className="flex flex-wrap gap-2">
-              <CopyButton text={draft.contentMd} label="Copy Markdown" className="cs-btn" />
-              <CopyButton text={markdownToPlainText(draft.contentMd)} label="Copy plain text" className="cs-btn" />
+            <div className="sticky bottom-0 flex items-center justify-end border-t border-line bg-surface/90 px-5 py-4 backdrop-blur-xl sm:px-8">
+              <button type="button" onClick={continueToImages} disabled={!draft.id || !draft.contentMd || draft.streaming || revising || dirty || pending} className="cs-cta group">
+                Continue to images
+                <span aria-hidden className="cs-cta-disc"><IconArrowRight width={15} height={15} /></span>
+              </button>
             </div>
-            <button type="button" onClick={continueToImages} disabled={!draft.id || !draft.contentMd || draft.streaming || revising || dirty || pending} className="cs-btn-primary">Continue to images <IconArrowRight width={16} height={16} /></button>
           </div>
         </article>
 
         {drawerOpen && (
-          <aside className="rounded-xl border border-line bg-surface lg:sticky lg:top-5" aria-label="AI revisions and version history">
-            <div className="border-b border-line px-5 py-4">
-              <h3 className="font-semibold text-ink">Revise article</h3>
-              <p className="mt-1 text-xs text-ink-3">Ask for one focused change at a time.</p>
-            </div>
-            <div className="space-y-4 p-4">
-              <div className="flex flex-wrap gap-2">
-                {SUGGESTIONS.map((suggestion) => <button key={suggestion} type="button" onClick={() => void revise(suggestion)} disabled={revising || dirty || pending} className="rounded-full border border-line bg-bg px-3 py-2 text-xs text-ink-2 hover:border-accent hover:text-accent-ink disabled:opacity-50">{suggestion}</button>)}
+          <aside
+            className="cs-bezel motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-right-4 motion-safe:duration-500 xl:sticky xl:top-6"
+            aria-label="AI revisions and version history"
+          >
+            <div className="cs-bezel-core">
+              <div className="px-5 pb-4 pt-5">
+                <h3 className="font-heading text-[length:var(--text-h3)] font-bold tracking-tight text-ink">Revise</h3>
+                <p className="mt-1 text-sm leading-relaxed text-ink-2">One focused change at a time.</p>
               </div>
-              <form onSubmit={(event) => { event.preventDefault(); void revise(input); }} className="space-y-2">
-                <label htmlFor="revision-instruction" className="cs-label">Revision instruction</label>
-                <textarea id="revision-instruction" value={input} onChange={(event) => setInput(event.target.value)} className="cs-textarea min-h-24 text-sm" placeholder="Make the typeface descriptions more specific…" />
-                <button type="submit" disabled={revising || dirty || pending || !input.trim()} className="cs-btn-primary w-full"><IconSpark width={16} height={16} />{revising ? "Applying…" : "Apply revision"}</button>
-              </form>
-            </div>
-            {revisions.length > 0 && (
-              <div className="max-h-[28rem] overflow-y-auto border-t border-line px-4 py-4">
-                <h4 className="text-xs font-semibold text-ink-3">Version history</h4>
-                <ol className="mt-3 space-y-2">
-                  {[...revisions].reverse().map((revision) => (
-                    <li key={revision.id} className="rounded-lg bg-sunken px-3 py-3">
-                      <p className="text-sm text-ink-2">{revision.userMessage}</p>
-                      <button type="button" onClick={() => restore(revision)} disabled={dirty || pending || !revision.resultMd} className="mt-2 inline-flex min-h-9 items-center gap-1 text-xs font-medium text-accent-ink hover:underline"><IconCheck width={13} height={13} />Restore this version</button>
-                    </li>
+
+              <div className="space-y-4 px-5 pb-5">
+                <div className="flex flex-wrap gap-1.5">
+                  {SUGGESTIONS.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onClick={() => void revise(suggestion)}
+                      disabled={revising || dirty || pending}
+                      className="rounded-full bg-sunken px-3 py-2 text-left text-xs font-medium text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-spring) hover:bg-accent-soft hover:text-accent-press focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {suggestion}
+                    </button>
                   ))}
-                </ol>
+                </div>
+                <form onSubmit={(event) => { event.preventDefault(); void revise(input); }} className="space-y-2.5">
+                  <label htmlFor="revision-instruction" className="sr-only">Revision instruction</label>
+                  <textarea id="revision-instruction" value={input} onChange={(event) => setInput(event.target.value)} className="cs-textarea min-h-24 rounded-2xl text-sm" placeholder="Make the typeface descriptions more specific…" />
+                  <button type="submit" disabled={revising || dirty || pending || !input.trim()} className="cs-cta group w-full justify-between">
+                    {revising ? "Applying…" : "Apply revision"}
+                    <span aria-hidden className="cs-cta-disc"><IconSpark width={15} height={15} /></span>
+                  </button>
+                </form>
               </div>
-            )}
+
+              {revisions.length > 0 && (
+                <div className="max-h-[26rem] overflow-y-auto border-t border-line px-5 py-5">
+                  <h4 className="text-sm font-semibold text-ink">Version history</h4>
+                  <ol className="mt-3 space-y-1">
+                    {[...revisions].reverse().map((revision) => (
+                      <li key={revision.id} className="group/rev rounded-2xl px-3 py-3 transition-colors duration-(--duration-fast) ease-(--ease-spring) hover:bg-sunken">
+                        <p className="text-sm leading-snug text-ink-2">{revision.userMessage}</p>
+                        <button
+                          type="button"
+                          onClick={() => restore(revision)}
+                          disabled={dirty || pending || !revision.resultMd}
+                          className="mt-1.5 inline-flex min-h-9 items-center gap-1.5 text-xs font-semibold text-accent-ink transition-opacity duration-(--duration-fast) ease-(--ease-spring) hover:underline focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:opacity-40 sm:opacity-0 sm:group-hover/rev:opacity-100 sm:group-focus-within/rev:opacity-100"
+                        >
+                          <IconCheck width={13} height={13} />Restore
+                        </button>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+            </div>
           </aside>
         )}
       </div>

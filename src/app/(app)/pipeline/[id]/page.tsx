@@ -5,7 +5,7 @@ import { isAnthropicConfigured } from "@/lib/anthropic";
 import { isHubConfigured } from "@/lib/hub";
 import { imageGenerationOptions } from "@/lib/image/registry";
 import { Stepper } from "@/components/stepper";
-import { SimpleDirectionStage } from "./stages/simple-direction-stage";
+import { PrepareDraftStage } from "./stages/prepare-draft-stage";
 import { DraftsStage } from "./stages/drafts-stage";
 import { PublishStage } from "./stages/publish-stage";
 
@@ -61,9 +61,8 @@ export default async function PipelinePage({
 
       <div className="flex-1">
         {current <= 3 && (
-          <SimpleDirectionStage
+          <PrepareDraftStage
             projectId={id}
-            suggestions={loaded.project.topicSuggestions ?? []}
             selected={loaded.project.selectedTopic ?? null}
             anthropicReady={anthropicReady}
           />

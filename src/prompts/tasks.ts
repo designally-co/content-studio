@@ -1,6 +1,5 @@
 import type { Language } from "@/db/schema";
 import { EDITORIAL_SCOPE_TEXT } from "@/lib/designally-strategy";
-import type { EditorialCandidate } from "@/lib/editorial";
 import {
   ART_DIRECTION_GUIDE,
   type ArtDirectionSelection,
@@ -31,97 +30,6 @@ const marketFor = (language: Language) =>
   language === "th"
     ? "the Thai market (search Thai-language sources and current Thailand trends)"
     : "the global/English market";
-
-export function editorialResearchTask(params: {
-  topic: string;
-  category: string;
-  format: string;
-  period?: string;
-  reader: string;
-  entryCount: number;
-  language: Language;
-  seedSources?: { name: string; url: string }[];
-  pillarName?: string;
-  pillarPurpose?: string;
-}): string {
-  return `## Task: discover and verify editorial candidates
-Research candidates for an editorial article about “${params.topic}”.
-Content pillar: ${params.pillarName || "—"}${params.pillarPurpose ? ` — ${params.pillarPurpose}` : ""}
-Content direction: ${params.category}
-Format: ${params.format}
-Time period: ${params.period || "Current / not fixed"}
-Reader: ${params.reader}
-Market: ${marketFor(params.language)}
-${params.seedSources?.length ? `Sources already found during topic discovery; verify and reuse these before searching more broadly:\n${params.seedSources.map((source) => `- ${source.name}: ${source.url}`).join("\n")}` : ""}
-
-Find ${Math.min(20, Math.max(params.entryCount + 1, 6))} credible candidates that serve this pillar's intent. The article can only use ${params.entryCount}, so prioritize verification over collecting extras. For a dated roundup, include only candidates with evidence connecting them to the requested period. Prioritize official creator, foundry, product, studio, or project pages. A candidate is “confirmed” only when its identity, attribution, URL, and period relevance are supported. Do not convert the subject into business advice. Do not rank by popularity unless a source provides real evidence; “best” means an informed editorial selection.
-
-For each candidate return its name, creator, organization/foundry, official URL, best corroborating source URL, release evidence, 2–5 concrete factual details, what makes it distinctive, why it matters to designers, and confidence.
-
-Respond as JSON:
-{
-  "candidates": [
-    {
-      "name": string,
-      "creator": string,
-      "organization": string,
-      "officialUrl": string,
-      "sourceUrl": string,
-      "releaseEvidence": string,
-      "concreteDetails": [string],
-      "distinctive": string,
-      "whyItMatters": string,
-      "confidence": "confirmed" | "needs_review"
-    }
-  ]
-}`;
-}
-
-export function editorialOutlineTask(params: {
-  topic: string;
-  period?: string;
-  reader: string;
-  candidates: EditorialCandidate[];
-}): string {
-  const pack = params.candidates.map((candidate, index) => `${index + 1}. ${candidate.name}
-Creator: ${candidate.creator}
-Organization: ${candidate.organization}
-Official URL: ${candidate.officialUrl}
-Release evidence: ${candidate.releaseEvidence}
-Details: ${candidate.concreteDetails.join("; ")}
-Distinctive: ${candidate.distinctive}
-Why it matters: ${candidate.whyItMatters}`).join("\n\n");
-  return `## Task: build an editorial outline from a curated research pack
-Article: ${params.topic}
-Period: ${params.period || "Not fixed"}
-Reader: ${params.reader}
-
-The editor selected the candidates below. Include every selected candidate and no unselected entries. Build a concise scene-setting introduction followed by one clear section per candidate in the supplied order. Each section must cover attribution, concrete characteristics, what makes the candidate distinctive, and why a designer should care. Do not force a business problem, Designally service message, or CTA. End with a short synthesis only if the collection reveals a genuine pattern.
-
-Curated research pack:
-${pack}
-
-Respond as JSON:
-{
-  "title": string,
-  "introAngle": string,
-  "sections": [ { "heading": string, "points": [string] } ],
-  "sources": [ { "name": string, "url": string, "whyRelevant": string } ],
-  "cta": string
-}`;
-}
-
-export function editorialDraftTask(params: { outlineMarkdown: string }): string {
-  return `## Task: write one editorial-quality draft
-Write a complete article for Designally's article platform from the researched article plan below. This is an editorial resource article, not business thought leadership. Do not introduce buyer pain, Designally services, SEO framing, or a conversion CTA.
-
-Open with a timely, concise scene-setting introduction. Follow the plan's structure, use its research links contextually, and give concrete examples substantive attention. Never invent release timing, popularity, technical details, quotes, or URLs. Vary paragraph openings and avoid repetitive section formulas.
-
-Researched article plan:
-${params.outlineMarkdown}
-
-Output clean Markdown only, starting directly with the title.`;
-}
 
 export function editorialArticlePlanTask(params: {
   topic: string;
@@ -255,43 +163,6 @@ ${params.text}
 Respond as JSON with only the requested fields.`;
 }
 
-export function outlineTask(params: {
-  topicTitle: string;
-  angle?: string;
-  whyTimely?: string;
-  searchIntent?: string;
-  longForm: boolean;
-}): string {
-  if (params.longForm) {
-    return `## Task: outline
-Research the subject using current, reliable sources, prioritizing primary sources and direct project/company pages. Then create a structured outline for an article titled (or about): "${params.topicTitle}".
-Editorial angle: ${params.angle || "Develop the strongest angle from the project foundation."}
-Why now: ${params.whyTimely || "Establish current relevance through research."}
-Reader intent: ${params.searchIntent || "Infer from the selected audience and objective."}
-
-Include: a working title, a standfirst-style problem-first intro angle, 4–7 section headings each with 2–4 specific points, a suggested CTA, and 4–8 research sources. The points should name concrete examples, facts, people, organizations, or developments where the sources support them, then state the interpretation the reader needs. Begin in the reader's world, earn the strategic conclusion, and use a low-pressure CTA appropriate to the selected article objective. Match the format rules and brand profile.
-
-Respond as JSON:
-{
-  "title": string,
-  "introAngle": string,
-  "sections": [ { "heading": string, "points": [string] } ],
-  "sources": [ { "name": string, "url": string, "whyRelevant": string } ],
-  "cta": string
-}`;
-  }
-  return `## Task: content plan
-Create a compact plan for a short-form post about: "${params.topicTitle}".
-Respond as JSON:
-{
-  "title": string,
-  "hook": string,
-  "bodyAngle": string,
-  "cta": string,
-  "hashtags": [string]
-}`;
-}
-
 export function draftTask(params: {
   outlineMarkdown: string;
   longForm: boolean;
@@ -305,30 +176,6 @@ Approved outline/plan:
 ${params.outlineMarkdown}
 
 Output the finished draft as clean Markdown only — no preamble, no explanation, no "here is your draft". Start directly with the content.`;
-}
-
-export function refineTask(params: {
-  currentDraft: string;
-  userMessage: string;
-}): string {
-  return `## Task: refine draft
-Here is the current draft:
-
----
-${params.currentDraft}
----
-
-Apply this change requested by the reviewer:
-"${params.userMessage}"
-
-Return the FULL updated draft as clean Markdown only — not a diff, not a description of changes, not a preamble. Preserve everything the reviewer did not ask to change.`;
-}
-
-export function competitorTask(url: string): string {
-  return `## Task: summarize competitor reference
-Fetch and read the article at this URL, then summarize it as reference material for our own (original, non-copying) content: ${url}
-
-Provide: the main topic and thesis, the structure/sections it uses, the angle and audience it targets, and any notable gaps we could cover better. Do NOT reproduce its wording. Keep the summary under 250 words.`;
 }
 
 export function imagePromptTask(params: {

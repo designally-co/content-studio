@@ -113,6 +113,11 @@
   --shadow-pop: 0 4px 8px rgba(36, 31, 28, 0.08), 0 12px 32px rgba(36, 31, 28, 0.12);
   --shadow-focus: 0 0 0 3px var(--orange-200);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Heavier, longer-tailed curve for surfaces that should read as having mass.
+     Scoped to the draft stage; the rest of the product stays on --ease-out. */
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+  /* Wide, low-contrast ambient lift for a plate seated in a tray. */
+  --shadow-plate: 0 2px 4px rgba(36, 31, 28, 0.03), 0 16px 40px -16px rgba(36, 31, 28, 0.12);
   --duration-fast: 120ms;
   --duration-base: 200ms;
   --duration-slow: 320ms;
@@ -402,6 +407,9 @@
   cursor: pointer;
   transition: background var(--duration-fast) var(--ease-out),
     border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    padding var(--duration-base) var(--ease-out),
+    opacity var(--duration-base) var(--ease-out),
     transform var(--duration-fast) var(--ease-out);
 }
 .cs-btn-primary:active:not(:disabled),
@@ -448,6 +456,111 @@
   border: 1px solid var(--border);
   border-radius: 16px;
   box-shadow: var(--shadow-card);
+}
+
+/* ---- double bezel (draft stage only) ----
+   A plate seated in a tray, so a working surface reads as an object rather than
+   a rectangle. The radii are concentric — inner = outer minus the tray's
+   padding — which is what keeps the two curves parallel instead of drifting
+   apart at the corners, the tell that separates this from a card in a card. */
+.cs-bezel {
+  --bezel-pad: 0.375rem;
+  --bezel-radius: 1.75rem;
+  padding: var(--bezel-pad);
+  border-radius: var(--bezel-radius);
+  background: var(--surface-sunken);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.cs-bezel-core {
+  overflow: hidden;
+  border-radius: calc(var(--bezel-radius) - var(--bezel-pad));
+  background: var(--surface);
+  box-shadow: var(--shadow-plate);
+}
+
+/* Primary action with a nested trailing icon: the glyph lives in its own disc
+   flush to the button's inner edge, and carries the hover motion on its own. */
+.cs-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  height: 3rem;
+  padding-left: 1.5rem;
+  padding-right: 0.375rem;
+  border-radius: var(--radius-4xl);
+  background: var(--accent);
+  color: var(--white);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--duration-base) var(--ease-spring),
+    transform var(--duration-base) var(--ease-spring),
+    opacity var(--duration-base) var(--ease-spring);
+}
+.cs-cta:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.cs-cta:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.cs-cta:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+.cs-cta:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.cs-cta-disc {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius-4xl);
+  background: color-mix(in oklab, var(--white) 18%, transparent);
+  transition: transform var(--duration-slow) var(--ease-spring),
+    background var(--duration-base) var(--ease-spring);
+}
+.cs-cta:hover:not(:disabled) .cs-cta-disc {
+  background: color-mix(in oklab, var(--white) 26%, transparent);
+  transform: translateX(2px) scale(1.04);
+}
+
+/* Quiet toolbar control for a reading surface: no outline at rest, a tonal fill
+   when it is holding a mode open. */
+.cs-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+  padding: 0 0.875rem;
+  border-radius: var(--radius-4xl);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-secondary);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-spring),
+    color var(--duration-fast) var(--ease-spring),
+    opacity var(--duration-fast) var(--ease-spring);
+}
+.cs-tool:hover:not(:disabled) {
+  background: var(--surface-sunken);
+  color: var(--ink);
+}
+.cs-tool[aria-pressed="true"],
+.cs-tool[aria-expanded="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-press);
+}
+.cs-tool:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+.cs-tool:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .cs-label {
@@ -568,6 +681,31 @@
 /* 8px side gutter + 8px of control padding puts control ink on the same 16px
    left edge as the field's text, while the pill and the circle overhang it by
    8px — the optical allowance a rounded edge needs to read as aligned. */
+/* Ambient warmth behind the composer. One wide radial in the brand ramp, held
+   at low opacity — no ring, no hard edge, no blur filter, no pulse. It reads as
+   light in the room rather than as an effect applied to a control. Must be a
+   sibling before .cs-dock, never a child: a negative-z-index child paints on
+   top of the dock's own background instead of behind it. */
+/* Sunset backlight. The element is the dock's own silhouette, sitting directly
+   beneath it, and the light is thrown by layered shadows rather than painted as
+   a background — so the halo follows the dock's shape and rounded corners the
+   way real backlight does, instead of reading as an ellipse placed near it.
+
+   Three layers warming outward through the brand ramp: coral at the rim, peach
+   through the mid, palest at the furthest spread. A sunset is a progression of
+   hues, not one colour dimmed. Kept high-key — nothing here darkens the page,
+   and there is no blur filter, no ring, and no pulse. */
+.cs-dock-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-xl);
+  pointer-events: none;
+  box-shadow:
+    0 4px 40px -4px color-mix(in oklab, var(--orange-500) 30%, transparent),
+    0 10px 90px 6px color-mix(in oklab, var(--orange-300) 32%, transparent),
+    0 18px 150px 30px color-mix(in oklab, var(--orange-200) 40%, transparent);
+}
+
 .cs-dock-controls {
   display: flex;
   align-items: center;
@@ -579,23 +717,118 @@
    the row can't hold three controls and picks its label back up at the sm
    breakpoint; `.cs-dock-btn-icon` stays a circle at every width. Both pair with
    .cs-btn / .cs-btn-primary, which they override by source order. */
+/* One custom property drives both the height and the square floor, so the two
+   can never desync into an oval the way separate height/min-width values did.
+   `aspect-ratio` would also hold the circle, but it pins width to height
+   absolutely and so blocks the labelled form from growing — and a width that
+   cannot grow cannot be animated. */
 .cs-dock-btn,
 .cs-dock-btn-icon {
-  height: 2.5rem;
-  width: 2.5rem;
+  --dock-btn-size: 2.5rem;
+  height: var(--dock-btn-size);
+  min-width: var(--dock-btn-size);
+  width: auto;
   padding: 0;
   border-radius: var(--radius-4xl);
 }
+/* Spacing lives inside the collapsible parts, never as a flex `gap`. A gap is
+   reserved even when the item beside it has collapsed to zero width, which
+   leaves the orb off the button's centre and a dead 8px beside a hidden
+   control. */
+.cs-dock-btn {
+  gap: 0;
+}
+.cs-dock-btn-icon {
+  width: var(--dock-btn-size);
+  transition: width var(--duration-base) var(--ease-out),
+    min-width var(--duration-base) var(--ease-out),
+    opacity var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+/* Collapses to nothing rather than disappearing. Its width is a fixed value, so
+   unlike the labelled button it can be transitioned directly — no clipping
+   wrapper, which matters because one would cut off the focus ring. Overflow is
+   clipped only while hidden, and the control is disabled in that state, so
+   nothing focusable is ever inside a clipped box. */
+/* Scoped through the parent for specificity: the button carries a
+   `disabled:opacity-100` utility, and utilities outrank @layer components. At
+   equal weight that utility won, leaving a zero-width button whose 1px border
+   stayed fully opaque — a hairline beside the generate pill. */
+/* `border-width: 0`, not just a transparent colour. With `box-sizing:
+   border-box` a `width: 0` element still renders its borders, so a 1px border
+   leaves a 2px-wide box behind — which reads as a hairline beside the pill. */
+.cs-dock-controls .cs-dock-btn-icon[data-hidden="true"] {
+  width: 0;
+  min-width: 0;
+  border-width: 0;
+  opacity: 0;
+  transform: scale(0.85);
+  overflow: hidden;
+  pointer-events: none;
+}
+@media (min-width: 40rem) {
+  .cs-dock-controls .cs-dock-btn-icon[data-hidden="true"] {
+    width: var(--dock-btn-size);
+    min-width: var(--dock-btn-size);
+    border-width: 1px;
+    opacity: 1;
+    transform: none;
+    overflow: visible;
+    pointer-events: auto;
+  }
+}
+
+/* A reveal that can actually be transitioned. `display: none` has nothing to
+   interpolate and `width: auto` has no computed value to tween from, so both
+   snap no matter what duration you give them. A grid track moving between 0fr
+   and 1fr does interpolate: the child is measured smaller every frame while the
+   wrapper clips it, and the parent's auto width follows continuously. */
+.cs-swap {
+  display: grid;
+  /* Required, not defensive. As a flex item this defaults to `min-width: auto`,
+     which resolves to min-content — so the track would animate to 0fr while the
+     element still reserved the label's full width, holding the leading icon off
+     the button's centre. */
+  min-width: 0;
+  grid-template-columns: 0fr;
+  transition: grid-template-columns var(--duration-base) var(--ease-out),
+    opacity var(--duration-base) var(--ease-out);
+  opacity: 0;
+}
+.cs-swap > * {
+  min-width: 0;
+  overflow: hidden;
+}
+.cs-swap[data-show="true"] {
+  grid-template-columns: 1fr;
+  opacity: 1;
+}
+/* Below the breakpoint the swap is state-driven; above it the control is always
+   present and the track stays open. */
+@media (min-width: 40rem) {
+  .cs-swap--sm-open {
+    grid-template-columns: 1fr;
+    opacity: 1;
+  }
+}
+/* The leading orb is concentric with the pill's left cap, so its clearance is
+   identical around the whole arc and equal to the vertical clearance.
+   padding-left = height/2 − orb/2 − border = 20 − 13 − 1. A flat 1rem would
+   push the orb 10px past the cap's centre and read as left-heavy. */
 @media (min-width: 40rem) {
   .cs-dock-btn {
-    width: auto;
-    /* The leading orb is concentric with the pill's left cap, so its clearance
-       is identical around the whole arc and equal to the vertical clearance.
-       padding-left = height/2 − orb/2 − border = 20 − 13 − 1. A flat 1rem would
-       push the orb 10px past the cap's centre and read as left-heavy. */
     padding-right: 1rem;
     padding-left: 0.375rem;
   }
+}
+/* Opens the padding below the sm breakpoint, for the narrow-screen state where
+   this button is the only live action and the row has room for words. The label
+   itself is revealed by .cs-swap; this only makes room for it. */
+.cs-dock-btn--wide {
+  padding-right: 1rem;
+  padding-left: 0.375rem;
 }
 } /* @layer components */
 
@@ -614,6 +847,14 @@
   .cs-btn-primary,
   .cs-chip {
     min-height: 44px;
+  }
+
+  /* Raising the shared size variable moves the height and the square floor
+     together. Setting min-height here alone is what left these controls 44 tall
+     and 40 wide, and a pill radius renders that as an oval. */
+  .cs-dock-btn,
+  .cs-dock-btn-icon {
+    --dock-btn-size: 44px;
   }
 
   [data-slot="button"],

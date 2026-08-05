@@ -140,16 +140,12 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                 <strong>No Anthropic API key is configured.</strong> Article generation will be unavailable until <code>ANTHROPIC_API_KEY</code> is configured.
               </div>
             )}
-            {/* Two-tone rather than decorated: the setup recedes so the eye
-                lands on the actual question. The old line asked what the editor
-                wanted to make, which is chatbot framing; this one asks the
-                editorial question they are really here to answer. */}
+            {/* One line, one colour. The supporting sentence moved into the
+                field's own placeholder, where it explains the input at the
+                moment the editor is looking at the input. */}
             <h1 className="mx-auto max-w-2xl text-balance font-heading text-[length:var(--text-h1)] font-bold leading-[1.1] tracking-[-0.02em] text-ink motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-200 sm:text-[length:var(--text-hero)]">
-              <span className="text-ink-2">What should the industry</span> read next?
+              What should the industry read next?
             </h1>
-            <p className="mx-auto mt-3 max-w-xl text-balance text-sm leading-relaxed text-ink-2 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:fill-mode-both motion-safe:delay-100 motion-safe:duration-200 sm:text-base">
-              Start from a headline or a full brief — you don’t need to say which.
-            </p>
           </div>
 
           {/* thinking-orbs paints greyscale only — it exposes no colour prop and
@@ -167,6 +163,10 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
               />
             </filter>
           </svg>
+
+          {/* Sibling, not child: as a child it would paint over the dock's own
+              white background instead of sitting behind it. */}
+          <div aria-hidden className="cs-dock-glow" />
 
           <div ref={dockRef} className="cs-dock">
             <label className="sr-only" htmlFor="article-input">Topic or article brief</label>
@@ -187,7 +187,7 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                 field.style.height = `${inputExpanded ? field.scrollHeight : Math.min(field.scrollHeight, 320)}px`;
               }}
               className={`cs-dock-input ${inputNeedsExpansion ? "cs-dock-input--scrollable pr-12" : ""} ${inputExpanded ? "max-h-none" : ""}`}
-              placeholder="Describe a topic or paste an article brief…"
+              placeholder="Describe a topic, or paste a full brief — either works…"
             />
             </div>
             {inputNeedsExpansion && (
@@ -261,7 +261,12 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                   // a grey hairline around an orange wash reads as dirt, not as
                   // a rule. Hover is gated on `enabled:` because a disabled
                   // button still matches :hover in CSS.
-                  className="cs-btn cs-dock-btn shrink-0 border-[var(--orange-200)] bg-accent-soft text-accent-press enabled:hover:border-[var(--orange-300)] enabled:hover:bg-[var(--orange-200)]"
+                  // On a narrow screen the two actions trade the label rather
+                  // than both shrinking: at rest this is the only live control
+                  // and submit is not rendered, so it earns the words.
+                  className={`cs-btn cs-dock-btn shrink-0 border-[var(--orange-200)] bg-accent-soft text-accent-press enabled:hover:border-[var(--orange-300)] enabled:hover:bg-[var(--orange-200)] ${
+                    hasInput ? "" : "cs-dock-btn--wide"
+                  }`}
                   aria-label="Generate ideas"
                   title="Generate ideas"
                 >
@@ -287,12 +292,27 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                     // soft-edged dots takes a 1.3x upscale without showing it.
                     style={{ filter: "url(#orb-accent)", width: 26, height: 26 }}
                   />
-                  <span className="hidden sm:inline">Generate</span>
+                  <span className="cs-swap cs-swap--sm-open" data-show={!hasInput}>
+                    {/* The 8px sits inside the clipped track, so it collapses
+                        with the label instead of holding the orb off centre. */}
+                    <span className="whitespace-nowrap pl-2">Generate</span>
+                  </span>
                 </button>
+                {/* Below sm there is no room for a labelled generate and a
+                    submit at once, and an inert submit is the one worth
+                    dropping — nothing can be sent yet. It widens away rather
+                    than disappearing; its own margin collapses with it. */}
                 <button
                   type="submit"
+                  data-hidden={!hasInput}
                   disabled={!hasInput || pending}
-                  className={`cs-dock-btn-icon shrink-0 disabled:opacity-100 ${hasInput ? "cs-btn-primary" : "cs-btn"}`}
+                  // The full-strength-while-disabled utility is scoped to sm and
+                  // up. Unscoped it also fought the hidden state below sm —
+                  // utilities outrank @layer components — and held a collapsed
+                  // button visible as a hairline.
+                  className={`cs-dock-btn-icon shrink-0 ${
+                    hasInput ? "cs-btn-primary disabled:opacity-100" : "cs-btn sm:disabled:opacity-100"
+                  }`}
                   aria-label={pending ? "Creating article" : "Continue to draft"}
                   title={pending ? undefined : "Continue to draft"}
                 >

@@ -3,20 +3,22 @@
 import Link from "next/link";
 import { IconCheck } from "./icons";
 
+/** Creating an article is the home surface, not a step of this article's
+ *  pipeline — there is nothing here to return to. The research-and-outline
+ *  pause (stages 2–3) folds into Draft & edit, since it is automatic and brief.
+ */
 const STAGES = [
-  { n: 1, label: "Create", target: 1 },
-  { n: 2, label: "Draft & edit", target: 4 },
-  { n: 3, label: "Generate images", target: 6 },
-  { n: 4, label: "Publish", target: 6 },
+  { n: 1, label: "Draft & edit", target: 4 },
+  { n: 2, label: "Generate images", target: 6 },
+  { n: 3, label: "Publish", target: 6 },
 ];
 
 function visibleStage(stage: number, finalizeView?: "images" | "complete") {
-  if (stage <= 1) return 1;
-  if (stage <= 5) return 2;
-  if (finalizeView === "complete") return 4;
-  if (finalizeView === "images") return 3;
-  // Reaching stage 6 unlocks both the Images (3) and Publish (4) views.
-  return 4;
+  if (stage <= 5) return 1;
+  if (finalizeView === "complete") return 3;
+  if (finalizeView === "images") return 2;
+  // Reaching stage 6 unlocks both the Images (2) and Publish (3) views.
+  return 3;
 }
 
 export function Stepper({
@@ -41,9 +43,9 @@ export function Stepper({
         {STAGES.map((s, i) => {
           const currentVisible = visibleStage(current, finalizeView);
           const reachedVisible = visibleStage(reached);
-          const done = s.n < currentVisible || (s.n === 4 && published);
+          const done = s.n < currentVisible || (s.n === 3 && published);
           const active = s.n === currentVisible;
-          const navigable = s.n <= reachedVisible && s.n !== 1;
+          const navigable = s.n <= reachedVisible;
           const content = (
             <span
               className={`flex min-h-11 items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors ${
@@ -73,7 +75,7 @@ export function Stepper({
           return (
             <li key={s.n} className="flex items-center">
               {navigable && !active ? (
-                <Link href={`/pipeline/${projectId}?stage=${s.target}${s.n === 3 ? "&view=images" : s.n === 4 ? "&view=complete" : ""}`}>{content}</Link>
+                <Link href={`/pipeline/${projectId}?stage=${s.target}${s.n === 2 ? "&view=images" : s.n === 3 ? "&view=complete" : ""}`}>{content}</Link>
               ) : (
                 <span aria-current={active ? "step" : undefined}>{content}</span>
               )}
