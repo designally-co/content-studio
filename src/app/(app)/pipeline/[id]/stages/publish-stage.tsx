@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye } from "lucide-react";
+import { ExternalLink, ImagePlus, LoaderCircle, Maximize2, Minimize2, Send, X } from "lucide-react";
 import { Markdown } from "@/components/markdown";
 import { CopyButton } from "@/components/copy-button";
 import { LogoOverlayControls, LogoOverlayPreview } from "@/components/logo-overlay";
@@ -22,12 +22,15 @@ import {
   generateImagesAction,
   deleteGeneratedImageAction,
   setImageBrandingAction,
+  setCoverImageAction,
   uploadImageReferenceAction,
   type GeneratedImageView,
   type UploadedReferenceView,
 } from "../image-actions";
 import { IconSpark, IconDownload, IconCheck, IconTrash } from "@/components/icons";
 import { MenuSelect } from "@/components/ui/menu-select";
+import { ChipSelect } from "@/components/ui/chip-select";
+import { AccentOrb } from "@/components/accent-orb";
 import type { LogoOverlay } from "@/db/schema";
 import type { ImageAspectRatio } from "@/lib/image/providers";
 import type { BrandReviewResult } from "@/lib/brand-review";
@@ -66,6 +69,7 @@ export function PublishStage({
   draftMd,
   coverImageUrl,
   coverAspectRatio,
+  coverImageId,
   initialDek,
   published,
   images,
@@ -89,6 +93,8 @@ export function PublishStage({
   coverImageUrl: string | null;
   /** Cover width / height — drives the hero's 50% overflow in the preview. */
   coverAspectRatio: number;
+  /** The image that will travel to the Hub, already resolved by the route. */
+  coverImageId: string | null;
   /** Cached dek, if one was generated on a previous visit. */
   initialDek: string | null;
   /** Whether the article is live on the Knowledge Hub. */
@@ -134,12 +140,14 @@ export function PublishStage({
   }
 
   return (
-    <StageShell
-      title="Generate images"
-      description="Create optional companion images for the finished article."
-      wide
-    >
+    <StageShell title="Generate images" wide flushBottom>
       <div>
+        {/* The only stage that never showed which article was being worked on:
+            the draft renders its own title and Publish shows it in the preview,
+            but the image panel had nothing. */}
+        <h2 className="mb-6 max-w-[46ch] text-balance font-heading text-[length:var(--text-h2)] font-bold leading-tight tracking-tight text-ink">
+          {title}
+        </h2>
         <ArticlePanel
           projectId={projectId}
           draftId={draftId}
@@ -152,6 +160,7 @@ export function PublishStage({
           options={options}
           anthropicReady={anthropicReady}
           brandLogo={brandLogo}
+          coverImageId={coverImageId}
           tab="images"
           onNext={() => show("complete")}
         />
@@ -172,6 +181,7 @@ function ArticlePanel({
   options,
   anthropicReady,
   brandLogo,
+  coverImageId,
   tab,
   onNext,
 }: {
@@ -186,6 +196,7 @@ function ArticlePanel({
   options: ImageModelOption[];
   anthropicReady: boolean;
   brandLogo: BrandLogo;
+  coverImageId: string | null;
   tab: "content" | "images";
   onNext: () => void;
 }) {
@@ -222,10 +233,9 @@ function ArticlePanel({
         options={options}
         anthropicReady={anthropicReady}
         brandLogo={brandLogo}
+        coverImageId={coverImageId}
+        onNext={onNext}
       />
-          <div className="sticky bottom-0 flex justify-end border-t border-line bg-bg/95 py-4 backdrop-blur">
-            <button type="button" onClick={onNext} className="cs-btn-primary">Review &amp; finalize</button>
-          </div>
         </>
       )}
     </div>
@@ -319,6 +329,8 @@ function ImagePanel({
   options,
   anthropicReady,
   brandLogo,
+  coverImageId,
+  onNext,
 }: {
   projectId: string;
   existing: GeneratedImageView[];
@@ -328,6 +340,8 @@ function ImagePanel({
   options: ImageModelOption[];
   anthropicReady: boolean;
   brandLogo: BrandLogo;
+  coverImageId: string | null;
+  onNext: () => void;
 }) {
   const requestedOption = options.find((option) => option.optionId === defaultOptionId);
   const initialOption = requestedOption ?? options[0];
@@ -351,7 +365,13 @@ function ImagePanel({
   const [imgs, setImgs] = useState<GeneratedImageView[]>(existing);
   const [busy, setBusy] = useState<"prompt" | "gen" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [promptExpanded, setPromptExpanded] = useState(false);
+  const [promptNeedsExpansion, setPromptNeedsExpansion] = useState(false);
+  // Optimistic: the route resolves the cover on reload, but the choice has to
+  // register the instant it is clicked or the control feels broken.
+  const [chosenCoverId, setChosenCoverId] = useState<string | null>(coverImageId);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const promptRef = useRef<HTMLTextAreaElement>(null);
   const selectedOption = useMemo(
     () => options.find((option) => option.optionId === optionId) ?? options[0],
     [optionId, options]
@@ -423,233 +443,355 @@ function ImagePanel({
     }
   }
 
+  if (options.length === 0) {
+    return (
+      <p className="rounded-2xl bg-warn-soft px-5 py-4 text-sm leading-relaxed text-ink-2">
+        <strong className="font-semibold text-ink">No image providers are configured.</strong>{" "}
+        Add a key in Settings → Image providers to enable image generation.
+      </p>
+    );
+  }
+
+  const selectedCoverId = imgs.some((image) => image.id === chosenCoverId)
+    ? chosenCoverId
+    : imgs[0]?.id ?? null;
+
+  function chooseCover(imageId: string) {
+    setChosenCoverId(imageId);
+    void setCoverImageAction(projectId, imageId).catch((reason) => {
+      setChosenCoverId(coverImageId);
+      setError(reason instanceof Error ? reason.message : "Could not set the cover image.");
+    });
+  }
+
+  const referenceMissing = Boolean(selectedOption?.capabilities.referenceImagesRequired && !reference);
+  const hasPrompt = prompt.trim().length > 0;
+  // Blocked for a reason the editor cannot fix by typing — as opposed to simply
+  // not having written a prompt yet, which is a resting state, not a fault.
+  const generateBlocked = busy !== null || !optionId || referenceMissing;
   return (
-    <section className="cs-card p-5">
-      <h3 className="font-semibold tracking-tight text-ink">Companion images</h3>
-      {options.length === 0 ? (
-        <p className="mt-2 rounded-lg border border-warn/30 bg-warn-soft px-3 py-2 text-sm text-ink-2">
-          No image providers are configured. Add a key in Settings → Image
-          providers to enable image generation.
-        </p>
-      ) : (
-        <>
-          <div className="mt-3 space-y-3">
-            <p className="text-sm leading-relaxed text-ink-2">
-              Images use the Designally house style by default — one bold subject on a calm field with a single orange accent. Draft the prompt, review it, then generate. Change the visual style under Advanced controls.
-            </p>
-            <div className="space-y-1.5">
-              <label htmlFor="image-model" className="text-xs font-medium text-ink-2">Image model</label>
-              <MenuSelect
-                id="image-model"
-                ariaLabel="Image model"
-                className="w-full text-sm"
-                value={optionId}
-                onChange={selectModel}
-                options={options.map((o) => ({ value: o.optionId, label: o.label }))}
-              />
-              {selectedOption && <p className="text-xs text-ink-3">{selectedOption.strengths}</p>}
-            </div>
-
-            <details className="rounded-lg border border-line bg-sunken px-4 py-3 text-sm">
-              <summary className="cursor-pointer font-medium text-ink-2">
-                Advanced controls
-                {(artDirection !== "designally_ci" || direction !== "auto") && <span className="ml-2 font-normal text-accent-ink">Customized</span>}
-              </summary>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <label htmlFor="art-direction" className="text-xs font-medium text-ink-2">Visual style override</label>
-                  <MenuSelect
-                    id="art-direction"
-                    ariaLabel="Visual style override"
-                    className="w-full text-sm"
-                    value={artDirection}
-                    onChange={(value) => {
-                      setArtDirection(value as ArtDirectionSelection);
-                      setVisualBrief(null);
-                      setPrompt("");
-                    }}
-                    options={ART_DIRECTION_PRESETS.map((item) => ({ value: item.value, label: item.label }))}
-                  />
-                  <p className="text-xs text-ink-3">{ART_DIRECTION_PRESETS.find((item) => item.value === artDirection)?.description}</p>
-                </div>
-                <div className="space-y-1.5">
-                  <label htmlFor="image-direction" className="text-xs font-medium text-ink-2">Composition override</label>
-                  <MenuSelect
-                    id="image-direction"
-                    ariaLabel="Composition override"
-                    className="w-full text-sm"
-                    value={direction}
-                    onChange={(value) => {
-                      setDirection(value as ImageDirection);
-                      setVisualBrief(null);
-                      setPrompt("");
-                    }}
-                    options={IMAGE_DIRECTIONS.map((item) => ({ value: item.value, label: item.label }))}
-                  />
-                  <p className="text-xs text-ink-3">{IMAGE_DIRECTIONS.find((item) => item.value === direction)?.description}</p>
-                </div>
-              </div>
-            </details>
-
-            <div className="space-y-1.5">
-              <p id="reference-image-label" className="text-xs font-medium text-ink-2">
-                Reference image{" "}
-                <span className="font-normal text-ink-3">
-                  ({selectedOption?.capabilities.referenceImagesRequired ? "required" : "optional"})
-                </span>
+    // Always as tall as the space below the pipeline header, and a flex column
+    // so the composer can be pushed to the end of it. Sticky alone only pins
+    // while the page overflows, so with one or two images the dock stopped
+    // wherever the content ended and appeared to move between visits.
+    // `gap` rather than `space-y`: the composer's `mt-auto` has to win, and a
+    // `space-y` margin on the same axis fights it.
+    <div className="flex min-h-[calc(100svh-7rem)] flex-col gap-8 sm:min-h-[calc(100svh-8rem)]">
+      {/* Results lead. Only one of these travels to the Hub, so choosing it is
+          the real decision on this stage — and a decision belongs above the
+          controls that produce more options, not buried under them. */}
+      {imgs.length > 0 && (
+        <section aria-label="Generated images">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <div>
+              <h3 className="text-sm font-semibold text-ink">
+                {imgs.length} image{imgs.length > 1 ? "s" : ""}
+              </h3>
+              <p className="mt-0.5 text-sm text-ink-2">
+                {imgs.length > 1 ? "Choose the one to publish." : "This one will be published."}
               </p>
-              {selectedOption?.capabilities.referenceImages ? (
-                <div className="space-y-3">
-                  {reference ? (
-                  <div className="flex items-center gap-3 rounded-lg border border-line bg-sunken p-2">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={reference.url}
-                      alt="Reference"
-                      width={56}
-                      height={56}
-                      decoding="async"
-                      className="h-14 w-14 rounded-md object-cover"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-ink">{reference.name}</p>
-                      <p className="num text-xs text-ink-3">{reference.width} × {reference.height}</p>
-                    </div>
-                    <button type="button" className="cs-btn !h-8 text-xs" onClick={() => {
-                      setReference(null);
-                      if (fileInputRef.current) fileInputRef.current.value = "";
-                    }}>Remove</button>
-                  </div>
-                  ) : (
-                  <label className="flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-line-strong bg-sunken px-4 py-4 text-sm text-ink-2 hover:border-accent hover:text-accent-ink">
-                    {uploading ? "Uploading…" : "Upload PNG, JPEG, or WebP · max 2 MB"}
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      disabled={uploading}
-                      aria-labelledby="reference-image-label"
-                      className="sr-only"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        if (file) void uploadReference(file);
-                      }}
-                    />
-                  </label>
-                  )}
-                </div>
-              ) : (
-                <p className="rounded-lg bg-sunken px-3 py-2 text-xs text-ink-3">This model supports text-to-image only.</p>
-              )}
             </div>
-
-            <fieldset className="space-y-1.5">
-              <legend className="text-xs font-medium text-ink-2">Aspect ratio</legend>
-              <div className="flex flex-wrap gap-2">
-                {selectedOption?.capabilities.aspectRatios.map((ratio) => (
-                  <button
-                    key={ratio}
-                    type="button"
-                    onClick={() => setAspectRatio(ratio)}
-                    aria-pressed={aspectRatio === ratio}
-                    className={aspectRatio === ratio ? "cs-btn-primary !h-9 text-sm" : "cs-btn !h-9 text-sm"}
-                  >{ratio}</button>
-                ))}
-              </div>
-            </fieldset>
-
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="space-y-1.5">
-                <label htmlFor="image-variations" className="text-xs font-medium text-ink-2">Variations</label>
-                <MenuSelect
-                  id="image-variations"
-                  ariaLabel="Number of variations"
-                  className="!w-auto text-sm"
-                  value={String(count)}
-                  onChange={(value) => setCount(Number(value))}
-                  options={Array.from(
-                    { length: selectedOption?.capabilities.maxVariations ?? 1 },
-                    (_, index) => index + 1
-                  ).map((value) => ({ value: String(value), label: `${value} variation${value > 1 ? "s" : ""}` }))}
+            {/* The forward action belongs with the choice it carries, not on a
+                second bar competing with the composer for the bottom edge. */}
+            <button type="button" onClick={onNext} className="cs-cta group shrink-0">
+              Continue to publish
+              <span aria-hidden className="cs-cta-disc"><IconCheck width={15} height={15} /></span>
+            </button>
+          </div>
+          {/* Four across at full width. Two made a wall of a page out of six
+              images; the tiles carry their own controls now, so they can be
+              small without losing anything. */}
+          {/* The grid follows the count rather than imposing one shape on it: a
+              single image has nothing to compare against, so it gets the room;
+              a pair reads best side by side. Only past three does a fixed grid
+              beat giving each one space. */}
+          <ul
+            className={`grid gap-4 ${
+              imgs.length === 1
+                ? "grid-cols-1"
+                : imgs.length === 2
+                  ? "grid-cols-2"
+                  : imgs.length === 3
+                    ? "grid-cols-2 lg:grid-cols-3"
+                    : "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            }`}
+          >
+            {imgs.map((img) => (
+              <li key={img.id}>
+                <BrandableImage
+                  img={img}
+                  brandLogo={brandLogo}
+                  feature={imgs.length === 1}
+                  selected={img.id === selectedCoverId}
+                  onSelect={() => chooseCover(img.id)}
+                  onDeleted={() => setImgs((current) => current.filter((item) => item.id !== img.id))}
                 />
-              </div>
-              <button
-                onClick={draftPrompt}
-                disabled={busy !== null || !anthropicReady}
-                aria-describedby={!anthropicReady ? "auto-draft-requirement" : undefined}
-                className="cs-btn !py-1.5 text-sm"
-              >
-                <IconSpark width={15} height={15} />
-                {busy === "prompt" ? "Drafting…" : "Auto-draft prompt"}
-              </button>
-              {!anthropicReady && (
-                <p id="auto-draft-requirement" className="basis-full text-xs text-ink-3">
-                  Configure `ANTHROPIC_API_KEY` in the server environment to use Auto-draft.
-                </p>
-              )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <div className="space-y-2">
+        {!anthropicReady && (
+          <p id="auto-draft-requirement" className="text-sm text-ink-2">
+            Configure <code>ANTHROPIC_API_KEY</code> in the server environment to use Auto-draft.
+          </p>
+        )}
+        {referenceMissing && (
+          <p id="generate-requirement" className="text-sm text-ink-2">
+            This model needs a reference image before it can generate.
+          </p>
+        )}
+        {!selectedOption?.capabilities.referenceImages && (
+          <p className="text-sm text-ink-3">This model supports text-to-image only.</p>
+        )}
+        {error && <p className="text-sm text-danger" role="alert">{error}</p>}
+
+        <details className="group/adv">
+          <summary className="cs-tool cursor-pointer list-none">
+            Style overrides
+            {(artDirection !== "designally_ci" || direction !== "auto") && (
+              <span className="text-accent-ink">Customized</span>
+            )}
+          </summary>
+          <div className="mt-3 grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label htmlFor="art-direction" className="text-sm font-semibold text-ink">Visual style</label>
+              <MenuSelect
+                id="art-direction"
+                ariaLabel="Visual style override"
+                className="w-full text-sm"
+                value={artDirection}
+                onChange={(value) => {
+                  setArtDirection(value as ArtDirectionSelection);
+                  setVisualBrief(null);
+                  setPrompt("");
+                }}
+                options={ART_DIRECTION_PRESETS.map((item) => ({ value: item.value, label: item.label, description: item.description }))}
+              />
             </div>
-            <label htmlFor="image-prompt" className="text-xs font-medium text-ink-2">Image prompt</label>
+            <div className="space-y-2">
+              <label htmlFor="image-direction" className="text-sm font-semibold text-ink">Composition</label>
+              <MenuSelect
+                id="image-direction"
+                ariaLabel="Composition override"
+                className="w-full text-sm"
+                value={direction}
+                onChange={(value) => {
+                  setDirection(value as ImageDirection);
+                  setVisualBrief(null);
+                  setPrompt("");
+                }}
+                options={IMAGE_DIRECTIONS.map((item) => ({ value: item.value, label: item.label, description: item.description }))}
+              />
+            </div>
+          </div>
+        </details>
+
+        {visualBrief && (
+          <details>
+            <summary className="cs-tool cursor-pointer list-none">What the prompt was built from</summary>
+            <dl className="mt-3 grid gap-x-6 gap-y-4 rounded-2xl bg-sunken px-5 py-4 text-sm sm:grid-cols-2">
+              <div><dt className="font-semibold text-ink">Main subject</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.mainSubject}</dd></div>
+              <div><dt className="font-semibold text-ink">Visual style</dt><dd className="mt-1 leading-relaxed text-ink-2">{ART_DIRECTION_PRESETS.find((item) => item.value === visualBrief.artDirection)?.label ?? visualBrief.artDirection}</dd></div>
+              <div className="sm:col-span-2"><dt className="font-semibold text-ink">Why this style</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.artDirectionReason}</dd></div>
+              <div><dt className="font-semibold text-ink">Image role</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.imageRole}</dd></div>
+              <div><dt className="font-semibold text-ink">Composition</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.composition}</dd></div>
+              <div><dt className="font-semibold text-ink">Reference guidance</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.referenceGuidance}</dd></div>
+            </dl>
+          </details>
+        )}
+      </div>
+
+      <p className="sr-only" aria-live="polite">
+        {busy === "prompt" ? "Drafting image prompt" : busy === "gen" ? "Generating images" : ""}
+      </p>
+
+      {/* Sticky, not fixed: laid out inside the content column, so it takes the
+          width the sidebar leaves and moves with it when that collapses. Fixed
+          positioning is against the viewport and cannot know the sidebar exists.
+          Sticky also reserves its own space, so nothing needs measuring.
+
+          Everything else is a setting on the prompt, so the settings compress
+          into chips in the control row. Structure, growth and controls all
+          mirror the composer on the home surface. */}
+      <div className="sticky bottom-0 z-20 mt-auto pb-6 pt-6">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[calc(100%+2rem)] bg-linear-to-t from-bg from-72% to-transparent"
+        />
+        <div className="cs-bezel motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:duration-500">
+        <div className="cs-bezel-core relative">
+          <label htmlFor="image-prompt" className="sr-only">Image prompt</label>
+          <div className="cs-dock-input-viewport">
             <textarea
+              ref={promptRef}
               id="image-prompt"
+              rows={3}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
+              onInput={(event) => {
+                const field = event.currentTarget;
+                field.style.height = "auto";
+                const needsExpansion = field.scrollHeight > 320;
+                setPromptNeedsExpansion(needsExpansion);
+                if (!needsExpansion && promptExpanded) setPromptExpanded(false);
+                field.style.height = `${promptExpanded ? field.scrollHeight : Math.min(field.scrollHeight, 320)}px`;
+              }}
               placeholder="Describe the image, or auto-draft one from the article…"
-              className="cs-textarea min-h-[5rem] text-sm"
+              className={`cs-dock-input ${promptNeedsExpansion ? "cs-dock-input--scrollable pr-12" : ""} ${promptExpanded ? "max-h-none" : ""}`}
             />
-            {visualBrief && (
-              <details className="rounded-lg bg-sunken px-4 py-3 text-sm">
-                <summary className="cursor-pointer font-medium text-ink-2">Article-aware visual brief</summary>
-                <dl className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
-                  <div><dt className="font-medium text-ink">Main subject</dt><dd className="mt-1 text-ink-3">{visualBrief.mainSubject}</dd></div>
-                  <div><dt className="font-medium text-ink">Visual style</dt><dd className="mt-1 text-ink-3">{ART_DIRECTION_PRESETS.find((item) => item.value === visualBrief.artDirection)?.label ?? visualBrief.artDirection}</dd></div>
-                  <div className="sm:col-span-2"><dt className="font-medium text-ink">Why this style</dt><dd className="mt-1 text-ink-3">{visualBrief.artDirectionReason}</dd></div>
-                  <div><dt className="font-medium text-ink">Image role</dt><dd className="mt-1 text-ink-3">{visualBrief.imageRole}</dd></div>
-                  <div><dt className="font-medium text-ink">Composition</dt><dd className="mt-1 text-ink-3">{visualBrief.composition}</dd></div>
-                  <div><dt className="font-medium text-ink">Reference guidance</dt><dd className="mt-1 text-ink-3">{visualBrief.referenceGuidance}</dd></div>
-                </dl>
-              </details>
-            )}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          </div>
+          {promptNeedsExpansion && (
+            <button
+              type="button"
+              onClick={() => {
+                const nextExpanded = !promptExpanded;
+                setPromptExpanded(nextExpanded);
+                requestAnimationFrame(() => {
+                  const field = promptRef.current;
+                  if (!field) return;
+                  field.style.height = "auto";
+                  field.style.height = `${nextExpanded ? field.scrollHeight : Math.min(field.scrollHeight, 320)}px`;
+                  field.focus();
+                });
+              }}
+              className="absolute right-3 top-3 grid size-9 place-items-center rounded-lg text-ink-3 transition-colors hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              aria-label={promptExpanded ? "Collapse image prompt" : "Expand image prompt"}
+              aria-controls="image-prompt"
+            >
+              {promptExpanded ? <Minimize2 aria-hidden className="size-4" /> : <Maximize2 aria-hidden className="size-4" />}
+            </button>
+          )}
+
+          <div className="cs-dock-controls flex-wrap gap-2">
+            {/* Portalled, like the direction picker on the home surface — the
+                plate around them clips its own content, so an absolutely
+                positioned menu would be cut off at the dock's edge.
+                Each option carries its own rationale in the menu, which is where
+                it is useful, rather than as helper text stacked under a control
+                nobody is looking at yet. */}
+            <ChipSelect
+              id="image-model"
+              ariaLabel="Image model"
+              side="top"
+              value={optionId}
+              onChange={selectModel}
+              options={options.map((o) => ({ value: o.optionId, label: o.label, description: o.strengths }))}
+            />
+            <ChipSelect
+              id="image-ratio"
+              ariaLabel="Aspect ratio"
+              side="top"
+              value={aspectRatio}
+              onChange={(value) => setAspectRatio(value as ImageAspectRatio)}
+              options={(selectedOption?.capabilities.aspectRatios ?? []).map((ratio) => ({ value: ratio, label: ratio }))}
+            />
+            <ChipSelect
+              id="image-variations"
+              ariaLabel="Number of variations"
+              side="top"
+              value={String(count)}
+              onChange={(value) => setCount(Number(value))}
+              options={Array.from(
+                { length: selectedOption?.capabilities.maxVariations ?? 1 },
+                (_, index) => index + 1
+              ).map((value) => ({ value: String(value), label: `${value} image${value > 1 ? "s" : ""}` }))}
+            />
+
+            {selectedOption?.capabilities.referenceImages ? (
+              reference ? (
+                <span className="inline-flex h-9 items-center gap-2 rounded-full bg-sunken py-1 pl-1 pr-1 text-sm">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={reference.url} alt="" width={28} height={28} decoding="async" className="size-7 rounded-full object-cover" />
+                  <span className="max-w-32 truncate font-medium text-ink-2">{reference.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReference(null);
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                    className="grid size-7 place-items-center rounded-full text-ink-3 transition-colors hover:bg-deep hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+                    aria-label={`Remove reference image ${reference.name}`}
+                  >
+                    <X aria-hidden className="size-3.5" />
+                  </button>
+                </span>
+              ) : (
+                <label
+                  className={`cs-tool cursor-pointer ${referenceMissing ? "text-danger-ink" : ""}`}
+                  id="reference-image-label"
+                >
+                  <ImagePlus aria-hidden className="size-4" strokeWidth={1.6} />
+                  {uploading ? "Uploading…" : referenceMissing ? "Reference required" : "Reference"}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    disabled={uploading}
+                    aria-labelledby="reference-image-label"
+                    className="sr-only"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) void uploadReference(file);
+                    }}
+                  />
+                </label>
+              )
+            ) : null}
+
+            {/* The same pair as the home composer, carrying the same handoff:
+                with nothing written, asking the system to write it is the live
+                action; once there is a prompt, sending it is. */}
+            <div className="ml-auto flex items-center gap-2">
               <button
-                onClick={generate}
-                disabled={
-                  busy !== null ||
-                  !prompt.trim() ||
-                  !optionId ||
-                  Boolean(selectedOption?.capabilities.referenceImagesRequired && !reference)
-                }
-                aria-describedby={selectedOption?.capabilities.referenceImagesRequired && !reference ? "generate-requirement" : undefined}
-                className="cs-btn-primary"
+                type="button"
+                onClick={draftPrompt}
+                disabled={busy !== null || !anthropicReady || hasPrompt}
+                aria-describedby={!anthropicReady ? "auto-draft-requirement" : undefined}
+                className="cs-btn cs-dock-btn cs-dock-btn--wide shrink-0 border-[var(--orange-200)] bg-accent-soft text-accent-press enabled:hover:border-[var(--orange-300)] enabled:hover:bg-[var(--orange-200)]"
               >
-                {busy === "gen" ? "Generating…" : `Generate ${count} variation${count > 1 ? "s" : ""}`}
+                <AccentOrb />
+                <span className="whitespace-nowrap pl-2">
+                  {busy === "prompt" ? "Drafting…" : "Auto-draft"}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={generate}
+                disabled={generateBlocked || !hasPrompt}
+                aria-describedby={referenceMissing ? "generate-requirement" : undefined}
+                // Held level while it is merely waiting for a prompt; allowed to
+                // fade once it is genuinely blocked by something else.
+                className={`cs-dock-btn-icon shrink-0 ${hasPrompt ? "cs-btn-primary" : "cs-btn disabled:opacity-100"}`}
+                aria-label={busy === "gen" ? "Generating images" : `Generate ${count} image${count > 1 ? "s" : ""}`}
+                title={busy === "gen" ? undefined : `Generate ${count} image${count > 1 ? "s" : ""}`}
+              >
+                {busy === "gen"
+                  ? <LoaderCircle aria-hidden className="size-4 animate-spin motion-reduce:animate-none" />
+                  : <Send aria-hidden className="size-4" />}
               </button>
             </div>
-            {selectedOption?.capabilities.referenceImagesRequired && !reference && (
-              <p id="generate-requirement" className="text-xs text-ink-3">
-                Upload a reference image to generate with this model.
-              </p>
-            )}
           </div>
+        </div>
+        </div>
+      </div>
 
-          <p className="sr-only" aria-live="polite">
-            {busy === "prompt" ? "Drafting image prompt" : busy === "gen" ? "Generating images" : ""}
-          </p>
-          {error && <p className="mt-3 text-sm text-danger" role="alert">{error}</p>}
-
-          {imgs.length > 0 && (
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {imgs.map((img) => (
-                <BrandableImage key={img.id} img={img} brandLogo={brandLogo} onDeleted={() => setImgs((current) => current.filter((item) => item.id !== img.id))} />
-              ))}
-            </div>
-          )}
-        </>
-      )}
-    </section>
+    </div>
   );
 }
 
-function BrandableImage({ img, brandLogo, onDeleted }: { img: GeneratedImageView; brandLogo: BrandLogo; onDeleted: () => void }) {
+function BrandableImage({ img, brandLogo, feature = false, selected, onSelect, onDeleted }: {
+  img: GeneratedImageView;
+  brandLogo: BrandLogo;
+  /** The only image: shown large, but capped so a square cannot run away. */
+  feature?: boolean;
+  /** True when this image is the one that will reach the Hub. */
+  selected: boolean;
+  onSelect: () => void;
+  onDeleted: () => void;
+}) {
   const [branding, setBranding] = useState<LogoOverlay | null>(img.branding);
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -683,15 +825,44 @@ function BrandableImage({ img, brandLogo, onDeleted }: { img: GeneratedImageView
   }
 
   return (
-    <figure className="overflow-hidden rounded-lg border border-line">
+    <figure
+      className={`group overflow-hidden rounded-lg transition-shadow duration-(--duration-base) ease-(--ease-spring) ${
+        selected
+          ? "shadow-[0_0_0_2px_var(--accent),var(--shadow-plate)]"
+          : "shadow-[0_0_0_1px_var(--border)] hover:shadow-[0_0_0_1px_var(--border-strong)]"
+      }`}
+    >
       <div className="relative">
+        {/* The whole frame is the control: one image publishes, so picking it is
+            a choice between cards, not a checkbox on each. Unselected tiles carry
+            no label — a grid of "Use this" says the same thing as many times as
+            there are images. The tint on hover is the affordance instead. */}
+        <button
+          type="button"
+          onClick={onSelect}
+          aria-pressed={selected}
+          className="absolute inset-0 z-10 cursor-pointer transition-colors duration-(--duration-fast) ease-(--ease-spring) hover:bg-ink/5 focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_3px_var(--orange-200)]"
+        >
+          <span className="sr-only">
+            {selected ? `Variation ${img.variationNo} will be published` : `Publish variation ${img.variationNo}`}
+          </span>
+        </button>
+        {selected && (
+          <span
+            aria-hidden
+            className="absolute left-3 top-3 z-20 inline-flex min-h-8 items-center gap-1.5 rounded-full bg-accent px-3 text-xs font-bold text-white"
+          >
+            <IconCheck width={12} height={12} />
+            Publishing
+          </span>
+        )}
         {branded ? (
           <LogoOverlayPreview
             baseSrc={img.url}
             logoSrc="/api/brand-logo"
             overlay={branding}
             aspectRatio={img.aspectRatio}
-            className="rounded-none border-0"
+            className={`rounded-none border-0 ${feature ? "max-h-[70svh]" : ""}`}
           />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
@@ -700,53 +871,68 @@ function BrandableImage({ img, brandLogo, onDeleted }: { img: GeneratedImageView
             alt={`Generated companion image, variation ${img.variationNo}`}
             loading="lazy"
             decoding="async"
-            className="w-full object-cover"
+            className={`w-full object-cover ${feature ? "max-h-[70svh]" : ""}`}
             style={{ aspectRatio: img.aspectRatio.replace(":", " / ") }}
           />
         )}
-        <a
-          href={downloadUrl}
-          download
-          className="absolute bottom-2 right-2 grid size-11 place-items-center rounded-md bg-surface/90 text-ink shadow-sm hover:bg-surface focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-          aria-label={branded ? `Download branded variation ${img.variationNo}` : `Download variation ${img.variationNo}`}
-        >
-          <IconDownload width={16} height={16} />
-        </a>
+        {/* Per-image actions ride on the image and appear on intent. As a
+            permanent caption strip they added a row of chrome to every tile,
+            which is what made a grid of nine unmanageable. */}
+        <div className="cs-reveal absolute right-2 top-2 z-20 flex items-center gap-1">
+          <a
+            href={downloadUrl}
+            download
+            className="grid size-9 place-items-center rounded-full bg-surface/90 text-ink-2 shadow-sm backdrop-blur-sm transition-colors hover:bg-surface hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+            aria-label={branded ? `Download branded variation ${img.variationNo}` : `Download variation ${img.variationNo}`}
+          >
+            <IconDownload width={15} height={15} />
+          </a>
+          <button
+            type="button"
+            onClick={remove}
+            disabled={deleting}
+            className="grid size-9 place-items-center rounded-full bg-surface/90 text-danger-ink shadow-sm backdrop-blur-sm transition-colors hover:bg-danger-soft focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:opacity-50"
+            aria-label={deleting ? `Deleting variation ${img.variationNo}` : `Delete variation ${img.variationNo}`}
+          >
+            <IconTrash width={15} height={15} />
+          </button>
+        </div>
+
+        {/* Kept for comparison, but only while the eye is on this tile. */}
+        <figcaption className="cs-reveal pointer-events-none absolute inset-x-0 bottom-0 z-20 truncate bg-linear-to-t from-ink/70 to-transparent px-3 pb-2 pt-6 text-xs font-medium text-white">
+          {img.model} · {img.aspectRatio} · v{img.variationNo}
+        </figcaption>
       </div>
 
-      <figcaption className="flex items-center gap-3 border-t border-line px-3 py-2 text-xs text-ink-3">
-        <span className="min-w-0 flex-1 truncate">{img.model} · {img.aspectRatio} · Variation {img.variationNo}</span>
-        <button type="button" onClick={remove} disabled={deleting} className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-md px-2 text-danger-ink hover:bg-danger-soft focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-danger/20 disabled:opacity-50">
-          <IconTrash width={14} height={14} /> {deleting ? "Deleting…" : "Delete"}
-        </button>
-      </figcaption>
-
-      {deleteError && <p className="border-t border-line px-3 py-2 text-xs text-danger" role="alert">{deleteError}</p>}
+      {deleteError && <p className="bg-danger-soft px-3 py-2 text-xs text-danger" role="alert">{deleteError}</p>}
 
       {brandLogo.hasLogo && (
-        <div className="space-y-3 px-3 py-2.5">
-          <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2 text-sm text-ink">
+        <div className="relative z-20 bg-surface">
+          <div className="flex items-center justify-between gap-2 px-3 py-2">
+            <label className="flex items-center gap-2 text-sm text-ink-2">
               <input
                 type="checkbox"
                 checked={branded}
                 onChange={(e) => toggleBranding(e.target.checked)}
-                className="h-4 w-4 accent-[var(--accent)]"
+                className="size-4 accent-[var(--accent)]"
               />
-              Brand logo
+              Logo
             </label>
             {branded && (
               <button
                 type="button"
                 onClick={() => setAdjustOpen((o) => !o)}
-                className="rounded-sm text-xs font-medium text-accent-ink hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                aria-expanded={adjustOpen}
+                className="rounded-full px-2 py-1 text-xs font-semibold text-accent-ink transition-colors hover:bg-accent-soft focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
               >
                 {adjustOpen ? "Done" : "Adjust"}
               </button>
             )}
           </div>
           {branded && adjustOpen && (
-            <LogoOverlayControls value={branding} onChange={save} />
+            <div className="px-3 pb-3">
+              <LogoOverlayControls value={branding} onChange={save} />
+            </div>
           )}
         </div>
       )}
@@ -813,11 +999,9 @@ function PublishComposer({
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8">
+      {/* No label above the preview: it renders the Hub's own masthead and
+          chrome, which says what it is more convincingly than a caption. */}
       <div className="min-w-0">
-        <p className="mb-2.5 flex items-center gap-1.5 text-xs font-medium text-ink-3">
-          <Eye aria-hidden="true" className="size-3.5" strokeWidth={1.8} />
-          Preview — how it appears on the Knowledge Hub
-        </p>
         <HubArticlePreview
           title={title}
           dek={dek}
@@ -830,7 +1014,9 @@ function PublishComposer({
         />
       </div>
 
-      <div className="lg:sticky lg:top-24">
+      {/* Clears the floating pill (68px) and its scrim, which is only fully
+          transparent at 112px — top-24 parked the rail behind a partial veil. */}
+      <div className="lg:sticky lg:top-32">
         <PublishRail
           projectId={projectId}
           publish={publish}
@@ -906,32 +1092,69 @@ function PublishRail({
   }
 
   const findings = review?.checks.filter((check) => check.status === "review") ?? [];
-  const quiet =
-    "inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-ink-2 hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50";
 
   return (
-    <section aria-labelledby="publish-heading" className="cs-card p-5">
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <h2 id="publish-heading" className="text-[length:var(--text-h3)] text-ink">
-          Publish to the Hub
-        </h2>
-        {isLive ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-ok-soft px-2.5 py-0.5 text-xs font-semibold text-ok-ink">
-            <span className="size-1.5 rounded-full bg-ok" aria-hidden="true" />
-            Published
-          </span>
-        ) : (
-          <span className="inline-flex items-center rounded-full bg-deep px-2.5 py-0.5 text-xs font-semibold text-ink-2">
-            Draft
-          </span>
-        )}
-      </div>
+    <div aria-labelledby="publish-heading" className="space-y-4">
+      {/* Check before act. The review can only prevent a mistake if it is read
+          before the button, so it leads rather than trailing beneath it. */}
+      <section className="cs-bezel">
+        <div className="cs-bezel-core p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-ink">Brand check</h3>
+            <button type="button" onClick={reviewArticle} disabled={reviewing || !anthropicReady} className="cs-tool">
+              <IconSpark width={15} height={15} />
+              {reviewing ? "Reviewing…" : review ? "Again" : "Run"}
+            </button>
+          </div>
+          {!anthropicReady && <p className="mt-2 text-sm text-ink-2">Configure Anthropic to run the review.</p>}
+          {reviewError && <p className="mt-2 text-sm text-danger" role="alert">{reviewError}</p>}
+          {!review && anthropicReady && !reviewing && (
+            <p className="mt-2 text-sm leading-relaxed text-ink-2">
+              Reads the finished article against the brand profile before it goes out.
+            </p>
+          )}
+          {review && (
+            <div className="mt-3" aria-live="polite">
+              <p className={`text-sm font-medium ${findings.length ? "text-ink" : "text-ok-ink"}`}>
+                {findings.length ? review.summary : "No issues need attention."}
+              </p>
+              {findings.length > 0 && (
+                <ul className="mt-3 space-y-3 border-t border-line pt-3">
+                  {findings.map((check, index) => (
+                    <li key={`${check.criterion}-${index}`}>
+                      <p className="text-sm font-semibold text-ink">{check.criterion}</p>
+                      <p className="mt-1 text-sm leading-relaxed text-ink-2">{check.finding}</p>
+                      <p className="mt-1.5 text-sm font-medium text-accent-ink">Suggested edit: {check.suggestion}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
 
-      <div className="mt-4">
-        {canPublish ? (
-          <>
-            <p className="text-xs font-medium text-ink-3">Publishing under</p>
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+      {/* Where it lands and the act of sending it are one decision, so they are
+          one block: taxonomy above the rule, actions below it. Publishing is
+          public and the draft save is not, so the two stop being full-width
+          buttons that differ only by fill. */}
+      <section className="cs-bezel">
+        <div className="cs-bezel-core p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="publish-heading" className="text-sm font-semibold text-ink">Publish to the Hub</h2>
+            {isLive ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-ok-soft px-2.5 py-1 text-xs font-semibold text-ok-ink">
+                <span className="size-1.5 rounded-full bg-ok" aria-hidden="true" />
+                Published
+              </span>
+            ) : (
+              <span className="inline-flex items-center rounded-full bg-sunken px-2.5 py-1 text-xs font-semibold text-ink-2">
+                Draft
+              </span>
+            )}
+          </div>
+          {canPublish ? (
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
               {publish.category && (
                 <Badge variant="secondary" className="bg-accent-soft text-accent-press">{publish.category}</Badge>
               )}
@@ -939,81 +1162,73 @@ function PublishRail({
                 <Badge key={tag} variant="secondary" className="bg-sunken text-ink-2">{tag}</Badge>
               ))}
             </div>
-          </>
-        ) : (
-          <p className="text-sm text-ink-3">No content direction set — add one to publish.</p>
-        )}
-      </div>
+          ) : (
+            <p className="mt-2 text-sm text-ink-2">No content direction set — add one to publish.</p>
+          )}
 
-      <div className="mt-5 space-y-2.5">
-        {confirming ? (
-          <>
-            <p className="text-sm leading-relaxed text-ink-2" aria-live="polite">
-              Goes live and public on the Hub, auto-translated to Thai — editable in the Hub after.
-            </p>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setConfirming(false)} disabled={busy !== null} className="cs-btn flex-1">
-                Cancel
-              </button>
-              <button type="button" onClick={() => void send("published")} disabled={busy !== null} className="cs-btn-primary flex-1">
-                {busy === "published" ? "Publishing…" : "Publish live"}
-              </button>
+          <div className="mt-4 space-y-3 border-t border-line pt-4">
+          <button
+            type="button"
+            onClick={() => setConfirming(true)}
+            disabled={disabled || confirming}
+            className="cs-cta group w-full justify-between"
+          >
+            {isLive ? "Republish to Hub" : "Publish to Hub"}
+            <span aria-hidden className="cs-cta-disc"><IconCheck width={15} height={15} /></span>
+          </button>
+
+          {/* The confirmation opens below the trigger rather than replacing it.
+              Replacing it in place put "Publish live" under a cursor that had
+              just clicked, one stray double-click from making an article
+              public. */}
+          {confirming && (
+            <div
+              className="space-y-3 rounded-2xl bg-sunken p-3 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-200"
+              aria-live="polite"
+            >
+              <p className="text-sm leading-relaxed text-ink-2">
+                Goes live and public on the Hub, auto-translated to Thai — editable in the Hub after.
+              </p>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setConfirming(false)} disabled={busy !== null} className="cs-btn flex-1">
+                  Cancel
+                </button>
+                <button type="button" onClick={() => void send("published")} disabled={busy !== null} className="cs-btn-primary flex-1">
+                  {busy === "published" ? "Publishing…" : "Publish live"}
+                </button>
+              </div>
             </div>
-          </>
-        ) : (
-          <>
-            <button type="button" onClick={() => setConfirming(true)} disabled={disabled} className="cs-btn-primary w-full">
-              {isLive ? "Republish to Hub" : "Publish to Hub"}
-            </button>
-            <button type="button" onClick={() => void send("draft")} disabled={disabled} className="cs-btn w-full">
-              {busy === "draft" ? "Saving…" : "Save draft to Hub"}
-            </button>
-          </>
-        )}
-      </div>
+          )}
 
-      {result?.url && !confirming && (
-        <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-          <IconCheck width={16} height={16} className="text-ok" />
-          <span className="text-ink-2">{isLive ? "Live on the Hub" : "Saved as a Hub draft"}</span>
-          <a href={result.url} target="_blank" rel="noopener noreferrer" className="font-medium text-accent-ink hover:underline">
-            {isLive ? "View on Hub →" : "Review in Hub →"}
-          </a>
-        </div>
-      )}
-      {!hubConfigured && (
-        <p className="mt-3 text-xs text-ink-3">
-          Set <code>HUB_BASE_URL</code> and <code>HUB_API_KEY</code> to enable publishing.
-        </p>
-      )}
-      {error && <p className="mt-3 text-sm text-danger" role="alert">{error}</p>}
+          <button type="button" onClick={() => void send("draft")} disabled={disabled} className="cs-tool w-full justify-center">
+            {busy === "draft" ? "Saving…" : "Save as a Hub draft instead"}
+          </button>
 
-      <div className="mt-4 border-t border-line pt-4">
-        <button type="button" onClick={reviewArticle} disabled={reviewing || !anthropicReady} className={quiet}>
-          <IconSpark width={15} height={15} />
-          {reviewing ? "Reviewing…" : review ? "Review again" : "Review article"}
-        </button>
-        {!anthropicReady && <p className="mt-2 text-xs text-ink-3">Configure Anthropic to run the review.</p>}
-        {reviewError && <p className="mt-2 text-sm text-danger" role="alert">{reviewError}</p>}
-        {review && (
-          <div className="mt-3" aria-live="polite">
-            <p className={`text-sm font-medium ${findings.length ? "text-ink" : "text-ok"}`}>
-              {findings.length ? review.summary : "Review complete — no issues need attention."}
+          {/* The badge above already says what state it is in, so this stops
+              restating it and becomes the one thing it can uniquely offer: the
+              way there. A real icon rather than an arrow glyph, and it says out
+              loud that it leaves the app. */}
+          {result?.url && !confirming && (
+            <a
+              href={result.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full bg-ok-soft px-4 text-sm font-semibold text-ok-ink transition-colors duration-(--duration-fast) ease-(--ease-spring) hover:bg-ok-soft/70 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+            >
+              {isLive ? "Open on the Hub" : "Review the Hub draft"}
+              <ExternalLink aria-hidden className="size-4" strokeWidth={1.8} />
+              <span className="sr-only">(opens in a new tab)</span>
+            </a>
+          )}
+          {!hubConfigured && (
+            <p className="text-sm text-ink-2">
+              Set <code>HUB_BASE_URL</code> and <code>HUB_API_KEY</code> to enable publishing.
             </p>
-            {findings.length > 0 && (
-              <ul className="mt-3 divide-y divide-line border-t border-line">
-                {findings.map((check, index) => (
-                  <li key={`${check.criterion}-${index}`} className="py-3">
-                    <p className="text-sm font-semibold text-ink">{check.criterion}</p>
-                    <p className="mt-1 text-sm leading-relaxed text-ink-2">{check.finding}</p>
-                    <p className="mt-1.5 text-sm font-medium text-accent-ink">Suggested edit: {check.suggestion}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
+          )}
+          {error && <p className="text-sm text-danger" role="alert">{error}</p>}
           </div>
-        )}
-      </div>
-    </section>
+        </div>
+      </section>
+    </div>
   );
 }

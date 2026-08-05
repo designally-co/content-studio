@@ -151,6 +151,12 @@ export type ProjectInputs = {
    * reused as the summary when publishing — generated once, not on every publish.
    */
   publishDek?: string;
+  /**
+   * Which generated image becomes the article's cover. Unset falls back to the
+   * most recent one, which is what the stage did implicitly before the choice
+   * existed — so an editor who never picks keeps the old behaviour.
+   */
+  coverImageId?: string;
 };
 
 export type SelectedTopic = {

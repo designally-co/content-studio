@@ -7,6 +7,7 @@ import { getDb } from "@/db";
 import { imageReferences, images, projects } from "@/db/schema";
 import type { LogoOverlay } from "@/db/schema";
 import { requireUser } from "@/lib/session";
+import { loadProject } from "@/lib/projects";
 import { getBrand } from "@/lib/brand";
 import { getImageProvider } from "@/lib/image/registry";
 import { deleteStoredImage, loadStoredImage, saveImage } from "@/lib/image/storage";
@@ -213,6 +214,29 @@ export async function setImageBrandingAction(
   await requireUser();
   const db = await getDb();
   await db.update(images).set({ branding }).where(eq(images.id, imageId));
+}
+
+/**
+ * Choose which generated image becomes the article's cover.
+ *
+ * Only one image travels to the Hub, and the stage used to send whichever was
+ * generated most recently — so a third variation silently replaced a first the
+ * editor preferred. Stored on the project rather than as a flag per image, so
+ * there is exactly one place the answer can live and no way to end up with two.
+ */
+export async function setCoverImageAction(projectId: string, imageId: string): Promise<void> {
+  await requireUser();
+  const db = await getDb();
+  const loaded = await loadProject(projectId);
+  if (!loaded) throw new Error("Project not found");
+  await db
+    .update(projects)
+    .set({
+      inputs: { ...loaded.project.inputs, coverImageId: imageId },
+      updatedAt: new Date(),
+    })
+    .where(eq(projects.id, projectId));
+  revalidatePath(`/pipeline/${projectId}`);
 }
 
 export async function deleteGeneratedImageAction(imageId: string): Promise<void> {
