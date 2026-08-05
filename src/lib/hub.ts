@@ -2,7 +2,7 @@ import "server-only";
 
 /**
  * Client for the Designally Knowledge Hub. Publishes finished articles into the
- * Hub's Payload CMS via its Markdown endpoint (POST /api/resources/from-markdown),
+ * Hub's Payload CMS via its Markdown endpoint (POST /api/articles/from-markdown),
  * which converts Markdown → Lexical server-side.
  *
  * Config is environment-only (like the Anthropic key):
@@ -18,7 +18,10 @@ export function isHubConfigured(): boolean {
 
 export type HubArticleInput = {
   title: string;
-  tags: string[]; // 1–2 taxonomy tags (= content direction)
+  // Exactly one taxonomy tag (= content direction). Still sent as an array
+  // because that is the shape the Hub's endpoint takes; it rejects anything
+  // other than a single entry.
+  tags: string[];
   summary?: string; // dek
   bodyMarkdown: string;
   status?: "draft" | "published";
@@ -86,7 +89,7 @@ export async function publishArticleToHub(input: HubArticleInput): Promise<HubPu
 
   let res: Response;
   try {
-    res = await fetch(`${HUB_URL}/api/resources/from-markdown`, {
+    res = await fetch(`${HUB_URL}/api/articles/from-markdown`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
