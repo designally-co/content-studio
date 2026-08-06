@@ -1109,6 +1109,110 @@ function PublishComposer({
 }
 
 /**
+ * The steps a publish actually moves through, in order. As with preparation
+ * there is no progress channel back — publishToHubAction is one call — so this
+ * advances on elapsed time and the labels name work attempted, never a result
+ * claimed. The cover upload really is conditional server-side (no image, or a
+ * failed upload, does not block the publish), which is why its note says so.
+ */
+const PUBLISH_STEPS = [
+  { at: 0, label: "Preparing the article", note: "Title, dek and body." },
+  { at: 2, label: "Uploading the cover", note: "Skipped if there is no image." },
+  { at: 6, label: "Sending it to the Hub", note: "Converting and saving." },
+] as const;
+
+/**
+ * The working state for a publish.
+ *
+ * It replaces the buttons rather than sitting beneath them. Leaving a disabled
+ * CTA on screen was the whole problem: the only feedback a publish gave was
+ * that button going grey, which reads as a dead control rather than work in
+ * progress — and the "Publishing…" label lived on the confirm panel, which
+ * send() unmounts on the same tick, so nobody ever saw it.
+ */
+function PublishingPanel({ status }: { status: "draft" | "published" }) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // The last step holds until the action resolves and this panel unmounts, so
+  // the rail cannot show a finish the server has not reached.
+  let active = 0;
+  for (let i = 0; i < PUBLISH_STEPS.length; i++) if (elapsed >= PUBLISH_STEPS[i].at) active = i;
+
+  return (
+    <div className="rounded-2xl bg-sunken p-3.5" aria-live="polite">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-ink">
+          {status === "published" ? "Publishing to the Hub" : "Saving a draft to the Hub"}
+        </p>
+        <span className="font-mono text-xs tabular-nums text-ink-3" aria-label={`${elapsed} seconds elapsed`}>
+          {`0:${String(elapsed % 60).padStart(2, "0")}`}
+        </span>
+      </div>
+
+      <ol className="mt-3 space-y-2.5">
+        {PUBLISH_STEPS.map((step, i) => {
+          const state = i < active ? "done" : i === active ? "active" : "pending";
+          return (
+            <li key={step.label} className="flex gap-3">
+              <span className="relative mt-[5px] flex size-2 shrink-0 items-center justify-center">
+                {state === "active" && (
+                  <span className="cs-ping absolute inline-flex size-2 rounded-full bg-accent" aria-hidden="true" />
+                )}
+                <span
+                  className="relative inline-flex size-2 rounded-full transition-all duration-(--duration-slow) ease-(--ease-spring)"
+                  style={{
+                    background:
+                      state === "pending" ? "transparent" : state === "done" ? "var(--ink-300)" : "var(--accent)",
+                    boxShadow: state === "pending" ? "inset 0 0 0 1.5px var(--ink-200)" : "none",
+                  }}
+                />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span
+                  className="block text-xs font-medium transition-colors duration-(--duration-slow) ease-(--ease-spring)"
+                  style={{
+                    color:
+                      state === "pending"
+                        ? "var(--ink-400)"
+                        : state === "done"
+                          ? "var(--ink-secondary)"
+                          : "var(--accent-press)",
+                  }}
+                >
+                  {step.label}
+                </span>
+                {state === "active" && (
+                  <>
+                    <span className="mt-0.5 block text-[11px] leading-snug text-ink-3">{step.note}</span>
+                    {/* Indeterminate: there is no real percentage to report. */}
+                    <span
+                      className="mt-2 block h-[3px] w-full overflow-hidden rounded-full"
+                      style={{ background: "var(--accent-tint)" }}
+                      aria-hidden="true"
+                    >
+                      <span className="cs-sweep block h-full w-1/4 rounded-full" style={{ background: "var(--accent)" }} />
+                    </span>
+                  </>
+                )}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+
+      <p className="mt-3.5 border-t border-line pt-3 text-[11px] leading-relaxed text-ink-3">
+        Keep this tab open — it finishes here and shows you the link.
+      </p>
+    </div>
+  );
+}
+
+/**
  * The action rail beside the preview: article status, the taxonomy it will
  * publish under, the publish actions (live — inline-confirmed — or a Hub draft
  * to review the Thai translation first), and a quiet brand review with inline
@@ -1202,6 +1306,13 @@ function PublishRail({
           )}
 
           <div className="mt-4 space-y-3 border-t border-line pt-4">
+          {/* While it runs, the working state stands in for the controls. A
+              disabled CTA left on screen was read as a frozen app rather than
+              as work in progress. */}
+          {busy ? (
+            <PublishingPanel status={busy} />
+          ) : (
+            <>
           <button
             type="button"
             onClick={() => setConfirming(true)}
@@ -1229,21 +1340,23 @@ function PublishRail({
                   Cancel
                 </button>
                 <button type="button" onClick={() => void send("published")} disabled={busy !== null} className="cs-btn-primary flex-1">
-                  {busy === "published" ? "Publishing…" : "Publish live"}
+                  Publish live
                 </button>
               </div>
             </div>
           )}
 
           <button type="button" onClick={() => void send("draft")} disabled={disabled} className="cs-tool w-full justify-center">
-            {busy === "draft" ? "Saving…" : "Save as a Hub draft instead"}
+            Save as a Hub draft instead
           </button>
+            </>
+          )}
 
           {/* The badge above already says what state it is in, so this stops
               restating it and becomes the one thing it can uniquely offer: the
               way there. A real icon rather than an arrow glyph, and it says out
               loud that it leaves the app. */}
-          {result?.url && !confirming && (
+          {result?.url && !confirming && !busy && (
             <a
               href={result.url}
               target="_blank"
