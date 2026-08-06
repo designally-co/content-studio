@@ -10,7 +10,6 @@ import { StageShell } from "./stage-shell";
 import { countMetrics } from "@/lib/text";
 import { markdownToPlainText } from "@/lib/plain";
 import { type PublishMetadata } from "@/lib/publish-meta";
-import { Badge } from "@/components/ui/badge";
 import {
   generateImagePromptAction,
   reviewBrandAlignmentAction,
@@ -1193,16 +1192,12 @@ function PublishRail({
               </span>
             )}
           </div>
-          {canPublish ? (
-            <div className="mt-3 flex flex-wrap items-center gap-1.5">
-              {publish.category && (
-                <Badge variant="secondary" className="bg-accent-soft text-accent-press">{publish.category}</Badge>
-              )}
-              {publish.tags.map((tag) => (
-                <Badge key={tag} variant="secondary" className="bg-sunken text-ink-2">{tag}</Badge>
-              ))}
-            </div>
-          ) : (
+          {/* The pillar + tag are deliberately not shown here. The Hub owns the
+              taxonomy (and it has changed — pillars merged/renamed), so echoing a
+              category/tag on the CG side only risks contradicting what the editor
+              sees once the article is live. The tag is still sent on publish and
+              still renders in the faithful Hub preview beside this rail. */}
+          {!canPublish && (
             <p className="mt-2 text-sm text-ink-2">No content direction set — add one to publish.</p>
           )}
 
