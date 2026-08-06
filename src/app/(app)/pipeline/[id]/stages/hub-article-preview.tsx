@@ -5,6 +5,7 @@ import { Monitor, Smartphone, Tablet } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { stripTitleHeading } from "@/lib/markdown";
+import { pillarForDirection } from "@/lib/content-pillars";
 
 /**
  * The widths the preview can lay out at.
@@ -139,12 +140,34 @@ function extractHeadings(markdown: string): { level: 2 | 3; text: string }[] {
 }
 
 /**
+ * The Hub's masthead band, per category — mirroring CATEGORY_CHROME on the Hub,
+ * where an article's hero wears the colour of the listing it is filed under.
+ *
+ * Keyed by this app's pillar slugs, but mapped to the Hub's CURRENT categories,
+ * which is why two slugs share a colour: the Hub merged New Update and Creative
+ * Things into Insights. This app still models them as separate pillars, so the
+ * map is where that difference is absorbed — a preview has to predict what the
+ * Hub will render, not what we call it here.
+ *
+ * If the Hub's category colours change, change them here too.
+ */
+const HUB_BAND_BY_PILLAR: Record<string, string> = {
+  design: "#F1AB88", // Case Studies
+  "new-update": "#B0BCE5", // Insights
+  "creative-things": "#B0BCE5", // Insights (merged)
+  "ai-with-design": "#80D2A8", // Workflows
+};
+/** Falls back to the Hub's tan for a direction that resolves to no pillar. */
+const HUB_BAND_FALLBACK = "#ece1cd";
+
+/**
  * A faithful preview of how an article will render on the Designally Knowledge
  * Hub, using the Hub's own fonts (Hanken Grotesk + Newsreader) and type/colour
  * tokens. Scoped under `.hubprev` so none of it leaks into the generator UI.
  *
  * Structure (per the desired hero treatment):
- *   - Hero (`.hubprev__masthead`) — the title block on a SOLID tan band. It
+ *   - Hero (`.hubprev__masthead`) — the title block on a SOLID band in the
+ *     article's category colour. It
  *     reserves extra bottom space equal to HALF the cover height.
  *   - Body (`.hubprev__main`) — the cover image then the prose. The cover is
  *     pulled UP by half its own height so its top half overflows into the hero's
@@ -183,11 +206,12 @@ export function HubArticlePreview({
 }) {
   const body = stripTitleHeading(bodyMarkdown, title).trim();
   const headings = extractHeadings(body);
+  const band = HUB_BAND_BY_PILLAR[pillarForDirection(tags[0] ?? "")?.slug ?? ""] ?? HUB_BAND_FALLBACK;
 
   return (
     <div
       className="hubprev"
-      style={{ "--hpr": coverAspectRatio } as CSSProperties}
+      style={{ "--hpr": coverAspectRatio, "--hp-band": band } as CSSProperties}
       aria-label="Knowledge Hub article preview"
     >
       {/* eslint-disable-next-line @next/next/no-page-custom-font */}
@@ -326,16 +350,16 @@ const HUBPREV_CSS = `
   padding-inline: var(--hp-gutter);
 }
 
-/* HERO — solid tan band, full-bleed to the card edges. Its bottom padding is
-   HALF the cover height (50% / ratio of the body width) plus a breathing gap, so
-   its edge lands exactly at the cover's midline. */
+/* HERO — solid band in the article's category colour, full-bleed to the card
+   edges. Its bottom padding is HALF the cover height (50% / ratio of the body
+   width) plus a breathing gap, so its edge lands exactly at the cover's midline. */
 .hubprev__masthead {
   position: relative;
   isolation: isolate;
   margin-inline: calc(-1 * var(--hp-gutter));
   padding: clamp(28px, 5cqw, 48px) var(--hp-gutter)
     calc(50% / var(--hpr) + clamp(24px, 4cqw, 36px));
-  background: var(--hp-tan);
+  background: var(--hp-band, var(--hp-tan));
 }
 .hubprev__masthead::after {
   content: "";
