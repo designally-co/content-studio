@@ -478,6 +478,50 @@
   box-shadow: var(--shadow-plate);
 }
 
+/* ---- preparation progress ----
+   Waiting on a model call is the one moment the product looks broken: the work
+   happens somewhere else and the screen has nothing to report. These carry the
+   signal that it is still alive. Transform and opacity only, so a wait that
+   runs for a minute costs nothing to paint. */
+@keyframes cs-ping {
+  0% { transform: scale(1); opacity: 0.5; }
+  70%, 100% { transform: scale(2.6); opacity: 0; }
+}
+/* A ring leaving the active dot. Reads as a signal being sent rather than a
+   spinner turning, which is what stops it looking like a stalled loader. */
+.cs-ping {
+  animation: cs-ping 1.9s var(--ease-out) infinite;
+}
+
+@keyframes cs-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+/* Indeterminate, deliberately: there is no real percentage to report, and a bar
+   that parks at 90% is worse than one that never claims a number. */
+.cs-sweep {
+  animation: cs-sweep 1.8s var(--ease-spring) infinite;
+}
+
+@keyframes cs-shimmer {
+  0% { opacity: 0.45; }
+  50% { opacity: 0.9; }
+  100% { opacity: 0.45; }
+}
+.cs-shimmer {
+  animation: cs-shimmer 2.4s var(--ease-out) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cs-ping,
+  .cs-sweep,
+  .cs-shimmer {
+    animation: none;
+  }
+  /* Without motion the ring would sit on the dot as a solid blob. */
+  .cs-ping { opacity: 0; }
+}
+
 /* ---- pipeline header island ----
    Detached rather than glued to the top edge, and held by a translucent surface
    with a blurred backdrop instead of a hairline rule. Sticky, so the blur is
