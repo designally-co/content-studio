@@ -3,13 +3,7 @@
 import { useState } from "react";
 import { saveModelSettingsAction } from "./actions";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Section, Plate } from "./section";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -40,15 +34,8 @@ export function ModelSelectionCard({
   );
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Model selection</CardTitle>
-        <CardDescription>
-          Choose the models Content Studio uses for speed-sensitive and
-          quality-sensitive tasks.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <Section title="Model selection" description="Choose the models Content Studio uses for speed-sensitive and quality-sensitive tasks.">
+      <Plate>
         <form action={saveModelSettingsAction} className="grid gap-4 sm:grid-cols-2">
           <input type="hidden" name="research" value={research} />
           <input type="hidden" name="drafting" value={drafting} />
@@ -89,7 +76,7 @@ export function ModelSelectionCard({
             <Button type="submit">Save models</Button>
           </div>
         </form>
-      </CardContent>
-    </Card>
+      </Plate>
+    </Section>
   );
 }

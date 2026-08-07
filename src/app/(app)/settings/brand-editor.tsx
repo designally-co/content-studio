@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Save, Upload, X } from "lucide-react";
+import { Save, Upload, X } from "lucide-react";
 import { TagInput, ChipSelect } from "@/components/tag-input";
 import { LogoOverlayControls, LogoOverlayPreview } from "@/components/logo-overlay";
 import { saveBrandAction } from "./actions";
@@ -9,13 +9,7 @@ import type { InferSelectModel } from "drizzle-orm";
 import type { brandProfiles, LogoOverlay } from "@/db/schema";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Section, Plate } from "./section";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -41,13 +35,7 @@ const TONE_PRESETS = [
   "conversational",
 ];
 
-const LANGUAGE_LABELS: Record<"en" | "th", string> = {
-  en: "English",
-  th: "Thai",
-};
-
 export function BrandEditor({ brand }: { brand: Brand }) {
-  const [langs, setLangs] = useState<string[]>(brand.languages ?? ["en"]);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [removeLogo, setRemoveLogo] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
@@ -98,76 +86,64 @@ export function BrandEditor({ brand }: { brand: Brand }) {
       .join("");
   }, [brand.name]);
 
-  function toggleLang(language: "th" | "en") {
-    setLangs((prev) =>
-      prev.includes(language)
-        ? prev.filter((item) => item !== language)
-        : [...prev, language]
-    );
-  }
 
   return (
-    <form action={saveBrandAction} className="space-y-6">
+    <form action={saveBrandAction} className="space-y-14">
       <input type="hidden" name="id" value={brand.id} />
-      <input type="hidden" name="languages" value={JSON.stringify(langs)} />
       <input type="hidden" name="removeLogo" value={removeLogo ? "1" : ""} />
       <input type="hidden" name="logoOverlay" value={JSON.stringify(overlay)} />
 
       {/* 1 — Identity */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Brand Identity</CardTitle>
-          <CardDescription>
-            One logo represents this brand across the app and on generated images.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="grid gap-6 border-b border-border pb-6 md:grid-cols-[minmax(0,1fr)_minmax(18rem,0.8fr)]">
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <Avatar className="size-24 rounded-2xl border border-border bg-muted/25">
-                  {logoSrc ? <AvatarImage src={logoSrc} alt={`${brand.name} logo`} className="object-contain p-2" /> : null}
-                  <AvatarFallback className="rounded-2xl text-2xl font-semibold">{initials}</AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 space-y-2">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Brand logo</p>
-                    <p className="mt-1 max-w-[48ch] text-sm text-muted-foreground">
-                      Used as the brand profile image and as the optional logo overlay on generated images. Transparent PNG works best.
-                    </p>
-                  </div>
-                  <input ref={logoInputRef} id="brand-logo-file" type="file" name="logo" accept="image/*" className="sr-only" onChange={onLogoChange} />
-                  <div className="flex flex-wrap gap-2">
-                    <Button type="button" variant="outline" size="sm" onClick={() => logoInputRef.current?.click()}>
-                      <Upload />{logoSrc ? "Replace logo" : "Upload logo"}
-                    </Button>
-                    {logoSrc ? <Button type="button" variant="ghost" size="sm" onClick={onClearLogo}><X />Remove</Button> : null}
-                  </div>
-                  {logoError ? <p className="text-xs font-medium text-destructive">{logoError}</p> : null}
-                </div>
-              </div>
+      <Section
+        title="Brand identity"
+        description="How the brand is identified across the app and on generated images."
+      >
+        <Plate className="space-y-6">
+          <div className="flex flex-wrap items-center gap-5">
+            <Avatar className="size-20 rounded-2xl bg-sunken">
+              {logoSrc ? <AvatarImage src={logoSrc} alt={`${brand.name} logo`} className="object-contain p-2.5" /> : null}
+              <AvatarFallback className="rounded-2xl bg-sunken text-2xl font-semibold text-ink-3">{initials}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 space-y-2.5">
               <div>
-                <p className="mb-2 text-sm font-medium text-foreground">Image-overlay defaults</p>
-                <LogoOverlayControls value={overlay} onChange={setOverlay} disabled={!logoSrc} />
+                <p className="text-sm font-medium text-ink">Brand logo</p>
+                <p className="mt-0.5 max-w-[46ch] text-sm text-ink-3">
+                  Shown across the app and available as an overlay on generated images. Transparent PNG works best.
+                </p>
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-foreground">Generated-image preview</p>
-              <LogoOverlayPreview logoSrc={logoSrc || undefined} overlay={overlay} />
-              <p className="text-xs leading-5 text-muted-foreground">Placement can still be adjusted for each image during Finalize.</p>
+              <input ref={logoInputRef} id="brand-logo-file" type="file" name="logo" accept="image/*" className="sr-only" onChange={onLogoChange} />
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => logoInputRef.current?.click()}>
+                  <Upload />{logoSrc ? "Replace" : "Upload logo"}
+                </Button>
+                {logoSrc ? <Button type="button" variant="ghost" size="sm" onClick={onClearLogo}><X />Remove</Button> : null}
+              </div>
+              {logoError ? <p className="text-xs font-medium text-danger-ink">{logoError}</p> : null}
             </div>
           </div>
 
-          <Field label="Name" htmlFor="brand-name" required>
-            <Input
-              id="brand-name"
-              name="name"
-              defaultValue={brand.name}
-              required
-              placeholder="e.g. Designally"
-            />
-          </Field>
+          {/* The overlay controls act on a logo, and the preview has nothing to
+              show without one — disabled sliders beside an empty frame was the
+              largest dead area on the page. Both arrive with the logo. */}
+          {logoSrc && (
+            <div className="grid gap-6 border-t border-line pt-6 md:grid-cols-[minmax(0,1fr)_minmax(15rem,0.7fr)]">
+              <div>
+                <p className="mb-2.5 text-sm font-medium text-ink">Image-overlay defaults</p>
+                <LogoOverlayControls value={overlay} onChange={setOverlay} disabled={!logoSrc} />
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-ink">Preview</p>
+                <LogoOverlayPreview logoSrc={logoSrc || undefined} overlay={overlay} />
+                <p className="text-xs leading-5 text-ink-3">Placement is still adjustable per image during Finalize.</p>
+              </div>
+            </div>
+          )}
+
+          <div className="grid gap-5 border-t border-line pt-6 sm:grid-cols-2">
+            <Field label="Name" htmlFor="brand-name" required>
+              <Input id="brand-name" name="name" defaultValue={brand.name} required placeholder="e.g. Designally" />
+            </Field>
+          </div>
           <Field label="Description" htmlFor="brand-description">
             <Textarea
               id="brand-description"
@@ -176,37 +152,15 @@ export function BrandEditor({ brand }: { brand: Brand }) {
               placeholder="Internal note describing this profile"
             />
           </Field>
-
-          <Field label="Default languages">
-            <div className="flex flex-wrap gap-2">
-              {(["en", "th"] as const).map((language) => {
-                const active = langs.includes(language);
-                return (
-                  <Button
-                    key={language}
-                    type="button"
-                    variant={active ? "default" : "outline"}
-                    onClick={() => toggleLang(language)}
-                  >
-                    {active ? <Check /> : null}
-                    {LANGUAGE_LABELS[language]}
-                  </Button>
-                );
-              })}
-            </div>
-          </Field>
-        </CardContent>
-      </Card>
+        </Plate>
+      </Section>
 
       {/* 2 — Writing guidelines */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Writing Guidelines</CardTitle>
-          <CardDescription>
-            Optional brand-specific writing guidance applied alongside tone and terminology.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+      <Section
+        title="Writing guidelines"
+        description="Optional brand-specific writing guidance applied alongside tone and terminology."
+      >
+        <Plate>
           <Field label="Additional writing guidance" htmlFor="strategy-additional">
             <Textarea
               id="strategy-additional"
@@ -216,18 +170,15 @@ export function BrandEditor({ brand }: { brand: Brand }) {
               placeholder="Any voice, terminology, or editorial guidance not covered below…"
             />
           </Field>
-        </CardContent>
-      </Card>
+        </Plate>
+      </Section>
 
       {/* 3 — Tone of voice */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Tone Of Voice</CardTitle>
-          <CardDescription>
-            The personality and language constraints the model should follow.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
+      <Section
+        title="Tone of voice"
+        description="The personality and language constraints the model should follow."
+      >
+        <Plate className="space-y-5">
           <Field label="Descriptors">
             <ChipSelect
               name="toneDescriptors"
@@ -243,18 +194,15 @@ export function BrandEditor({ brand }: { brand: Brand }) {
               placeholder="e.g. Speak like a knowledgeable peer. Avoid hype. Short sentences."
             />
           </Field>
-        </CardContent>
-      </Card>
+        </Plate>
+      </Section>
 
       {/* 4 — Terminology & rules */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Terminology & Rules</CardTitle>
-          <CardDescription>
-            Exact wording, preferred phrases, and boundaries for the brand.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
+      <Section
+        title="Terminology and rules"
+        description="Exact wording, preferred phrases, and boundaries for the brand."
+      >
+        <Plate className="space-y-5">
           <Field label="Terminology">
             <TagInput
               name="terminology"
@@ -278,18 +226,15 @@ export function BrandEditor({ brand }: { brand: Brand }) {
               />
             </Field>
           </div>
-        </CardContent>
-      </Card>
+        </Plate>
+      </Section>
 
-      {/* 5 — Audience & defaults */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Audience & Defaults</CardTitle>
-          <CardDescription>
-            Reusable context added to new projects for this brand.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
+      {/* 5 — Audience */}
+      <Section
+        title="Audience"
+        description="Who the articles are written for. Added to every generation."
+      >
+        <Plate>
           <Field label="Target audience" htmlFor="audience">
             <Textarea
               id="audience"
@@ -298,36 +243,10 @@ export function BrandEditor({ brand }: { brand: Brand }) {
               placeholder="e.g. SME owners in Thailand evaluating a website refresh"
             />
           </Field>
-          <div className="grid gap-5 md:grid-cols-3">
-            <Field label="Default CTA" htmlFor="default-cta">
-              <Input
-                id="default-cta"
-                name="cta"
-                defaultValue={brand.defaults.cta}
-                placeholder="Book a consult"
-              />
-            </Field>
-            <Field label="Links" htmlFor="default-links">
-              <Input
-                id="default-links"
-                name="links"
-                defaultValue={brand.defaults.links}
-                placeholder="designally.co"
-              />
-            </Field>
-            <Field label="Default hashtags" htmlFor="default-hashtags">
-              <Input
-                id="default-hashtags"
-                name="hashtags"
-                defaultValue={brand.defaults.hashtags}
-                placeholder="#webdesign #SEO"
-              />
-            </Field>
-          </div>
-        </CardContent>
-      </Card>
+        </Plate>
+      </Section>
 
-      <div className="flex justify-end border-t border-border pt-5">
+      <div className="flex justify-end pt-2">
         <Button type="submit">
           <Save />
           Save brand

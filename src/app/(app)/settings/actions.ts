@@ -5,7 +5,6 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   categories,
-  pricing,
   appSettings,
   brandProfiles,
   projects,
@@ -21,7 +20,6 @@ import { getBrand } from "@/lib/brand";
 import { DEFAULT_ARTICLE_PROMPT } from "@/lib/article-template";
 import { serializeBrandStrategy } from "@/lib/designally-strategy";
 
-const PRICING_PROVIDERS = ["anthropic", "fal"] as const;
 const API_KEY_PROVIDERS: ApiKeyProvider[] = ["fal"];
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // 2 MB
 
@@ -105,26 +103,18 @@ export async function manageTeamMemberAction(
 }
 
 // ---- categories ----
-export async function addCategoryAction(formData: FormData) {
-  const db = await touch();
-  const name = String(formData.get("name") ?? "").trim();
-  const nameTh = String(formData.get("nameTh") ?? "").trim();
-  if (name) await db.insert(categories).values({ name, nameTh });
-  revalidatePath("/settings");
-}
-
+// Deliberately the only category mutation. A direction's NAME is the exact tag
+// sent to the Knowledge Hub on publish (publishMetadata), so free-text adds,
+// renames, and deletes all break publishing — a new name the Hub doesn't know
+// is rejected, and deleting a row orphans the projects that reference it.
+// Deactivating is the safe pruning tool: it only hides the direction from the
+// picker on /new, is reversible, and leaves existing projects publishable.
+// Taxonomy changes belong in a deliberate migration alongside the Hub's.
 export async function toggleCategoryAction(formData: FormData) {
   const db = await touch();
   const id = String(formData.get("id"));
   const active = formData.get("active") === "true";
   await db.update(categories).set({ active: !active }).where(eq(categories.id, id));
-  revalidatePath("/settings");
-}
-
-export async function deleteCategoryAction(formData: FormData) {
-  const db = await touch();
-  const id = String(formData.get("id"));
-  await db.delete(categories).where(eq(categories.id, id));
   revalidatePath("/settings");
 }
 
@@ -143,8 +133,10 @@ export async function saveArticleTemplateAction(formData: FormData) {
 }
 
 // ---- models ----
+// Admin-only: a wrong model id here silently breaks every generation stage.
 export async function saveModelSettingsAction(formData: FormData) {
-  const db = await touch();
+  await requireAdmin();
+  const db = await getDb();
   const research = String(formData.get("research") ?? "").trim();
   const drafting = String(formData.get("drafting") ?? "").trim();
   for (const [key, value] of [
@@ -161,8 +153,9 @@ export async function saveModelSettingsAction(formData: FormData) {
 }
 
 // ---- api keys ----
+// Admin-only: provider credentials.
 export async function saveApiKeyAction(formData: FormData) {
-  await touch();
+  await requireAdmin();
   const provider = String(formData.get("provider") ?? "");
   const apiKey = String(formData.get("apiKey") ?? "").trim();
   if (!API_KEY_PROVIDERS.includes(provider as ApiKeyProvider) || !apiKey) return;
@@ -171,40 +164,10 @@ export async function saveApiKeyAction(formData: FormData) {
 }
 
 export async function deleteApiKeyAction(formData: FormData) {
-  await touch();
+  await requireAdmin();
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   await deleteApiKey(id);
-  revalidatePath("/settings");
-}
-
-// ---- pricing ----
-export async function updatePriceAction(formData: FormData) {
-  const db = await touch();
-  const id = String(formData.get("id"));
-  const priceUsd = String(formData.get("priceUsd") ?? "0").trim();
-  if (!/^\d*\.?\d+$/.test(priceUsd)) return;
-  await db.update(pricing).set({ priceUsd }).where(eq(pricing.id, id));
-  revalidatePath("/settings");
-}
-
-export async function addPriceAction(formData: FormData) {
-  const db = await touch();
-  const provider = String(formData.get("provider") ?? "").trim();
-  const model = String(formData.get("model") ?? "").trim();
-  const unit = String(formData.get("unit") ?? "");
-  const priceUsd = String(formData.get("priceUsd") ?? "0").trim();
-  if (!PRICING_PROVIDERS.includes(provider as (typeof PRICING_PROVIDERS)[number]) || !model) return;
-  if (unit !== "mtok_in" && unit !== "mtok_out" && unit !== "image") return;
-  if (!/^\d*\.?\d+$/.test(priceUsd)) return;
-  await db.insert(pricing).values({ provider, model, unit, priceUsd });
-  revalidatePath("/settings");
-}
-
-export async function deletePriceAction(formData: FormData) {
-  const db = await touch();
-  const id = String(formData.get("id"));
-  await db.delete(pricing).where(eq(pricing.id, id));
   revalidatePath("/settings");
 }
 
@@ -269,10 +232,6 @@ export async function saveBrandAction(formData: FormData) {
     return;
   }
 
-  const languages = parseTags(formData, "languages").filter(
-    (l): l is "th" | "en" => l === "th" || l === "en"
-  );
-
   const logo = await resolveLogoUpdate(formData);
 
   await db
@@ -281,7 +240,6 @@ export async function saveBrandAction(formData: FormData) {
       name,
       logoOverlay: parseLogoOverlay(formData),
       description: String(formData.get("description") ?? "").trim(),
-      languages: languages.length ? languages : (["en"] as ("th" | "en")[]),
       tone: {
         descriptors: parseTags(formData, "toneDescriptors"),
         freeText: String(formData.get("toneFreeText") ?? "").trim(),
@@ -290,11 +248,6 @@ export async function saveBrandAction(formData: FormData) {
       dos: parseTags(formData, "dos"),
       donts: parseTags(formData, "donts"),
       audience: String(formData.get("audience") ?? "").trim(),
-      defaults: {
-        cta: String(formData.get("cta") ?? "").trim(),
-        links: String(formData.get("links") ?? "").trim(),
-        hashtags: String(formData.get("hashtags") ?? "").trim(),
-      },
       guidelineText: serializeBrandStrategy({
         purpose: String(formData.get("strategyPurpose") ?? ""),
         positioning: String(formData.get("strategyPositioning") ?? ""),

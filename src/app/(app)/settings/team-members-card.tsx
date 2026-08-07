@@ -1,11 +1,11 @@
 "use client";
 
 import { useActionState } from "react";
-import { RotateCcw, ShieldCheck, Trash2, UserPlus, UserRoundCheck, UserRoundX } from "lucide-react";
+import {RotateCcw, Trash2, UserPlus, UserRoundCheck, UserRoundX} from "lucide-react";
 import { manageTeamMemberAction, type TeamActionState } from "./actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Section, Plate } from "./section";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -22,20 +22,13 @@ export function TeamMembersCard({ members, currentUserId }: { members: TeamMembe
   const [state, formAction, pending] = useActionState<TeamActionState, FormData>(manageTeamMemberAction, {});
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start gap-3">
-          <div className="mt-0.5 grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
-            <ShieldCheck className="size-4" />
-          </div>
-          <div>
-            <CardTitle>Team members</CardTitle>
-            <CardDescription>Create accounts and manage access to Content Studio.</CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-7">
-        <form action={formAction} className="grid gap-4 border-b border-border pb-7 sm:grid-cols-2 lg:grid-cols-[1fr_1.2fr_1fr_auto_auto] lg:items-end">
+    <Section
+      title="Team members"
+      description="Create accounts and manage access to Content Studio."
+    >
+      <div className="space-y-4">
+        <Plate>
+        <form action={formAction} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1.2fr_1fr_auto_auto] lg:items-end">
           <input type="hidden" name="intent" value="create" />
           <div className="grid gap-2">
             <Label htmlFor="member-name">Name</Label>
@@ -62,24 +55,31 @@ export function TeamMembersCard({ members, currentUserId }: { members: TeamMembe
           <Button type="submit" disabled={pending}><UserPlus data-icon="inline-start" />Add user</Button>
         </form>
 
-        {state.error && <p className="text-sm text-destructive" role="alert">{state.error}</p>}
-        {state.success && <p className="text-sm text-ok-ink" role="status">{state.success}</p>}
+        {state.error && <p className="mt-4 text-sm text-danger-ink" role="alert">{state.error}</p>}
+        {state.success && <p className="mt-4 text-sm text-ok-ink" role="status">{state.success}</p>}
+        </Plate>
 
-        <div className="divide-y divide-border">
+        <Plate className="divide-y divide-line">
           {members.map((member) => {
             const isCurrent = member.id === currentUserId;
             return (
               <div key={member.id} className="py-5 first:pt-0 last:pb-0">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-                  <div className="min-w-0 flex-1">
+                {/* Identity on its own line, controls beneath. They shared a row
+                    before, going horizontal at the lg VIEWPORT breakpoint while
+                    the real column is ~616px — the rigid controls took all of
+                    it, flex-1 collapsed the name to zero width, and the name
+                    text spilled out over the role select. */}
+                <div className="space-y-3.5">
+                  <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium text-foreground">{member.name}</p>
+                      <p className="font-medium text-ink">{member.name}</p>
                       {isCurrent && <Badge variant="secondary">You</Badge>}
                       {!member.active && <Badge variant="destructive">Disabled</Badge>}
                     </div>
-                    <p className="mt-1 truncate text-sm text-muted-foreground">{member.email}</p>
+                    <p className="mt-0.5 truncate text-sm text-ink-3">{member.email}</p>
                   </div>
 
+                  <div className="flex flex-wrap items-end gap-2">
                   <form action={formAction} className="flex items-end gap-2">
                     <input type="hidden" name="intent" value="role" />
                     <input type="hidden" name="userId" value={member.id} />
@@ -96,11 +96,11 @@ export function TeamMembersCard({ members, currentUserId }: { members: TeamMembe
                     <Button type="submit" variant="outline" disabled={isCurrent || pending}>Update</Button>
                   </form>
 
-                  <details className="group relative">
+                  <details className="group w-full sm:w-auto">
                     <summary className="flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-full px-4 text-sm font-semibold text-ink hover:bg-sunken focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
                       <RotateCcw className="size-4" />Reset password
                     </summary>
-                    <form action={formAction} className="mt-3 flex flex-col gap-2 rounded-lg bg-muted/60 p-3 sm:flex-row sm:items-end lg:absolute lg:right-12 lg:z-10 lg:w-md lg:border lg:border-border lg:bg-popover">
+                    <form action={formAction} className="mt-3 flex w-full flex-col gap-2 rounded-lg bg-sunken p-3 sm:flex-row sm:items-end">
                       <input type="hidden" name="intent" value="password" />
                       <input type="hidden" name="userId" value={member.id} />
                       <div className="grid min-w-0 flex-1 gap-1.5">
@@ -137,12 +137,13 @@ export function TeamMembersCard({ members, currentUserId }: { members: TeamMembe
                       <Trash2 data-icon="inline-start" />Delete
                     </Button>
                   </form>
+                  </div>
                 </div>
               </div>
             );
           })}
-        </div>
-      </CardContent>
-    </Card>
+        </Plate>
+      </div>
+    </Section>
   );
 }
