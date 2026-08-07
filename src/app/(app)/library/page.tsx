@@ -128,39 +128,28 @@ export default async function LibraryPage({
   });
 
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-(--z-sticky) border-b border-line bg-bg">
-        <div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-5 lg:px-12 xl:px-16">
-          <div className="max-w-3xl">
-            <h1 className="font-heading text-[length:var(--text-h1)] font-bold leading-[1.1] tracking-[-0.02em] text-ink">
-              Everything on the desk.
-            </h1>
-            {/* The counts were already computed for the grid. Stating them costs
-                nothing and tells an editor more than a sentence of prose. */}
-            <p className="mt-2 text-sm leading-relaxed text-ink-2 sm:text-base">
-              {hasActiveFilters ? (
-                `${rows.length} matching ${noun}.`
-              ) : (
-                <>
-                  {rows.length} {noun}
-                  <span aria-hidden className="px-2 text-line-strong">/</span>
-                  {draftCount} in draft
-                  <span aria-hidden className="px-2 text-line-strong">/</span>
-                  {publishedCount} published
-                </>
-              )}
-            </p>
-          </div>
+    <div className="min-h-svh bg-sunken">
+      {/* Not sticky and no rule beneath it: the title is content, so it scrolls
+          away like the heading on Create. Pinned to the top it also stacked
+          under the app's mobile header and covered the hamburger. */}
+      <header className="mx-auto w-full max-w-7xl px-5 pt-10 sm:px-8 sm:pt-14 lg:px-12 xl:px-16">
+        <h1 className="font-heading text-[length:var(--text-h1)] font-bold leading-[1.1] tracking-[-0.02em] text-ink sm:text-[length:var(--text-hero)]">
+          Everything on the desk.
+        </h1>
+        {/* The counts were already computed for the grid. Stating them costs
+            nothing and tells an editor more than a sentence of prose. */}
+        <p className="mt-3 text-sm leading-relaxed text-ink-3 sm:text-base">
+          {hasActiveFilters
+            ? `${rows.length} matching ${noun}.`
+            : `${rows.length} ${noun} — ${draftCount} in draft, ${publishedCount} published.`}
+        </p>
 
-          <div className="mt-4">
-            <FilterBar
-              categories={cats.map((c) => ({ value: c.id, label: c.name }))}
-            />
-          </div>
+        <div className="mt-7">
+          <FilterBar categories={cats.map((c) => ({ value: c.id, label: c.name }))} />
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl px-4 pb-16 pt-6 sm:px-6 sm:pb-20 sm:pt-8 lg:px-12 lg:pb-24 xl:px-16">
+      <main className="mx-auto w-full max-w-7xl px-5 pb-24 pt-8 sm:px-8 sm:pt-10 lg:px-12 xl:px-16">
         {rows.length === 0 ? (
           <div className="grid place-items-center px-6 py-20 text-center">
             <p className="max-w-md text-balance leading-relaxed text-ink-2">
@@ -176,11 +165,11 @@ export default async function LibraryPage({
         ) : (
           <>
             {showFeatured && (
-              <div className="mb-4">
+              <div className="mb-5">
                 <LibraryItem {...toItemProps(featured)} featured />
               </div>
             )}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {(showFeatured ? rest : rows).map((r) => (
                 <LibraryItem key={r.id} {...toItemProps(r)} />
               ))}

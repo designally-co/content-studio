@@ -3,10 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Clock } from "lucide-react";
 import { IconTrash } from "@/components/icons";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import type { ProjectStatus } from "@/db/schema";
 import { deleteArticleAction } from "./actions";
 
@@ -57,14 +54,16 @@ export function LibraryItem({ id, title, category, dateLabel, readMinutes, statu
     </div>
   );
 
+  // Published is the exception worth marking; draft is the resting state, so it
+  // gets a word rather than a second pill competing with it.
   const statusBadge =
     status === "published" ? (
-      <Badge variant="secondary" className="gap-1 bg-ok-soft text-ok-ink">
+      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-ok-ink">
         <span className="size-1.5 rounded-full bg-ok" aria-hidden="true" />
         Published
-      </Badge>
+      </span>
     ) : (
-      <Badge variant="secondary" className="bg-sunken text-ink-2">Draft</Badge>
+      <span className="text-xs font-medium text-ink-faint">Draft</span>
     );
 
   // One link per card, stretched across the whole surface. The image is no
@@ -88,15 +87,10 @@ export function LibraryItem({ id, title, category, dateLabel, readMinutes, statu
   );
 
   const meta = (
-    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-ink-2">
-      <span className="truncate font-semibold">{category}</span>
-      <span aria-hidden className="text-line-strong">/</span>
+    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-ink-3">
+      <span className="truncate font-medium text-ink-2">{category}</span>
       <time>{dateLabel}</time>
-      <span aria-hidden className="text-line-strong">/</span>
-      <span className="inline-flex items-center gap-1.5">
-        <Clock aria-hidden="true" className="size-4 text-ink-3" strokeWidth={1.8} />
-        {readMinutes ? `${readMinutes} min read` : "Not drafted"}
-      </span>
+      <span>{readMinutes ? `${readMinutes} min read` : "Not drafted"}</span>
     </div>
   );
 
@@ -114,13 +108,15 @@ export function LibraryItem({ id, title, category, dateLabel, readMinutes, statu
 
   return (
     <article className={`group relative ${featured ? "" : "h-full"}`}>
-      <Card
-        size="sm"
-        className={`gap-0 overflow-hidden p-0 py-0 shadow-none transition-[border-color,box-shadow] duration-(--duration-base) hover:border-line-strong hover:shadow-[var(--shadow-card)] ${
+      <div
+        className={`overflow-hidden rounded-2xl bg-surface transition-shadow duration-(--duration-base) ease-(--ease-out) group-hover:shadow-[var(--shadow-card)] ${
           featured ? "sm:grid sm:grid-cols-5 sm:items-stretch" : "h-full"
         }`}
       >
-        <div className={`overflow-hidden bg-sunken ${featured ? "sm:col-span-3" : ""}`}>{cover}</div>
+        {/* One step deeper than the page ground, which is now sunken too — at the
+            same tone the image well dissolved into the page and the card read as
+            a floating block of text. */}
+        <div className={`overflow-hidden bg-deep ${featured ? "sm:col-span-3" : ""}`}>{cover}</div>
 
         <div className={`flex flex-col p-4 ${featured ? "sm:col-span-2 sm:justify-center sm:p-7" : "min-h-36 flex-1"}`}>
           <div className="mb-3 flex items-center gap-2">{statusBadge}</div>
@@ -129,7 +125,7 @@ export function LibraryItem({ id, title, category, dateLabel, readMinutes, statu
           <div className={`flex items-center ${featured ? "mt-5" : "mt-auto pt-3"}`}>{deleteButton}</div>
           {error && <p className="mt-3 text-sm text-danger" role="alert">{error}</p>}
         </div>
-      </Card>
+      </div>
     </article>
   );
 }

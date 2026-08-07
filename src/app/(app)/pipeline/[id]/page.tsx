@@ -74,7 +74,10 @@ export default async function PipelinePage({
           in its own body, so repeating it in the chrome said nothing the content
           was not already saying; the browser tab carries identity for anyone
           scanning across windows. */}
-      <div className="sticky top-0 z-(--z-sticky) flex justify-center px-3 pt-3">
+      {/* Offset below the app's mobile header rather than pinned over it — both
+          were at 0 in one scroll root, which put the stepper on top of the
+          hamburger. The pill itself stays: it is progress, not a title bar. */}
+      <div className="sticky top-16 z-(--z-sticky) flex justify-center px-3 pt-3 lg:top-0">
         {/* A floating pill leaves the page exposed either side of it and above
             it, so content would ride up alongside the steps. The scrim is what
             makes the form legible: page colour at the very top, fading out
