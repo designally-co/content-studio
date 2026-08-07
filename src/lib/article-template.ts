@@ -23,15 +23,12 @@ Editorial standards:
 - Avoid generic introductions, empty trend language, repeated conclusions, listicle filler, throat-clearing, and phrases such as “in today's fast-paced world”.
 - Do not add hashtags, a references dump, an FAQ, or a social-media caption unless explicitly requested.`;
 
-const LEGACY_ARTICLE_PROMPT =
-  "Write a useful, well-researched article with a clear title, a concise introduction, descriptive H2/H3 sections, and a conclusion with an appropriate call to action. Aim for 900–1,500 words. Use Markdown headings and do not add hashtags.";
+/** A word range, with or without thousands separators: "300-500 words", "1,200–2,000 words". */
+const WORD_RANGE = /\b((?:\d{1,3},\d{3}|\d{2,4}))\s*[–—-]\s*((?:\d{1,3},\d{3}|\d{2,4}))\s*words?\b/i;
 
 export const DEFAULT_ARTICLE_RULES: FormatRules = {
   prompt: DEFAULT_ARTICLE_PROMPT,
   length: "1,200–2,000 words",
-  structure: "Title, standfirst, scene-setting introduction, evidence-led H2 sections, and an earned ending",
-  hashtags: "None",
-  headings: "Use descriptive Markdown H2/H3 headings",
   longForm: true,
 };
 
@@ -41,7 +38,7 @@ function normalizeLength(value: string): string {
 }
 
 function lengthFromPrompt(prompt: string): string | undefined {
-  const match = prompt.match(/\b(\d{2,4})\s*[–—-]\s*(\d{2,4})\s*words?\b/i);
+  const match = prompt.match(WORD_RANGE);
   return match ? `${match[1]}–${match[2]} words` : undefined;
 }
 
@@ -58,32 +55,18 @@ export async function getArticleRules(): Promise<FormatRules> {
     .where(inArray(appSettings.key, ["article.prompt", "article.length"]));
   const byKey = new Map(rows.map((row) => [row.key, row.value]));
 
-  const savedPrompt = byKey.get("article.prompt");
-  const prompt = !savedPrompt || savedPrompt === LEGACY_ARTICLE_PROMPT
-    ? DEFAULT_ARTICLE_PROMPT
-    : savedPrompt;
+  const prompt = byKey.get("article.prompt") || DEFAULT_ARTICLE_PROMPT;
   const length = normalizeLength(byKey.get("article.length") || lengthFromPrompt(prompt) || DEFAULT_ARTICLE_RULES.length);
   return { ...DEFAULT_ARTICLE_RULES, prompt, length };
 }
 
 export function articlePrompt(rules: FormatRules): string {
-  const savedPrompt = rules.prompt?.trim();
-  const promptWithCurrentLength = savedPrompt?.replace(
-    /\b\d{2,4}\s*[–—-]\s*\d{2,4}\s*words?\b/i,
+  // `length` is the single source of truth for the target: a saved prompt may
+  // carry a word range of its own (they are free text), so the range inside it
+  // is rewritten to match rather than left to contradict the setting.
+  const prompt = (rules.prompt?.trim() || DEFAULT_ARTICLE_PROMPT).replace(
+    WORD_RANGE,
     rules.length
   );
-  return (
-    promptWithCurrentLength
-      ? `${promptWithCurrentLength}\n\nRequired target length: ${rules.length}. Follow this range for the completed article.`
-      :
-    [
-      rules.length && `Length: ${rules.length}`,
-      rules.structure && `Structure: ${rules.structure}`,
-      rules.headings && `Headings: ${rules.headings}`,
-      rules.hashtags && `Hashtags: ${rules.hashtags}`,
-    ]
-      .filter(Boolean)
-      .join("\n") ||
-    DEFAULT_ARTICLE_PROMPT
-  );
+  return `${prompt}\n\nRequired target length: ${rules.length}. Follow this range for the completed article.`;
 }

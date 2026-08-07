@@ -116,9 +116,6 @@ export type FormatRules = {
   prompt?: string;
   /** e.g. "800-1500 words" or "under 280 characters" */
   length: string;
-  structure: string;
-  hashtags: string;
-  headings: string;
   /** true for blog/newsletter; false = compact plan (hook/body/CTA) */
   longForm: boolean;
 };
