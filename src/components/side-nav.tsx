@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+
+import { FlatMark } from "@/app/mark";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
@@ -114,7 +116,7 @@ export function SideNav() {
             wordmark beside it appears and disappears, so collapsing reads as
             the panel narrowing rather than as the logo jumping. */}
         <div className={`flex h-16 shrink-0 items-center ${collapsed ? "justify-center px-0" : "gap-3 px-4"}`}>
-          <BrandMark size={32} />
+          <FlatMark size={32} />
           {!collapsed && (
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[var(--tracking-caps)] text-accent-ink">
@@ -134,33 +136,10 @@ export function SideNav() {
     </>
   );
 }
-/** Designally "D." brandmark — dark bowl with a coral period, on a square canvas. */
-function BrandMark({ size = 36 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 340 340"
-      fill="none"
-      role="img"
-      aria-label="Designally"
-      className="shrink-0"
-    >
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        fill="#1B1D23"
-        d="M37 40H163C223 40 287 92 287 170C287 248 223 300 163 300H47A26 26 0 0 1 21 274V56A16 16 0 0 1 37 40ZM86 108H159C201 108 227 132 227 170C227 208 201 232 159 232H86V108Z"
-      />
-      <circle cx="283" cy="262" r="36" fill="#EF6148" />
-    </svg>
-  );
-}
-
 function MobileBrand() {
   return (
     <div className="flex min-w-0 items-center gap-2.5">
-      <BrandMark size={32} />
+      <FlatMark size={32} />
       <span className="truncate font-heading text-sm font-bold text-ink">Content Studio</span>
     </div>
   );

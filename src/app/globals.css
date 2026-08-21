@@ -43,11 +43,21 @@
   --blue-500: #4a7dd6;
   --blue-100: #e1eafa;
 
-  /* surfaces */
-  --bg: var(--white);
-  --surface: var(--white);
-  --surface-sunken: var(--ink-50);
-  --surface-deep: var(--ink-100);
+  /* surfaces — the platform's parchment inversion.
+
+     The page is warm white and the things on it are white, which is the
+     opposite of what this app did: it painted the page white and recessed
+     surfaces in a warm cream. Taking `--warm-white` for the page without
+     moving the others would have left `--surface-sunken` (#faf7f4) LIGHTER
+     than the page it sits in, so a recess would read as a raised panel.
+
+     The three values are the platform's own: warm white for the page, canvas
+     white above it, and the neutral steps below, hued toward charcoal rather
+     than this app's warmer cream. */
+  --bg: #f3f3f3; /* --warm-white */
+  --surface: var(--white); /* --canvas: cards, sheets, inputs */
+  --surface-sunken: #eaeaea; /* one step under the page, so a recess recedes */
+  --surface-deep: #e0e1e3; /* --divider territory */
   --border: var(--ink-200);
   --border-strong: var(--ink-300);
 
@@ -924,13 +934,19 @@
 
 /* The centered composer can expand outside its in-flow route box. Keep the
    route shell and document canvas on the same surface so overflow never
-   exposes the application's default white background. */
+   exposes a different colour behind it.
+
+   This is `--bg`, the page. It used to be `--surface-sunken`, which worked
+   only while the page was white and sunken was a warm near-white a shade off
+   it — the two were close enough to pass for one surface. With the page on the
+   platform's parchment and sunken a real step below it, the same rule painted
+   the whole Create route a grey darker than every other screen. */
 html:has(.cs-create-page),
 body:has(.cs-create-page),
 body:has(.cs-create-page) > div,
 main:has(.cs-create-page),
 .cs-create-page {
-  background-color: var(--surface-sunken) !important;
+  background-color: var(--bg) !important;
 }
 /*
   ---break---
@@ -1191,4 +1207,44 @@ main:has(.cs-create-page),
   .sl-cta {
     transition: none;
   }
+}
+
+/* ============================================================================
+   The Designally mark, flat — the D in ink, the full stop in the accent.
+
+   Ported from designally-platform. The artwork is a white D. on transparency,
+   so it cannot be recoloured directly; it is used as a mask instead, twice.
+   Scanned column by column the drawing holds exactly two runs of ink with a
+   gap between them at 73.79% of the width, so clipping either side of that gap
+   gives the D and the stop their own colours off one file.
+
+   The values are the platform's own — the CI charcoal and the orange that is
+   legal as a mark — rather than this app's warmer ink and orange, so one
+   company shows one mark across both products.
+   ========================================================================= */
+.dmark {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: var(--dmark-w, 32px);
+  /* From the file's own 290x256, so a caller sets one number and the glyph
+     cannot be stretched. */
+  aspect-ratio: 290 / 256;
+}
+
+.dmark i {
+  position: absolute;
+  inset: 0;
+  -webkit-mask: url("/designally-mark.png") no-repeat center / contain;
+  mask: url("/designally-mark.png") no-repeat center / contain;
+}
+
+.dmark .dm-d {
+  background: #1b1d23; /* --charcoal-900 */
+  clip-path: inset(0 26.21% 0 0);
+}
+
+.dmark .dm-dot {
+  background: #c73f29; /* the orange that is legal as a mark on a light ground */
+  clip-path: inset(0 0 0 73.79%);
 }
