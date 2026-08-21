@@ -26,8 +26,8 @@
   --orange-400: #ff8f7a; /* --primary-on-dark */
   --orange-300: #ffb3a3;
   --orange-200: #ffd4ca;
-  --orange-100: #ffe7e1;
-  --orange-50: #fff0ec; /* --primary-tint */
+  --orange-100: #fff0ec; /* --primary-tint: 4.54:1 under --orange-700 */
+  --orange-50: #fff7f5; /* a lighter wash, so the two steps stay distinct */
 
   /* neutral ramp — the CI's, hued 265 degrees toward the steel Field.
 
@@ -37,7 +37,15 @@
      hairline that bounds a card or an input, and the divider inside one. */
   --ink-900: #1b1d23; /* --charcoal-900: all display type */
   --ink-700: #53575e; /* --ink-3: secondary text, the hover line */
-  --ink-500: #797d85; /* --ink-4: placeholders */
+  /* The system reserves #797d85 for placeholders inside a white input and
+     says so: it clears the floor on white and nothing else. This tier carries
+     real secondary text in 57 places here, and on the parchment page #797d85
+     measures 3.72:1 — under the floor. One step darker clears it on both
+     grounds. It has to clear more than the page, though: this app puts faint
+     text on recessed surfaces too, and those are darker than the page. #5f636b
+     is the first step that clears 4.5 on all three — 5.43 on the page, 5.01 on
+     the sunken step, 4.85 on the deepest. */
+  --ink-500: #5f636b;
   --ink-400: #a9adb4; /* --stone-500, hued */
   --ink-300: #cecfd3; /* --hairline: card and input borders */
   --ink-200: #e6e8eb; /* --divider: internal dividers */
@@ -72,7 +80,7 @@
   --bg: #f3f3f3; /* --warm-white */
   --surface: var(--white); /* --canvas: cards, sheets, inputs */
   --surface-sunken: #eaeaea; /* one step under the page, so a recess recedes */
-  --surface-deep: #e0e1e3; /* --divider territory */
+  --surface-deep: #e6e8eb; /* --divider, the system's own value */
   --border: var(--ink-200);
   --border-strong: var(--ink-300);
 

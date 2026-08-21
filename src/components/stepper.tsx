@@ -57,10 +57,18 @@ export function Stepper({
                     : "text-ink-3"
               }`}
             >
+              {/* The numeral is ink, not white. A 12px bold number is not
+                  "large text", so it owes 4.5:1 — and white on Designally
+                  Orange is 3.24:1. The system crosses that floor for a button
+                  LABEL, where the word is the action and a hover darkens
+                  underneath it; a step number has neither. It resolved this
+                  exact case the same way on the survey's disc: charcoal
+                  numerals, 5.19:1 — the second place the pure orange is
+                  called legal. */}
               <span
                 className={`grid size-5 shrink-0 place-items-center rounded-full text-xs font-bold transition-colors duration-(--duration-fast) ease-(--ease-spring) ${
                   active
-                    ? "bg-accent text-white"
+                    ? "bg-accent text-ink"
                     : done
                       ? "bg-ok text-white"
                       : navigable
