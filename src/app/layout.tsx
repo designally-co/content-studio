@@ -1,21 +1,29 @@
 import type { Metadata, Viewport } from "next";
 import {
-  Gabarito,
   IBM_Plex_Sans_Thai,
-  Instrument_Sans,
+  Poppins,
   Spline_Sans_Mono,
   Zalando_Sans,
 } from "next/font/google";
 import "./globals.css";
 
-const gabarito = Gabarito({
-  variable: "--font-gabarito",
+/**
+ * The CI names three faces and Thai decides how they combine.
+ *
+ * Zalando Sans for display, headings and every UI label; Poppins for Latin
+ * body; IBM Plex Sans Thai for Thai in both roles, because Zalando has no Thai
+ * glyphs whatever its readme says — Google publishes it in latin, latin-ext and
+ * vietnamese only. The fallback is per codepoint, so a bilingual string
+ * resolves correctly inside one run of text.
+ *
+ * Weights are 300/400/600/700. 500 is deliberately absent from the system, so
+ * it is not loaded: a `font-medium` left anywhere in the app resolves to a
+ * neighbouring weight rather than being synthesised.
+ */
+const poppins = Poppins({
+  variable: "--font-poppins",
   subsets: ["latin"],
-});
-
-const instrument = Instrument_Sans({
-  variable: "--font-instrument",
-  subsets: ["latin"],
+  weight: ["300", "400", "600", "700"],
 });
 
 // The CI display face, used by the sign-in page only — it is the one screen
@@ -24,8 +32,7 @@ const instrument = Instrument_Sans({
 const zalando = Zalando_Sans({
   variable: "--font-zalando",
   subsets: ["latin"],
-  weight: ["600", "700"],
-  preload: false,
+  weight: ["400", "600", "700"],
 });
 
 const splineMono = Spline_Sans_Mono({
@@ -60,7 +67,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${gabarito.variable} ${instrument.variable} ${splineMono.variable} ${plexThai.variable} ${zalando.variable} h-full antialiased`}
+      className={`${poppins.variable} ${splineMono.variable} ${plexThai.variable} ${zalando.variable} h-full antialiased`}
     >
       <body className="min-h-full">{children}</body>
     </html>

@@ -12,36 +12,51 @@
   orange used sparingly. Ported from the Draft design system project.
 */
 :root {
-  /* brand ramp */
-  --orange-700: #c03e21;
-  --orange-600: #e14e2d;
-  --orange-500: #f66341;
-  --orange-400: #ff7d5c;
-  --orange-300: #ffa78f;
-  --orange-200: #ffd0c2;
-  --orange-100: #ffe8e0;
-  --orange-50: #fff4f0;
+  /* brand ramp — Designally Orange, the CI value.
 
-  /* warm neutral ramp */
-  --ink-900: #241f1c;
-  --ink-700: #4a423d;
-  --ink-500: #7a6e66;
-  --ink-400: #a2968d;
-  --ink-300: #c9bfb7;
-  --ink-200: #e6dfd9;
-  --ink-100: #f2ede8;
-  --ink-50: #faf7f4;
+     500 is the fill, 600 its hover (darkens, never lightens), and 700 is the
+     one that may carry TEXT or a line: #ef6148 measures 3.24:1 on white and
+     2.92:1 on the parchment page, so it cannot be read, only recognised. The
+     system crosses that floor knowingly for a white label on the fill — the
+     brand rule wins there — and #c73f29 at 4.54:1 is what everything that has
+     to be read uses instead. */
+  --orange-700: #c73f29; /* --primary-mark: legal as text/line on light */
+  --orange-600: #d9482d; /* --primary-deep: hover, 4.27:1 with white */
+  --orange-500: #ef6148; /* --primary: the CI orange, fills and rings */
+  --orange-400: #ff8f7a; /* --primary-on-dark */
+  --orange-300: #ffb3a3;
+  --orange-200: #ffd4ca;
+  --orange-100: #ffe7e1;
+  --orange-50: #fff0ec; /* --primary-tint */
+
+  /* neutral ramp — the CI's, hued 265 degrees toward the steel Field.
+
+     This was a warm brown-leaning ramp. The system's neutrals are cool, and
+     mixing the two is what made the parchment page and the old cream recesses
+     disagree. 300 and 200 land on the two line values the system names: the
+     hairline that bounds a card or an input, and the divider inside one. */
+  --ink-900: #1b1d23; /* --charcoal-900: all display type */
+  --ink-700: #53575e; /* --ink-3: secondary text, the hover line */
+  --ink-500: #797d85; /* --ink-4: placeholders */
+  --ink-400: #a9adb4; /* --stone-500, hued */
+  --ink-300: #cecfd3; /* --hairline: card and input borders */
+  --ink-200: #e6e8eb; /* --divider: internal dividers */
+  --ink-100: #eef0f2;
+  --ink-50: #fafaf9; /* --pearl */
   --white: #ffffff;
 
-  /* semantic ramps */
-  --green-500: #3f9e6c;
-  --green-100: #ddf2e6;
-  --amber-500: #e8a23c;
-  --amber-100: #fbeed7;
-  --red-500: #dd4747;
-  --red-100: #fbe2e2;
-  --blue-500: #4a7dd6;
-  --blue-100: #e1eafa;
+  /* semantic ramps — the system's three tones, plus steel for information.
+
+     Steel is the CI's strategic note and the system's focus colour: a focus
+     ring is never orange, because an orange ring reads as a Cut. */
+  --green-500: #107f54; /* --affirm */
+  --green-100: #e5f7ec; /* --affirm-tint */
+  --amber-500: #a06000; /* --caution */
+  --amber-100: #fff1da; /* --caution-tint */
+  --red-500: #d32830; /* --critical */
+  --red-100: #ffedeb; /* --critical-tint */
+  --blue-500: #112d4a; /* --steel-500 */
+  --blue-100: #e7ecf2;
 
   /* surfaces — the platform's parchment inversion.
 
@@ -77,13 +92,13 @@
   /* status */
   --ok: var(--green-500);
   --ok-soft: var(--green-100);
-  --ok-ink: #2c7350;
+  --ok-ink: #0d6a46;
   --warn: var(--amber-500);
   --warn-soft: var(--amber-100);
   --danger: var(--red-500);
   --danger-soft: var(--red-100);
-  --danger-ink: #b23030;
-  --danger-hover: #c53c3c;
+  --danger-ink: #b0202a; /* --critical-deep */
+  --danger-hover: #b0202a;
   --info: var(--blue-500);
   --info-soft: var(--blue-100);
 
@@ -99,10 +114,31 @@
   --text-md: 16px;
   --text-sm: 14px;
   --text-xs: 12px;
-  --leading-tight: 1.15;
+  /* Leading, under the system's Thai rule.
+
+     Thai stacks four levels vertically — base glyph, upper vowel, tone mark,
+     lower vowel — and Latin-tuned leading clips it. A paragraph takes 1.6, and
+     1.7 when the paragraph is Thai, which `--leading-body` already held.
+
+     `--leading-tight` was 1.15, and that is a real defect here rather than a
+     preference: rendered, the ink of a one-line Thai stack measures about 1.20
+     of the font size, so 1.15 puts the line box inside the ink. It carries
+     article titles in the library and headings across the app, and this app's
+     content is Thai as often as not. A line that can hold Thai and stands
+     alone takes a minimum of 1.25 — the ink plus a little room for a taller
+     stack than the sample.
+
+     Above 32px the ratio stops being the right measure and absolute room takes
+     over: nothing here exceeds that, so the floor above governs everywhere. */
+  --leading-tight: 1.25;
   --leading-snug: 1.35;
   --leading-body: 1.6;
-  --tracking-heading: -0.01em;
+  /* Display type takes the system's -0.03em. Body takes 0: Poppins is a
+     geometric sans with wide sidebearings and does not want SF Pro's optical
+     tracking, and negative tracking on a bilingual line collapses Thai tone
+     marks into the glyph above. Never tighten past -0.02em on a line that can
+     hold Thai. */
+  --tracking-heading: -0.03em;
   --tracking-caps: 0.08em;
 
   /* space scale */
@@ -220,9 +256,9 @@
   --color-danger-hover: var(--danger-hover);
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
-  --font-sans: var(--font-instrument), var(--font-plex-thai), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-poppins), var(--font-plex-thai), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-spline-mono), ui-monospace, "SF Mono", monospace;
-  --font-heading: var(--font-gabarito), var(--font-plex-thai), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-zalando), var(--font-plex-thai), ui-sans-serif, system-ui, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
