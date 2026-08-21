@@ -16,6 +16,13 @@ import { countMetrics, deDash } from "@/lib/text";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+/**
+ * Streaming a whole article is the longest thing this app does: up to 8,000
+ * tokens, or 12,000 for a paired TH+EN draft. 60 is the most every Vercel plan
+ * allows and is probably still short for a long-form draft — on Pro this wants
+ * 300. A cut-off here surfaces as the stream simply stopping.
+ */
+export const maxDuration = 60;
 
 export async function POST(
   req: NextRequest,

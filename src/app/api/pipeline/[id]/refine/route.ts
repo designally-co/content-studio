@@ -16,6 +16,9 @@ import { deDash } from "@/lib/text";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+/** A refinement returns the COMPLETE draft each turn, so it is as long-running
+ *  as the draft itself. See the note in the draft route. */
+export const maxDuration = 60;
 
 const REFINE_FRAME =
   "You are iteratively refining a Markdown draft. Each of my messages is a change to apply. Reply each time with the COMPLETE updated Markdown draft, preserving everything I did not ask to change — not a diff, not a description of changes, no preamble.";

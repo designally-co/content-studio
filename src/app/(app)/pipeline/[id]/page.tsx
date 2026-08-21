@@ -11,6 +11,10 @@ import { DraftsStage } from "./stages/drafts-stage";
 import { PublishStage } from "./stages/publish-stage";
 
 export const dynamic = "force-dynamic";
+/** The research plan, image generation and publishing all run as actions on
+ *  this page, and each can outlast the platform default. See the note on the
+ *  Create page. */
+export const maxDuration = 60;
 
 /** Every pipeline tab used to read "Designally Content Studio", so two open
  *  articles were indistinguishable from the tab strip alone. */
