@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
-import sharp from "sharp";
 import { getDb } from "@/db";
 import { imageReferences, images, projects } from "@/db/schema";
 import type { LogoOverlay } from "@/db/schema";
@@ -36,6 +35,25 @@ export type UploadedReferenceView = {
 const MAX_REFERENCE_BYTES = 2 * 1024 * 1024;
 const REFERENCE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 
+/**
+ * sharp, loaded only when an image is actually being handled.
+ *
+ * It used to be a top-level import, and that broke drafting in production.
+ * Next bundles every "use server" module on a page into one server bundle, so
+ * `POST /pipeline/[id]` — which is *any* action on this page, including the
+ * research plan and the draft — loaded sharp before running a line of its own.
+ * On Vercel's linux-x64 runtime sharp could not dlopen (`libvips-cpp.so`
+ * missing) and the request 500'd with nothing to do with images in it.
+ * Locally the darwin binaries are present, so it never failed here.
+ *
+ * Importing it inside the functions that need it keeps a native module off the
+ * path of every other action on the page. Worth doing on its own merits: no
+ * action should pay to load a binary it never calls.
+ */
+async function loadSharp() {
+  return (await import("sharp")).default;
+}
+
 export async function uploadImageReferenceAction(
   projectId: string,
   formData: FormData
@@ -51,6 +69,7 @@ export async function uploadImageReferenceAction(
   if (!project) throw new Error("Project not found.");
 
   const source = Buffer.from(await file.arrayBuffer());
+  const sharp = await loadSharp();
   const metadata = await sharp(source).metadata();
   if (!metadata.width || !metadata.height) throw new Error("The uploaded image could not be read.");
 
@@ -174,6 +193,7 @@ export async function generateImagesAction(
 
   for (const { image: img, variationNo } of generated) {
     const { storagePath } = await saveImage(img);
+    const sharp = await loadSharp();
     const metadata = await sharp(img.data).metadata();
     const [row] = await db
       .insert(images)
