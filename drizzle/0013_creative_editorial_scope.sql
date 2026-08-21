@@ -1,6 +1,6 @@
 UPDATE "categories"
 SET "active" = false
-WHERE "name" IN ('Web Design', 'SEO', 'E-commerce', 'AI Tools', 'Company News');
+WHERE "name" IN ('Web Design', 'SEO', 'E-commerce', 'AI Tools', 'Company News');--> statement-breakpoint
 
 INSERT INTO "categories" ("name", "name_th", "active")
 SELECT values_to_add."name", values_to_add."name_th", true

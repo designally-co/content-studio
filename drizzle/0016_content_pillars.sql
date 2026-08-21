@@ -10,14 +10,14 @@ CREATE TABLE IF NOT EXISTS "pillars" (
 	"sort_order" integer DEFAULT 0 NOT NULL,
 	"active" boolean DEFAULT true NOT NULL,
 	CONSTRAINT "pillars_slug_unique" UNIQUE("slug")
-);
+);--> statement-breakpoint
 
-ALTER TABLE "categories" ADD COLUMN IF NOT EXISTS "pillar_id" uuid REFERENCES "pillars"("id");
-ALTER TABLE "categories" ADD COLUMN IF NOT EXISTS "sort_order" integer DEFAULT 0 NOT NULL;
+ALTER TABLE "categories" ADD COLUMN IF NOT EXISTS "pillar_id" uuid REFERENCES "pillars"("id");--> statement-breakpoint
+ALTER TABLE "categories" ADD COLUMN IF NOT EXISTS "sort_order" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
 
 -- Retire every existing content direction; the four pillars fully replace them.
 -- Existing projects keep their category_id (rows stay, just inactive).
-UPDATE "categories" SET "active" = false;
+UPDATE "categories" SET "active" = false;--> statement-breakpoint
 
 -- Seed the four pillars.
 INSERT INTO "pillars" ("slug", "name", "tagline", "purpose", "sort_order")
@@ -33,7 +33,7 @@ FROM (
 		('ai-with-design', 'AI with Design', 'AI applied to creative thinking.',
 			'Explore how AI can be applied to design and strategy, enabling smarter workflows, greater efficiency, and long-term value creation.', 4)
 ) AS v("slug", "name", "tagline", "purpose", "sort_order")
-WHERE NOT EXISTS (SELECT 1 FROM "pillars" p WHERE p."slug" = v."slug");
+WHERE NOT EXISTS (SELECT 1 FROM "pillars" p WHERE p."slug" = v."slug");--> statement-breakpoint
 
 -- Seed content directions, each linked to its pillar and ordered as in the doc.
 INSERT INTO "categories" ("name", "pillar_id", "sort_order", "active")
