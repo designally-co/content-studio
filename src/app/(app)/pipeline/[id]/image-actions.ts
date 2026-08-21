@@ -10,6 +10,7 @@ import { loadProject } from "@/lib/projects";
 import { getBrand } from "@/lib/brand";
 import { getImageProvider } from "@/lib/image/registry";
 import { deleteStoredImage, loadStoredImage, saveImage } from "@/lib/image/storage";
+import { imageSize } from "@/lib/image/dimensions";
 import type { ImageAspectRatio, ReferenceImageInput } from "@/lib/image/providers";
 import { IMAGE_ASPECT_RATIOS } from "@/lib/image/providers";
 
@@ -69,13 +70,26 @@ export async function uploadImageReferenceAction(
   if (!project) throw new Error("Project not found.");
 
   const source = Buffer.from(await file.arrayBuffer());
-  const sharp = await loadSharp();
-  const metadata = await sharp(source).metadata();
-  if (!metadata.width || !metadata.height) throw new Error("The uploaded image could not be read.");
+  const metadata = imageSize(source);
+  if (!metadata) throw new Error("The uploaded image could not be read.");
 
-  // Normalize uploads to PNG so providers receive a predictable, metadata-free input.
-  const data = await sharp(source).rotate().png().toBuffer();
-  const { storagePath } = await saveImage({ data, mimeType: "image/png", ext: "png" });
+  // Normalizing to PNG gives providers a predictable, metadata-free input and
+  // applies the EXIF rotation a phone photo carries. It is the one thing here
+  // that genuinely needs sharp, so if sharp cannot load, keep the upload rather
+  // than failing it and send the original bytes: a reference image that is
+  // sideways is a smaller problem than one that never uploads at all.
+  let data = source;
+  let mimeType = file.type;
+  let ext: "png" | "jpg" = file.type === "image/png" ? "png" : "jpg";
+  try {
+    const sharp = await loadSharp();
+    data = await sharp(source).rotate().png().toBuffer();
+    mimeType = "image/png";
+    ext = "png";
+  } catch {
+    // sharp is unavailable on this runtime; the original bytes are still valid.
+  }
+  const { storagePath } = await saveImage({ data, mimeType, ext });
   const [row] = await db
     .insert(imageReferences)
     .values({
@@ -193,8 +207,7 @@ export async function generateImagesAction(
 
   for (const { image: img, variationNo } of generated) {
     const { storagePath } = await saveImage(img);
-    const sharp = await loadSharp();
-    const metadata = await sharp(img.data).metadata();
+    const metadata = imageSize(img.data) ?? { width: null, height: null };
     const [row] = await db
       .insert(images)
       .values({
