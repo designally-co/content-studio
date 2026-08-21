@@ -1,38 +1,35 @@
-import { asc } from "drizzle-orm";
 import { LogOut } from "lucide-react";
 import { logoutAction } from "@/app/actions";
-import { getDb } from "@/db";
-import { users } from "@/db/schema";
 import { requireUser } from "@/lib/session";
-import { TeamMembersCard } from "../team-members-card";
 import { Button } from "@/components/ui/button";
 import { Section, Plate } from "../section";
 
+/**
+ * Who you are, and the way out. Nothing else.
+ *
+ * This page used to manage the team: create an account, set a password, set a
+ * role, disable, delete. All five went with password sign-in. Access is a
+ * Designally Workspace account now, which means it is granted and revoked in
+ * Google — an account this app could disable while the Workspace login still
+ * worked would be a second, weaker answer to a question Google already owns.
+ *
+ * The name is gone from the line too. It came from whatever the provider
+ * vouched for, which for the shared team account is the address itself, so the
+ * card printed the same string twice. The email is the identity here.
+ */
 export default async function AccountSettingsPage() {
   const currentUser = await requireUser();
-  const isAdmin = currentUser.role === "admin";
-  const db = await getDb();
-  const teamMembers = isAdmin
-    ? await db
-        .select({ id: users.id, name: users.name, email: users.email, role: users.role, active: users.active })
-        .from(users)
-        .orderBy(asc(users.name))
-    : [];
 
   return (
-    <>
-      {isAdmin && <TeamMembersCard members={teamMembers} currentUserId={currentUser.id} />}
-      <Section title="Account">
-        <Plate className="flex flex-wrap items-center justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-ink">{currentUser.name}</p>
-            <p className="mt-0.5 truncate text-sm text-ink-3">{currentUser.email}</p>
-          </div>
-          <form action={logoutAction}>
-            <Button type="submit" variant="outline"><LogOut /> Sign out</Button>
-          </form>
-        </Plate>
-      </Section>
-    </>
+    <Section title="Account">
+      <Plate className="flex flex-wrap items-center justify-between gap-4">
+        <p className="min-w-0 truncate text-sm font-medium text-ink">{currentUser.email}</p>
+        <form action={logoutAction}>
+          <Button type="submit" variant="outline">
+            <LogOut /> Sign out
+          </Button>
+        </form>
+      </Plate>
+    </Section>
   );
 }

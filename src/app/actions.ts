@@ -1,9 +1,14 @@
 "use server";
 
-import { redirect } from "next/navigation";
-import { destroySession } from "@/lib/auth";
+import { signOut } from "@/auth";
 
+/**
+ * Sign out and return to the sign-in screen.
+ *
+ * `signOut` clears the NextAuth session cookie and redirects; it does not sign
+ * the person out of Google itself, which is correct — this is one app on a
+ * shared Workspace login, not the login.
+ */
 export async function logoutAction() {
-  await destroySession();
-  redirect("/login");
+  await signOut({ redirectTo: "/login" });
 }

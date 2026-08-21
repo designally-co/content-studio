@@ -970,3 +970,225 @@ main:has(.cs-create-page),
   h3 { font-size: var(--text-h3); }
   h4 { font-size: var(--text-h4); }
 }
+
+/* ============================================================================
+   Sign-in — the team app's door, ported
+
+   The same screen as designally-platform's `/sign-in`: the Cut running the
+   full width of the window with the Point sitting on it, the lockup centred
+   above the line, and one pill. Two internal products that share a Workspace
+   login should not have two different front doors.
+
+   Every value it needs is declared on `.signin` itself rather than taken from
+   this file's tokens. Content Studio's own orange is #f66341 and the CI's is
+   #ef6148 — close enough to look like a mistake rather than a difference, and
+   this page is the one place that should be the CI's exactly.
+   ========================================================================= */
+.signin {
+  --sl-primary: #ef6148; /* Designally Orange, the CI value */
+  --sl-primary-deep: #d9482d; /* hover darkens, never lightens */
+  --sl-focus: #112d4a; /* focus is steel, never orange */
+  --sl-ink: #1b1d23;
+  --sl-ink-2: #53575e;
+  --sl-display: var(--font-zalando), var(--font-plex-thai), system-ui, sans-serif;
+  --sl-ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  position: relative;
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  /* Above centre, not on it. A composition centred by arithmetic reads low,
+     because the eye puts the optical centre above the geometric one; 12dvh of
+     bottom padding lifts the block to roughly 44% of the window. */
+  padding: 24px 24px 12dvh;
+}
+
+.signin .card {
+  /* Wide enough that the name holds one line at most widths. */
+  width: min(700px, 100%);
+  text-align: center;
+}
+
+/* The Cut, with the Point on it. The brand's own graphic rather than a logo
+   floating over a form — the line is the same orange as the disc, so it reads
+   as coming out of it rather than passing behind it. */
+.sl-cut {
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin-bottom: 32px;
+}
+
+.sl-cut::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100vw;
+  height: 2px;
+  background: var(--sl-primary);
+  transform: translate(-50%, -50%);
+}
+
+.signin .brandmark {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: var(--brandmark-size, 60px);
+  height: var(--brandmark-size, 60px);
+  border-radius: 9999px;
+  background: var(--sl-primary);
+}
+
+/* 56% of the diameter — the disc's own geometry, not a second set of numbers. */
+.signin .brandmark img {
+  width: 56%;
+  height: auto;
+}
+
+.sl-lockup {
+  margin: 0 0 12px;
+  font-family: var(--sl-display);
+  font-size: clamp(1.85rem, 4.6vw, 3.1rem);
+  font-weight: 700;
+  line-height: 1.04;
+  letter-spacing: -0.034em;
+  color: var(--sl-ink);
+  text-wrap: balance;
+}
+
+.sl-line {
+  margin: 0 0 32px;
+  font-size: clamp(15px, 1.15vw, 16px);
+  line-height: 1.55;
+  letter-spacing: -0.008em;
+  color: var(--sl-ink-2);
+  text-wrap: balance;
+}
+
+.sl-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 0 34px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--sl-primary);
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.004em;
+  cursor: pointer;
+  box-shadow:
+    0 2px 4px rgba(199, 63, 41, 0.16),
+    0 18px 38px -14px rgba(199, 63, 41, 0.5);
+  transition:
+    transform 0.55s var(--sl-ease),
+    box-shadow 0.55s var(--sl-ease),
+    background-color 0.55s var(--sl-ease);
+}
+
+@media (hover: hover) {
+  .sl-cta:hover {
+    background: var(--sl-primary-deep);
+    box-shadow:
+      0 2px 4px rgba(199, 63, 41, 0.18),
+      0 26px 48px -16px rgba(199, 63, 41, 0.58);
+  }
+}
+
+.sl-cta:active {
+  transform: scale(0.985);
+}
+
+.sl-cta:focus-visible {
+  outline: 2px solid var(--sl-focus);
+  outline-offset: 3px;
+}
+
+/* The development sign-in's own furniture. */
+.signin .warn {
+  background: #fff1da;
+  border-radius: 8px;
+  padding: 11px 15px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--sl-ink-2);
+  text-align: left;
+  margin-bottom: 20px;
+}
+
+.signin .sl-field {
+  display: grid;
+  gap: 6px;
+  text-align: left;
+  margin-bottom: 14px;
+}
+
+.signin .sl-field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sl-ink);
+}
+
+.signin .sl-field input {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid #cecfd3;
+  border-radius: 11px;
+  background: #fff;
+  font: inherit;
+  font-size: 15px;
+  color: var(--sl-ink);
+}
+
+.signin .sl-field input:focus-visible {
+  outline: 2px solid var(--sl-focus);
+  outline-offset: 2px;
+  border-color: var(--sl-focus);
+}
+
+/* The block rises once, in order: the Cut, the name, the line, then the way in. */
+.sl-cut,
+.sl-lockup,
+.sl-line,
+.signin form {
+  animation: sl-rise 0.95s var(--sl-ease) both;
+}
+
+.sl-line {
+  animation-delay: 0.09s;
+}
+
+.signin form {
+  animation-delay: 0.18s;
+}
+
+@keyframes sl-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sl-cut,
+  .sl-lockup,
+  .sl-line,
+  .signin form {
+    animation: none;
+  }
+
+  .sl-cta {
+    transition: none;
+  }
+}

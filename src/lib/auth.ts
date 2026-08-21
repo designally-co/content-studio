@@ -1,20 +1,38 @@
 import "server-only";
 import { scrypt, randomBytes, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
-import path from "node:path";
-import fs from "node:fs";
 import { cache } from "react";
-import { SignJWT, jwtVerify } from "jose";
-import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { users } from "@/db/schema";
+import { auth } from "@/auth";
+
+/**
+ * The application's view of who is signed in.
+ *
+ * Sign-in itself is NextAuth + Google (see `src/auth.ts`). This file is the
+ * layer everything else in the app talks to, and it keeps the shape it had
+ * under password sign-in on purpose: `getSessionUser()` and the `SessionUser`
+ * type are used by around forty call sites — every server action, every route
+ * handler, the app layout — and none of them should have to know which
+ * identity provider is behind them. Swapping the provider was a change to two
+ * files rather than forty because of this.
+ */
 
 const scryptAsync = promisify(scrypt);
 
-const SESSION_COOKIE = "cs_session";
-const SESSION_DAYS = 30;
-
+/**
+ * Password hashing, kept but currently unused.
+ *
+ * Nothing signs in with a password today: Google is the only provider, and
+ * the account-management screen that set passwords has been removed with it.
+ *
+ * These two stay because the plan is to reopen password accounts for outside
+ * testers, and re-deriving a scrypt scheme later — salt length, key length,
+ * the timing-safe compare — is exactly how the second implementation ends up
+ * weaker than the first. Bringing them back means a Credentials provider in
+ * `src/auth.ts` and a screen to create accounts from; the hashing is done.
+ */
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString("hex");
   const derived = (await scryptAsync(password, salt, 64)) as Buffer;
@@ -29,100 +47,37 @@ export async function verifyPassword(password: string, stored: string): Promise<
   return derived.length === expected.length && timingSafeEqual(derived, expected);
 }
 
-/**
- * Session-signing secret: AUTH_SECRET env var in production; in local dev a
- * generated secret persisted under ./data so sessions survive restarts.
- */
-function getSecret(): Uint8Array {
-  if (process.env.AUTH_SECRET) {
-    return new TextEncoder().encode(process.env.AUTH_SECRET);
-  }
-  const file = path.join(process.cwd(), "data", "auth-secret");
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  if (!fs.existsSync(file)) {
-    fs.writeFileSync(file, randomBytes(32).toString("hex"), { mode: 0o600 });
-  }
-  return new TextEncoder().encode(fs.readFileSync(file, "utf8"));
-}
-
 export type SessionUser = { id: string; email: string; name: string; role: string };
-
-export async function createSession(user: SessionUser) {
-  const token = await new SignJWT({
-    email: user.email,
-    name: user.name,
-    role: user.role,
-  })
-    .setSubject(user.id)
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime(`${SESSION_DAYS}d`)
-    .sign(getSecret());
-
-  const store = await cookies();
-  store.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: SESSION_DAYS * 24 * 60 * 60,
-    path: "/",
-  });
-}
-
-export async function destroySession() {
-  const store = await cookies();
-  store.delete(SESSION_COOKIE);
-}
 
 /**
  * Memoised per request. The layout, the page, and nested server components each
  * call this, so without `cache()` a single render fired 5-7 identical user
  * lookups. With a small connection pool that is the difference between a page
  * that renders and one that queues until Postgres' 120s statement_timeout.
- * React's cache() scope is one request, so a login/logout in the same request
- * still can't read a stale value.
+ *
+ * The database read is not redundant with the session cookie. The cookie says
+ * who signed in; the row says whether they are still allowed to be here. An
+ * administrator disabling an account has to take effect on the next request,
+ * not whenever a thirty-day session happens to expire.
  */
 export const getSessionUser = cache(async function getSessionUser(): Promise<SessionUser | null> {
-  const store = await cookies();
-  const token = store.get(SESSION_COOKIE)?.value;
-  if (!token) return null;
-  let sub: string;
-  try {
-    const { payload } = await jwtVerify(token, getSecret());
-    sub = payload.sub as string;
-  } catch {
-    return null;
-  }
-  // The JWT signature can stay valid across a database switch (the signing
-  // secret is persisted separately), so confirm the user still exists rather
-  // than trusting a stale cookie — otherwise FK writes fail with a ghost id.
+  const session = await auth();
+  const id = session?.user?.id;
+  if (!id) return null;
+
   const db = await getDb();
   const [user] = await db
-    .select({ id: users.id, email: users.email, name: users.name, role: users.role, active: users.active })
+    .select({
+      id: users.id,
+      email: users.email,
+      name: users.name,
+      role: users.role,
+      active: users.active,
+    })
     .from(users)
-    .where(eq(users.id, sub))
+    .where(eq(users.id, id))
     .limit(1);
   if (!user?.active) return null;
+
   return { id: user.id, email: user.email, name: user.name, role: user.role };
 });
-
-/** Whether any account exists yet (drives the first-run "create account" flow). */
-export async function hasAnyUser(): Promise<boolean> {
-  const db = await getDb();
-  const rows = await db.select({ id: users.id }).from(users).limit(1);
-  return rows.length > 0;
-}
-
-export async function authenticate(email: string, password: string): Promise<SessionUser | null> {
-  const db = await getDb();
-  const [user] = await db
-    .select()
-    .from(users)
-    .where(eq(users.email, email.toLowerCase().trim()))
-    .limit(1);
-  if (!user) return null;
-  if (!user.active) return null;
-  const ok = await verifyPassword(password, user.passwordHash);
-  if (!ok) return null;
-  return { id: user.id, email: user.email, name: user.name, role: user.role };
-}

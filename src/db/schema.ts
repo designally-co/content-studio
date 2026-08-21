@@ -17,7 +17,12 @@ export type ApprovalOutcome = "approved_first" | "approved_edited" | "rejected";
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: text("email").notNull().unique(),
-  passwordHash: text("password_hash").notNull(),
+  /**
+   * Null for anybody who signs in with Google, which is everybody today.
+   * The column stays because password accounts return for outside testers;
+   * see hashPassword in @/lib/auth.
+   */
+  passwordHash: text("password_hash"),
   name: text("name").notNull(),
   role: text("role").notNull().default("member"),
   active: boolean("active").notNull().default(true),
