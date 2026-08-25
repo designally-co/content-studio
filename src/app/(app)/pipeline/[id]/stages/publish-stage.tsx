@@ -1234,6 +1234,7 @@ function PublishRail({
   hubConfigured: boolean;
   publishedHubUrl?: string;
 }) {
+  const router = useRouter();
   const [busy, setBusy] = useState<"draft" | "published" | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [result, setResult] = useState<{ url: string; status: string } | undefined>(
@@ -1261,6 +1262,11 @@ function PublishRail({
         return;
       }
       setResult({ url: r.url, status: r.status });
+      // The action no longer revalidates — doing so re-rendered the route
+      // inside its own response and reported a failure for a publish that had
+      // already succeeded. This refresh is a separate request with its own
+      // budget, and it runs only once the publish is known to be good.
+      router.refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Publishing to the Hub failed.");
     } finally {

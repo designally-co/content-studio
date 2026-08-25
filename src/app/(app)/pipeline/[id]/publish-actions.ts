@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { projects } from "@/db/schema";
@@ -198,7 +197,19 @@ async function publishToHub(
     })
     .where(eq(projects.id, projectId));
 
-  revalidatePath(`/pipeline/${projectId}`);
-  revalidatePath("/");
+  /*
+   * NO revalidatePath HERE.
+   *
+   * It re-rendered both routes INSIDE this action's response, on top of a call
+   * that has already published to the Hub and waited on a Thai translation. A
+   * failure in that render corrupts the action's reply, and the caller sees
+   * "An unexpected response was received from the server" — after the article
+   * has in fact been published and saved. Exactly the symptom the draft step
+   * had, one stage later: the work succeeds and the UI reports a failure.
+   *
+   * The try/catch around this function cannot help, because the render happens
+   * after the body returns. So the caller refreshes instead, in its own
+   * request with its own budget.
+   */
   return { url: result.absoluteUrl, slug: result.slug, status: result.status };
 }
