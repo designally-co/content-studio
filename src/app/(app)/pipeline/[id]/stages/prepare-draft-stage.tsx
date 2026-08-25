@@ -166,7 +166,15 @@ export function PrepareDraftStage({
   async function prepareDraft() {
     setError(null);
     try {
-      await prepareSimpleArticleAction(projectId);
+      const result = await prepareSimpleArticleAction(projectId);
+      // The action reports failure as data rather than throwing, because a
+      // thrown server-action error is redacted in production and arrives as a
+      // sentence about Server Components that names nothing.
+      if (!result.ok) {
+        setError(result.message);
+        started.current = false;
+        return;
+      }
       // The action persists the outline and bumps the project to stage 4, but
       // no longer redirects — a server-action redirect throws NEXT_REDIRECT,
       // which this try/catch would swallow and leave the page stuck.

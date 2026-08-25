@@ -85,12 +85,38 @@ const PLAN_SEARCH_MAX_MS = 42_000;
 const PLAN_FALLBACK_MAX_MS = 22_000;
 const PLAN_FALLBACK_MIN_MS = 22_000;
 
-export async function prepareSimpleArticleAction(projectId: string) {
+/**
+ * Returns its failure instead of throwing it.
+ *
+ * A thrown error in a Server Action is redacted in production — the caller
+ * receives "An error occurred in the Server Components render", which says
+ * nothing about which step failed or why. Three rounds of this were debugged
+ * from Vercel logs that the person hitting the button should not have needed to
+ * open. A returned string is data, and reaches the screen intact.
+ */
+export async function prepareSimpleArticleAction(
+  projectId: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  try {
+    return await preparePlan(projectId);
+  } catch (reason) {
+    return {
+      ok: false,
+      message: reason instanceof Error ? reason.message : "Could not prepare the draft.",
+    };
+  }
+}
+
+async function preparePlan(projectId: string): Promise<{ ok: true }> {
   const loaded = await ctxFor(projectId);
+  /* Already planned — a retry after a failed run, or a second visit. Just
+     advance and let the caller navigate. This path used to revalidate too,
+     which re-rendered the route inside the action's response; a failure there
+     reported "The draft did not start" on a project whose outline was sitting
+     complete in the database, which is exactly how it looked. */
   if (loaded.project.outline?.markdown.trim()) {
     await bumpStage(projectId, 4);
-    revalidatePath(`/pipeline/${projectId}`);
-    return;
+    return { ok: true };
   }
   const ctx = pipelineContext(loaded);
   const topic = loaded.project.selectedTopic?.source === "brief"
@@ -190,7 +216,17 @@ export async function prepareSimpleArticleAction(projectId: string) {
     stage: Math.max(loaded.project.stage, 4),
     updatedAt: new Date(),
   }).where(eq(projects.id, projectId));
-  revalidatePath(`/pipeline/${projectId}`);
+  /*
+   * NO revalidatePath HERE.
+   *
+   * The client navigates to ?stage=4 itself the moment this resolves, so
+   * revalidating made the route render a SECOND time — inside this action's own
+   * response, on top of a call that has already spent up to 42s of the 60s
+   * function. A failure in that render surfaces through the caller's catch as
+   * "The draft did not start", which is why the outline could be saved and the
+   * step still report that it never began. One render, done by the navigation.
+   */
+  return { ok: true };
 }
 
 export async function goToFinalizeAction(formData: FormData) {
