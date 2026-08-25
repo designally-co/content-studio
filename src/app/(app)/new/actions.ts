@@ -90,28 +90,38 @@ const FUNCTION_BUDGET_MS = 60_000;
 /** Auth, the database, settings lookups, JSON parsing and the response itself. */
 const RESPONSE_HEADROOM_MS = 10_000;
 /*
- * ONE runJson CAN BE TWO API CALLS.
+ * TIMEOUTS ARE CEILINGS, AND max_tokens IS NOT A SPEED CONTROL.
  *
- * `attemptWithHeal` in lib/anthropic.ts retries once at 1.6x the token budget
- * when a response is cut off by `max_tokens`, and `timeoutMs` is passed to
- * each `messages.create` — so it is a per-call ceiling, not a per-runJson one.
- * A runJson given 22s can therefore take 44s, and the primary-plus-fallback
- * pair up to 74s against a 60s function. Every ceiling below is halved to
- * cover that.
+ * Two mistakes are recorded here because each produced a different production
+ * failure and the second was caused by fixing the first.
  *
- * The first version of this fix also cut the token budget to 1000, which made
- * truncation likely rather than rare — so the heal fired on the normal path
- * and the pair overran exactly as before. Budgets are back to a size that fits
- * three ideas without truncating.
+ * 1. `attemptWithHeal` in lib/anthropic.ts retries once at 1.6x the budget when
+ *    a response is cut off by `max_tokens`, and `timeoutMs` is handed to each
+ *    `messages.create` — a ceiling per CALL, not per runJson. Budgeting as
+ *    though one runJson were one call let the pair overrun the 60s function.
+ *
+ * 2. Cutting `max_tokens` to make it "faster" did the opposite. It is a
+ *    ceiling, not a target: latency comes from the tokens the model actually
+ *    writes, so a lower ceiling saves nothing and only risks truncation — which
+ *    then triggers the heal above and doubles the time. Then halving every
+ *    timeout to compensate left 14s for a call that has to run a web search
+ *    inside its turn, and it aborted itself:
+ *
+ *        Error: Request timed out.   POST /  ->  500
+ *
+ * So: generous ceilings on `max_tokens` (truncation is the expensive failure,
+ * not the wasted headroom), realistic per-call timeouts, and speed comes from
+ * asking for three ideas and one web lookup instead of eight and three.
+ *
+ * Sized so that even a heal on the primary leaves the total inside 60s:
+ * 5s setup + 2x24s = 53s, with the fallback skipped for lack of room.
  */
-const PRIMARY_MAX_MS = 14_000;
-const FALLBACK_MAX_MS = 8_000;
+const PRIMARY_MAX_MS = 24_000;
+const FALLBACK_MAX_MS = 12_000;
 /** Below this the fallback cannot realistically return, so it is not started. */
-const FALLBACK_MIN_MS = 6_000;
+const FALLBACK_MIN_MS = 12_000;
 /** Likewise for the primary: under this there is no point starting at all. */
-const PRIMARY_MIN_MS = 5_000;
-/** What a runJson can cost at worst: the call, plus one truncation heal. */
-const HEAL_FACTOR = 2;
+const PRIMARY_MIN_MS = 8_000;
 
 export async function generateTopicIdeasAction(input: {
   categoryId?: string;
@@ -213,10 +223,7 @@ export async function generateTopicIdeasAction(input: {
      SDK a negative timeout is not a defined thing to do. If there is not even
      room for the primary, say so plainly rather than starting a call that
      cannot land. */
-  const primaryTimeoutMs = Math.min(
-    PRIMARY_MAX_MS,
-    Math.floor((budgetMsLeft() - FALLBACK_MIN_MS * HEAL_FACTOR) / HEAL_FACTOR),
-  );
+  const primaryTimeoutMs = Math.min(PRIMARY_MAX_MS, budgetMsLeft() - FALLBACK_MIN_MS);
   if (primaryTimeoutMs < PRIMARY_MIN_MS) {
     throw new Error("The server ran out of time before it could start. Try again.");
   }
@@ -228,12 +235,9 @@ export async function generateTopicIdeasAction(input: {
       system,
       task: buildTask(true),
       schema,
-      // Three ideas, not five to eight — the editor picks one and the rest are
-      // thrown away, so the extra ones were latency spent on nothing. 1600, not
-      // 1000: three ideas each carry a title, angle, timeliness note, reader
-      // intent and sources, and cutting it that fine made the response truncate
-      // and trip the heal retry above.
-      maxTokens: 1600,
+      // A ceiling, deliberately roomy. Three ideas will not come close to it,
+      // and headroom costs nothing — truncation costs a whole extra call.
+      maxTokens: 2400,
       // One lookup. Each search is a round trip inside the model's turn and is
       // the single largest thing between clicking Generate and seeing ideas;
       // open mode no longer has to cover four directions, so it no longer
@@ -251,14 +255,14 @@ export async function generateTopicIdeasAction(input: {
     // still time to return it. Starting a call that cannot finish turns a
     // readable error into a 504.
     const left = budgetMsLeft();
-    if (left < FALLBACK_MIN_MS * HEAL_FACTOR) throw primaryError;
+    if (left < FALLBACK_MIN_MS) throw primaryError;
     ({ data } = await runJson<TopicIdeasResponse>({
       model: models.research,
       system,
       task: buildTask(false),
       schema,
-      maxTokens: 1200,
-      timeoutMs: Math.min(FALLBACK_MAX_MS, Math.floor(left / HEAL_FACTOR)),
+      maxTokens: 1600,
+      timeoutMs: Math.min(FALLBACK_MAX_MS, left),
       projectId: null,
       stage: "topic_ideas_fallback",
     }));
