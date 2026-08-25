@@ -81,11 +81,50 @@ type TopicIdeasResponse = {
   topics: Array<SelectedTopic & { direction?: string; sources?: { name?: string; url?: string }[] }>;
 };
 
+/*
+ * The function's own ceiling, mirroring `export const maxDuration = 60` on the
+ * Create page. Vercel's Hobby plan does not allow more, so the work has to fit
+ * rather than the limit being raised.
+ */
+const FUNCTION_BUDGET_MS = 60_000;
+/** Auth, the database, settings lookups, JSON parsing and the response itself. */
+const RESPONSE_HEADROOM_MS = 10_000;
+const PRIMARY_MAX_MS = 30_000;
+const FALLBACK_MAX_MS = 25_000;
+/** Below this the fallback cannot realistically return, so it is not started. */
+const FALLBACK_MIN_MS = 12_000;
+/** Likewise for the primary: under this there is no point starting at all. */
+const PRIMARY_MIN_MS = 8_000;
+
 export async function generateTopicIdeasAction(input: {
   categoryId?: string;
   categoryName?: string;
   language: Language;
 }): Promise<TopicIdea[]> {
+  /*
+   * ONE WALL-CLOCK BUDGET FOR BOTH MODEL CALLS.
+   *
+   * This action used to give the primary call 30s and its fallback another
+   * 25s. Those are ceilings the Anthropic SDK actually enforces, so a slow
+   * primary spent its full 30s, failed, and handed the fallback a further 25s
+   * — 55s of model time before auth, the database, three settings lookups,
+   * web-search latency and cold start. The function is capped at 60s, so the
+   * pair overran it and Vercel killed the request:
+   *
+   *     Vercel Runtime Timeout Error: Task timed out after 60 seconds
+   *     POST /  ->  504
+   *
+   * which reaches the editor as "An unexpected response was received from the
+   * server" — a Next Server Action error that says nothing about the cause.
+   *
+   * The two calls now share a deadline instead of each holding their own, so
+   * their sum cannot exceed what the function has. If the fallback would not
+   * have time to finish, it is not started and the original failure is raised
+   * instead: a real message beats a 504.
+   */
+  const startedAt = Date.now();
+  const budgetMsLeft = () => FUNCTION_BUDGET_MS - RESPONSE_HEADROOM_MS - (Date.now() - startedAt);
+
   await requireUser();
   const db = await getDb();
   const [category] = input.categoryId
@@ -152,6 +191,16 @@ export async function generateTopicIdeasAction(input: {
     additionalProperties: false,
   };
 
+  /* Clamped, not just capped. A cold start with a slow database can eat enough
+     of the budget that `left - FALLBACK_MIN_MS` goes negative, and handing the
+     SDK a negative timeout is not a defined thing to do. If there is not even
+     room for the primary, say so plainly rather than starting a call that
+     cannot land. */
+  const primaryTimeoutMs = Math.min(PRIMARY_MAX_MS, budgetMsLeft() - FALLBACK_MIN_MS);
+  if (primaryTimeoutMs < PRIMARY_MIN_MS) {
+    throw new Error("The server ran out of time before it could start. Try again.");
+  }
+
   let data: TopicIdeasResponse;
   try {
     ({ data } = await runJson<TopicIdeasResponse>({
@@ -163,21 +212,26 @@ export async function generateTopicIdeasAction(input: {
       // Open mode has to cover four or more directions, so it gets one more
       // lookup than a single-direction request.
       webSearch: { maxUses: categoryName ? 2 : 3 },
-      timeoutMs: 30000,
+      // Capped so that a full-length failure still leaves the fallback room.
+      timeoutMs: primaryTimeoutMs,
       projectId: null,
       stage: "topic_ideas",
     }));
-  } catch {
+  } catch (primaryError) {
     // Ideas must never be blocked by the web tool. If search is slow or
     // unavailable, return a conservative set that claims no recency rather
-    // than failing the editor's only starting point.
+    // than failing the editor's only starting point — but only if there is
+    // still time to return it. Starting a call that cannot finish turns a
+    // readable error into a 504.
+    const left = budgetMsLeft();
+    if (left < FALLBACK_MIN_MS) throw primaryError;
     ({ data } = await runJson<TopicIdeasResponse>({
       model: models.research,
       system,
       task: buildTask(false),
       schema,
       maxTokens: 1600,
-      timeoutMs: 25000,
+      timeoutMs: Math.min(FALLBACK_MAX_MS, left),
       projectId: null,
       stage: "topic_ideas_fallback",
     }));
