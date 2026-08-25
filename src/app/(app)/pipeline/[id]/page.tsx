@@ -146,12 +146,7 @@ export default async function PipelinePage({
               model: img.model,
               aspectRatio: img.aspectRatio,
               variationNo: img.variationNo,
-              branding: img.branding,
             }))}
-            brandLogo={{
-              hasLogo: loaded.brand.logoData !== "",
-              defaultOverlay: loaded.brand.logoOverlay,
-            }}
             imageConfig={{
               optionId: loaded.project.inputs.imageProvider
                 ? `${loaded.project.inputs.imageProvider}::${loaded.project.inputs.imageApiKeyId ?? ""}`

@@ -7,9 +7,6 @@ import {
   categories,
   appSettings,
   brandProfiles,
-  DEFAULT_LOGO_OVERLAY,
-  type LogoOverlay,
-  type LogoPosition,
 } from "@/db/schema";
 import { requireUser } from "@/lib/session";
 import { addApiKey, deleteApiKey, type ApiKeyProvider } from "@/lib/secrets";
@@ -134,29 +131,6 @@ async function resolveLogoUpdate(
   return undefined;
 }
 
-const LOGO_POSITIONS: LogoPosition[] = [
-  "top-left",
-  "top-right",
-  "bottom-left",
-  "bottom-right",
-  "center",
-];
-
-/** Parse + clamp the logo-overlay settings from the form, defaulting safely. */
-function parseLogoOverlay(form: FormData): LogoOverlay {
-  try {
-    const raw = JSON.parse(String(form.get("logoOverlay") ?? "")) as Partial<LogoOverlay>;
-    const position = LOGO_POSITIONS.includes(raw.position as LogoPosition)
-      ? (raw.position as LogoPosition)
-      : DEFAULT_LOGO_OVERLAY.position;
-    const sizePct = Math.min(60, Math.max(1, Number(raw.sizePct) || DEFAULT_LOGO_OVERLAY.sizePct));
-    const opacity = Math.min(1, Math.max(0, Number(raw.opacity) ?? DEFAULT_LOGO_OVERLAY.opacity));
-    return { position, sizePct, opacity, shadow: Boolean(raw.shadow) };
-  } catch {
-    return DEFAULT_LOGO_OVERLAY;
-  }
-}
-
 export async function saveBrandAction(formData: FormData) {
   const db = await touch();
   // Single-brand system: always update the one brand row (create-if-missing).
@@ -173,7 +147,6 @@ export async function saveBrandAction(formData: FormData) {
     .update(brandProfiles)
     .set({
       name,
-      logoOverlay: parseLogoOverlay(formData),
       description: String(formData.get("description") ?? "").trim(),
       tone: {
         descriptors: parseTags(formData, "toneDescriptors"),

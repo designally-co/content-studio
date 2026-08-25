@@ -42,7 +42,19 @@ export type LogoPosition =
   | "bottom-right"
   | "center";
 
-/** How the brand logo is overlaid onto a generated image. */
+/*
+ * VESTIGIAL. Generated images no longer carry a logo — the visual direction
+ * asks for genuine editorial imagery, and a publisher's mark stamped into the
+ * frame is the thing that made them read as marketing. The compositing code,
+ * the per-image controls and the settings panel are gone.
+ *
+ * The type and the two columns below stay because dropping a column is a
+ * destructive migration against a live database to reclaim nothing. They are
+ * written by nobody and read by nobody. Delete them in a deliberate migration
+ * if the schema is ever tidied.
+ */
+
+/** How the brand logo WAS overlaid onto a generated image. No longer applied. */
 export type LogoOverlay = {
   position: LogoPosition;
   /** logo width as a percentage of the image width (1–60) */
@@ -67,10 +79,10 @@ export const brandProfiles = pgTable("brand_profiles", {
   profileImageUrl: text("profile_image_url").notNull().default(""),
   profileImageData: text("profile_image_data").notNull().default(""),
   profileImageMime: text("profile_image_mime").notNull().default(""),
-  /** Single identity image used as the brand avatar and generated-image logo. */
+  /** The brand avatar, shown in Settings. Not applied to generated images. */
   logoData: text("logo_data").notNull().default(""),
   logoMime: text("logo_mime").notNull().default(""),
-  /** Default overlay placement/style, reused as the starting point per image. */
+  /** Vestigial — see the note above LogoOverlay. Written by nobody. */
   logoOverlay: jsonb("logo_overlay_json")
     .$type<LogoOverlay>()
     .notNull()
@@ -244,7 +256,7 @@ export const images = pgTable("images", {
   costUsd: numeric("cost_usd", { precision: 12, scale: 6 }).notNull().default("0"),
   /** Article image-slot index this image fills (null = standalone/companion). */
   position: integer("position"),
-  /** Per-image brand-logo overlay settings; null = no branding applied. */
+  /** Vestigial — see the note above LogoOverlay. Always null on new rows. */
   branding: jsonb("branding_json").$type<LogoOverlay | null>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

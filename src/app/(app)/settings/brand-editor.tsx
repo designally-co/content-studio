@@ -3,10 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Save, Upload, X } from "lucide-react";
 import { TagInput, ChipSelect } from "@/components/tag-input";
-import { LogoOverlayControls, LogoOverlayPreview } from "@/components/logo-overlay";
 import { saveBrandAction } from "./actions";
 import type { InferSelectModel } from "drizzle-orm";
-import type { brandProfiles, LogoOverlay } from "@/db/schema";
+import type { brandProfiles } from "@/db/schema";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Section, Plate } from "./section";
@@ -39,7 +38,6 @@ export function BrandEditor({ brand }: { brand: Brand }) {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [removeLogo, setRemoveLogo] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
-  const [overlay, setOverlay] = useState<LogoOverlay>(brand.logoOverlay);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -91,12 +89,11 @@ export function BrandEditor({ brand }: { brand: Brand }) {
     <form action={saveBrandAction} className="space-y-14">
       <input type="hidden" name="id" value={brand.id} />
       <input type="hidden" name="removeLogo" value={removeLogo ? "1" : ""} />
-      <input type="hidden" name="logoOverlay" value={JSON.stringify(overlay)} />
 
       {/* 1 — Identity */}
       <Section
         title="Brand identity"
-        description="How the brand is identified across the app and on generated images."
+        description="How the brand is identified across the app."
       >
         <Plate className="space-y-6">
           <div className="flex flex-wrap items-center gap-5">
@@ -108,7 +105,7 @@ export function BrandEditor({ brand }: { brand: Brand }) {
               <div>
                 <p className="text-sm font-medium text-ink">Brand logo</p>
                 <p className="mt-0.5 max-w-[46ch] text-sm text-ink-3">
-                  Shown across the app and available as an overlay on generated images. Transparent PNG works best.
+                  Shown across the app. Transparent PNG works best.
                 </p>
               </div>
               <input ref={logoInputRef} id="brand-logo-file" type="file" name="logo" accept="image/*" className="sr-only" onChange={onLogoChange} />
@@ -121,23 +118,6 @@ export function BrandEditor({ brand }: { brand: Brand }) {
               {logoError ? <p className="text-xs font-medium text-danger-ink">{logoError}</p> : null}
             </div>
           </div>
-
-          {/* The overlay controls act on a logo, and the preview has nothing to
-              show without one — disabled sliders beside an empty frame was the
-              largest dead area on the page. Both arrive with the logo. */}
-          {logoSrc && (
-            <div className="grid gap-6 border-t border-line pt-6 md:grid-cols-[minmax(0,1fr)_minmax(15rem,0.7fr)]">
-              <div>
-                <p className="mb-2.5 text-sm font-medium text-ink">Image-overlay defaults</p>
-                <LogoOverlayControls value={overlay} onChange={setOverlay} disabled={!logoSrc} />
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-ink">Preview</p>
-                <LogoOverlayPreview logoSrc={logoSrc || undefined} overlay={overlay} />
-                <p className="text-xs leading-5 text-ink-3">Placement is still adjustable per image during Finalize.</p>
-              </div>
-            </div>
-          )}
 
           <div className="grid gap-5 border-t border-line pt-6 sm:grid-cols-2">
             <Field label="Name" htmlFor="brand-name" required>

@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { imageReferences, images, projects } from "@/db/schema";
-import type { LogoOverlay } from "@/db/schema";
 import { requireUser } from "@/lib/session";
 import { loadProject } from "@/lib/projects";
 import { getImageProvider } from "@/lib/image/registry";
@@ -20,8 +19,6 @@ export type GeneratedImageView = {
   model: string;
   aspectRatio: string;
   variationNo: number;
-  /** per-image logo overlay settings; null = no branding */
-  branding: LogoOverlay | null;
 };
 
 export type UploadedReferenceView = {
@@ -198,17 +195,6 @@ export async function generateImagesAction(
     })
     .where(eq(projects.id, projectId));
 
-  /* New images carry NO logo.
-   *
-   * They used to be branded automatically wherever a brand logo existed, which
-   * put the publisher's mark on every article image. These articles are not
-   * about Designally — the image belongs to its subject, and a mark in the
-   * corner makes an editorial photograph read as a promotional one, which is
-   * the distinction the visual direction turns on.
-   *
-   * The per-image control is untouched, so a logo can still be added
-   * deliberately where one is wanted. It is opt-in now rather than opt-out. */
-  const defaultBranding: LogoOverlay | null = null;
   const out: GeneratedImageView[] = [];
 
   for (const { image: img, variationNo } of generated) {
@@ -227,7 +213,6 @@ export async function generateImagesAction(
         variationNo,
         referenceIds,
         storagePath,
-        branding: defaultBranding,
       })
       .returning();
     out.push({
@@ -237,7 +222,6 @@ export async function generateImagesAction(
       model: provider.model,
       aspectRatio: request.aspectRatio,
       variationNo,
-      branding: row.branding,
     });
   }
 
@@ -245,15 +229,6 @@ export async function generateImagesAction(
   return out;
 }
 
-/** Save (or clear) the brand-logo overlay settings for one generated image. */
-export async function setImageBrandingAction(
-  imageId: string,
-  branding: LogoOverlay | null
-): Promise<void> {
-  await requireUser();
-  const db = await getDb();
-  await db.update(images).set({ branding }).where(eq(images.id, imageId));
-}
 
 /**
  * Choose which generated image becomes the article's cover.

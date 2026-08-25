@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ExternalLink, ImagePlus, LoaderCircle, Maximize2, Minimize2, Send, X } from "lucide-react";
 import { Markdown } from "@/components/markdown";
 import { CopyButton } from "@/components/copy-button";
-import { LogoOverlayControls, LogoOverlayPreview } from "@/components/logo-overlay";
 import { StageShell } from "./stage-shell";
 import { countMetrics } from "@/lib/text";
 import { markdownToPlainText } from "@/lib/plain";
@@ -20,7 +19,6 @@ import { HubArticlePreview, HubPreviewFrame } from "./hub-article-preview";
 import {
   generateImagesAction,
   deleteGeneratedImageAction,
-  setImageBrandingAction,
   setCoverImageAction,
   uploadImageReferenceAction,
   type GeneratedImageView,
@@ -30,7 +28,6 @@ import { IconSpark, IconDownload, IconCheck, IconTrash } from "@/components/icon
 import { MenuSelect } from "@/components/ui/menu-select";
 import { ChipSelect } from "@/components/ui/chip-select";
 import { AccentOrb } from "@/components/accent-orb";
-import type { LogoOverlay } from "@/db/schema";
 import type { ImageAspectRatio } from "@/lib/image/providers";
 import type { BrandReviewResult } from "@/lib/brand-review";
 import {
@@ -54,8 +51,6 @@ type ImageModelOption = {
   };
   indicativePricePerImage: number;
 };
-
-type BrandLogo = { hasLogo: boolean; defaultOverlay: LogoOverlay };
 
 /**
  * How tall the image prompt grows before it scrolls and offers to expand.
@@ -94,7 +89,6 @@ export function PublishStage({
   options,
   initialView,
   anthropicReady,
-  brandLogo,
   hubConfigured,
   publishedHubUrl,
 }: {
@@ -121,7 +115,6 @@ export function PublishStage({
   options: ImageModelOption[];
   initialView: "images" | "complete";
   anthropicReady: boolean;
-  brandLogo: BrandLogo;
   /** Whether HUB_BASE_URL + HUB_API_KEY are set on the server. */
   hubConfigured: boolean;
   /** Existing Knowledge Hub URL if this article was already published there. */
@@ -171,7 +164,6 @@ export function PublishStage({
           defaultAspectRatio={imageConfig.aspectRatio}
           options={options}
           anthropicReady={anthropicReady}
-          brandLogo={brandLogo}
           coverImageId={coverImageId}
           tab="images"
           onNext={() => show("complete")}
@@ -193,7 +185,6 @@ function ArticlePanel({
   defaultAspectRatio,
   options,
   anthropicReady,
-  brandLogo,
   coverImageId,
   tab,
   onNext,
@@ -209,7 +200,6 @@ function ArticlePanel({
   defaultAspectRatio: string;
   options: ImageModelOption[];
   anthropicReady: boolean;
-  brandLogo: BrandLogo;
   coverImageId: string | null;
   tab: "content" | "images";
   onNext: () => void;
@@ -247,7 +237,6 @@ function ArticlePanel({
         defaultAspectRatio={defaultAspectRatio}
         options={options}
         anthropicReady={anthropicReady}
-        brandLogo={brandLogo}
         coverImageId={coverImageId}
         onNext={onNext}
       />
@@ -344,7 +333,6 @@ function ImagePanel({
   defaultAspectRatio,
   options,
   anthropicReady,
-  brandLogo,
   coverImageId,
   onNext,
 }: {
@@ -356,7 +344,6 @@ function ImagePanel({
   defaultAspectRatio: string;
   options: ImageModelOption[];
   anthropicReady: boolean;
-  brandLogo: BrandLogo;
   coverImageId: string | null;
   onNext: () => void;
 }) {
@@ -557,9 +544,8 @@ function ImagePanel({
           >
             {imgs.map((img) => (
               <li key={img.id}>
-                <BrandableImage
+                <GeneratedImage
                   img={img}
-                  brandLogo={brandLogo}
                   feature={imgs.length === 1}
                   selected={img.id === selectedCoverId}
                   onSelect={() => chooseCover(img.id)}
@@ -830,9 +816,8 @@ function ImagePanel({
   );
 }
 
-function BrandableImage({ img, brandLogo, feature = false, selected, onSelect, onDeleted }: {
+function GeneratedImage({ img, feature = false, selected, onSelect, onDeleted }: {
   img: GeneratedImageView;
-  brandLogo: BrandLogo;
   /** The only image: shown large, but capped so a square cannot run away. */
   feature?: boolean;
   /** True when this image is the one that will reach the Hub. */
@@ -840,26 +825,11 @@ function BrandableImage({ img, brandLogo, feature = false, selected, onSelect, o
   onSelect: () => void;
   onDeleted: () => void;
 }) {
-  const [branding, setBranding] = useState<LogoOverlay | null>(img.branding);
-  const [adjustOpen, setAdjustOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [, startTransition] = useTransition();
 
-  const branded = branding !== null;
-  const downloadUrl = branded ? `/api/images/${img.id}/branded` : img.url;
   const [ratioW, ratioH] = img.aspectRatio.split(":").map(Number);
   const ratio = ratioW && ratioH ? ratioW / ratioH : 1;
-
-  function save(next: LogoOverlay | null) {
-    setBranding(next);
-    startTransition(() => setImageBrandingAction(img.id, next));
-  }
-
-  function toggleBranding(on: boolean) {
-    if (!on) setAdjustOpen(false);
-    save(on ? (branding ?? brandLogo.defaultOverlay) : null);
-  }
 
   async function remove() {
     if (!window.confirm(`Delete generated image variation ${img.variationNo}? This cannot be undone.`)) return;
@@ -907,34 +877,24 @@ function BrandableImage({ img, brandLogo, feature = false, selected, onSelect, o
             Publishing
           </span>
         )}
-        {branded ? (
-          <LogoOverlayPreview
-            baseSrc={img.url}
-            logoSrc="/api/brand-logo"
-            overlay={branding}
-            aspectRatio={img.aspectRatio}
-            className="rounded-none border-0"
-          />
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={img.url}
-            alt={`Generated companion image, variation ${img.variationNo}`}
-            loading="lazy"
-            decoding="async"
-            className="w-full object-cover"
-            style={{ aspectRatio: img.aspectRatio.replace(":", " / ") }}
-          />
-        )}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={img.url}
+          alt={`Generated companion image, variation ${img.variationNo}`}
+          loading="lazy"
+          decoding="async"
+          className="w-full object-cover"
+          style={{ aspectRatio: img.aspectRatio.replace(":", " / ") }}
+        />
         {/* Per-image actions ride on the image and appear on intent. As a
             permanent caption strip they added a row of chrome to every tile,
             which is what made a grid of nine unmanageable. */}
         <div className="cs-reveal absolute right-2 top-2 z-20 flex items-center gap-1">
           <a
-            href={downloadUrl}
+            href={img.url}
             download
             className="grid size-9 place-items-center rounded-full bg-surface/90 text-ink-2 shadow-sm backdrop-blur-sm transition-colors hover:bg-surface hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
-            aria-label={branded ? `Download branded variation ${img.variationNo}` : `Download variation ${img.variationNo}`}
+            aria-label={`Download variation ${img.variationNo}`}
           >
             <IconDownload width={15} height={15} />
           </a>
@@ -957,42 +917,6 @@ function BrandableImage({ img, brandLogo, feature = false, selected, onSelect, o
 
       {deleteError && <p className="bg-danger-soft px-3 py-2 text-xs text-danger" role="alert">{deleteError}</p>}
 
-      {brandLogo.hasLogo && (
-        // A pill toggle on a sunken bed, not a native checkbox on white. The
-        // checkbox was the only unstyled control on the surface, and it read as
-        // one — the state is carried by fill here, the way every other toggle
-        // in the product carries it.
-        <div className="relative z-20 bg-sunken">
-          <div className="flex items-center justify-between gap-2 px-2 py-2">
-            <button
-              type="button"
-              onClick={() => toggleBranding(!branded)}
-              aria-pressed={branded}
-              className={`inline-flex min-h-8 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold transition-colors duration-(--duration-fast) ease-(--ease-spring) focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] ${
-                branded ? "bg-accent-soft text-accent-press" : "text-ink-2 hover:bg-deep hover:text-ink"
-              }`}
-            >
-              {branded && <IconCheck width={11} height={11} />}
-              Logo
-            </button>
-            {branded && (
-              <button
-                type="button"
-                onClick={() => setAdjustOpen((o) => !o)}
-                aria-expanded={adjustOpen}
-                className="inline-flex min-h-8 items-center rounded-full px-2.5 text-xs font-semibold text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-spring) hover:bg-deep hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
-              >
-                {adjustOpen ? "Done" : "Adjust"}
-              </button>
-            )}
-          </div>
-          {branded && adjustOpen && (
-            <div className="px-3 pb-3">
-              <LogoOverlayControls value={branding} onChange={save} />
-            </div>
-          )}
-        </div>
-      )}
     </figure>
   );
 }
