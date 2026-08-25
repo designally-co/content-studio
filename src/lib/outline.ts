@@ -75,3 +75,45 @@ function safeHttpUrl(value: string): string | null {
     return null;
   }
 }
+
+/**
+ * Lift the article's own "## Sources" block out of the body.
+ *
+ * The Knowledge Hub has a structured `references` field and renders the list
+ * itself, so shipping the same links as prose leaves them as paragraphs in
+ * Lexical rich text — unlistable, uncheckable, and duplicated under a heading
+ * the Hub is about to draw again. This returns the body without that section
+ * and the links as data.
+ *
+ * Scoped to the Sources heading deliberately: the body also carries inline
+ * links on names and claims, and those belong in the prose where the writer
+ * put them.
+ */
+export function splitSourcesSection(markdown: string): {
+  body: string;
+  references: { label: string; url: string }[];
+} {
+  const section = markdown.match(
+    /\n#{1,6}[ \t]*(?:sources|references)[ \t]*\n([\s\S]*?)(?=\n#{1,6}[ \t]|$)/i,
+  );
+  if (!section || section.index === undefined) return { body: markdown, references: [] };
+
+  const references: { label: string; url: string }[] = [];
+  const seen = new Set<string>();
+  const link = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
+  let match: RegExpExecArray | null;
+  while ((match = link.exec(section[1])) !== null) {
+    const label = match[1].trim();
+    const url = match[2].trim();
+    if (!label || seen.has(url)) continue;
+    seen.add(url);
+    references.push({ label, url });
+  }
+
+  // A Sources heading with nothing linkable under it is left alone rather than
+  // silently deleted — better a redundant heading than lost text.
+  if (!references.length) return { body: markdown, references: [] };
+
+  const body = (markdown.slice(0, section.index) + markdown.slice(section.index + section[0].length)).trimEnd();
+  return { body, references };
+}

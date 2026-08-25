@@ -11,6 +11,7 @@ import { getModels, runText } from "@/lib/anthropic";
 import { isHubConfigured, publishArticleToHub, uploadImageToHub } from "@/lib/hub";
 import { resolveImage } from "@/lib/image/storage";
 import { stripTitleHeading } from "@/lib/markdown";
+import { splitSourcesSection } from "@/lib/outline";
 
 export type PublishToHubResult = { url: string; slug: string; status: string };
 
@@ -138,13 +139,21 @@ export async function publishToHubAction(
     }
   }
 
+  /* The Hub has a structured reference field and draws the list itself, so the
+     article's own "## Sources" block is lifted out of the markdown and sent as
+     data. Left in the body it would arrive as Lexical paragraphs — the same
+     links, but unlistable and duplicated under a heading the Hub renders
+     again. Inline links inside the prose are untouched. */
+  const { body: bodyWithoutSources, references } = splitSourcesSection(bodyMarkdown);
+
   const result = await publishArticleToHub({
     title,
     tags,
     summary,
-    bodyMarkdown,
+    bodyMarkdown: bodyWithoutSources,
     status,
     coverImage,
+    ...(references.length ? { references } : {}),
   });
 
   // Record where it went, merging with any existing published targets. A live

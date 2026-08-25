@@ -25,6 +25,8 @@ export type HubArticleInput = {
   summary?: string; // dek
   bodyMarkdown: string;
   status?: "draft" | "published";
+  /** Structured source list. The Hub renders it as the article's reference section. */
+  references?: { label: string; url: string }[];
   coverUrl?: string;
   coverImage?: number; // id of a media doc uploaded via uploadImageToHub()
 };
