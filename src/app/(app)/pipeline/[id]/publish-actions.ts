@@ -14,6 +14,9 @@ import { stripTitleHeading } from "@/lib/markdown";
 import { splitSourcesSection } from "@/lib/outline";
 
 export type PublishToHubResult = { url: string; slug: string; status: string };
+export type PublishToHubOutcome =
+  | ({ ok: true } & PublishToHubResult)
+  | { ok: false; message: string };
 
 /**
  * Generate a one-sentence dek (subtitle) for an article. Best-effort — returns
@@ -79,7 +82,31 @@ export async function ensurePublishDekAction(projectId: string): Promise<string 
  * direction, auto-generates a one-sentence dek, posts the Markdown body, and
  * records the Hub URL on the project.
  */
+/**
+ * Returns its failure instead of throwing it.
+ *
+ * `publishArticleToHub` throws with the Hub's own message — "slug must be
+ * unique", "Create failed", whatever actually went wrong — and a thrown Server
+ * Action error is redacted in production, so all of that arrived as "An
+ * unexpected response was received from the server". A returned string is data
+ * and reaches the screen intact.
+ */
 export async function publishToHubAction(
+  projectId: string,
+  status: "draft" | "published" = "draft",
+): Promise<PublishToHubOutcome> {
+  try {
+    const r = await publishToHub(projectId, status);
+    return { ok: true, ...r };
+  } catch (cause) {
+    return {
+      ok: false,
+      message: cause instanceof Error ? cause.message : "Publishing to the Hub failed.",
+    };
+  }
+}
+
+async function publishToHub(
   projectId: string,
   status: "draft" | "published" = "draft",
 ): Promise<PublishToHubResult> {

@@ -1254,6 +1254,12 @@ function PublishRail({
     setBusy(status);
     try {
       const r = await publishToHubAction(projectId, status);
+      // The action reports failure as data; a thrown server-action error is
+      // redacted in production and says nothing about what the Hub refused.
+      if (!r.ok) {
+        setError(r.message);
+        return;
+      }
       setResult({ url: r.url, status: r.status });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Publishing to the Hub failed.");
