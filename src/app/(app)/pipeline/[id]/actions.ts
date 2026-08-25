@@ -26,6 +26,7 @@ import {
 import { outlineToMarkdown, type OutlineJson } from "@/lib/outline";
 import { pillarForDirection } from "@/lib/content-pillars";
 import type { BrandReviewResult } from "@/lib/brand-review";
+import { IMAGE_SYSTEM_PROMPT } from "@/prompts/system";
 import {
   IMAGE_DIRECTIONS,
   visualDirectionBlock,
@@ -215,7 +216,10 @@ export async function generateImagePromptAction(
 
   const { data: brief } = await runJson<ArticleVisualBrief>({
     model: drafting,
-    system: buildSystemPrompt(ctx),
+    // NOT buildSystemPrompt: that carries the brand's voice, terminology and
+    // guidelines, which dressed every article's image in the publisher's own
+    // identity. See IMAGE_SYSTEM_PROMPT.
+    system: IMAGE_SYSTEM_PROMPT,
     task: articleVisualBriefTask({
       title,
       article: article.slice(0, 24000),
@@ -261,7 +265,7 @@ export async function generateImagePromptAction(
   const runImagePrompt = (extra?: string) =>
     runText({
       model: drafting,
-      system: buildSystemPrompt(ctx),
+      system: IMAGE_SYSTEM_PROMPT,
       task: extra ? `${imagePromptTaskText}\n\n${extra}` : imagePromptTaskText,
       maxTokens: 650,
       projectId,
