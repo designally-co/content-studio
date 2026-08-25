@@ -66,11 +66,25 @@ export async function POST(
           stage: "draft",
         });
 
-        // Append a Sources section built from the outline's research sources, so
-        // long-form drafts always cite where they were drafted from (rather than
-        // relying on the writer to add one). Stream it as a final chunk too.
+        /* Append a Sources section from the outline's research, so a draft
+           always cites where it was written from rather than relying on the
+           writer to add one. Streamed as a final chunk so it appears as the
+           article finishes.
+
+           EVERY draft, not only long-form ones. The gate used to be
+           `if (longForm)`, while the drafting prompt tells every draft — long
+           or short — "do not add your own references or Sources section, a
+           sources list is appended automatically after your draft". Short-form
+           articles were therefore told to leave sources out and then never
+           given any, so they published with none at all. Now that the Hub
+           stores them as structured references rather than prose, an article
+           without them is missing data, not merely a paragraph.
+
+           The two guards below still decide whether anything is added: no
+           researched sources means nothing to append, and a draft that wrote
+           its own Sources heading anyway is left alone. */
         let finalText = text;
-        if (longForm) {
+        {
           const sources = extractOutlineSources(outline);
           const alreadyHasSection = /(^|\n)#{1,6}\s*(sources|references)\b/i.test(text);
           if (sources.length && !alreadyHasSection) {
