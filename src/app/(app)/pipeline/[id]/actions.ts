@@ -53,6 +53,20 @@ async function bumpStage(projectId: string, to: number) {
     .where(eq(projects.id, projectId));
 }
 
+/*
+ * Budget for the research plan, mirroring `maxDuration = 60` on this route's
+ * page. Vercel Hobby does not allow more, so the work has to fit.
+ * Worst case: 4s setup + 32s search + 15s fallback = 51s.
+ */
+const PLAN_BUDGET_MS = 60_000;
+/** Auth, the project load, settings, the write-back and the response. */
+const PLAN_HEADROOM_MS = 8_000;
+/** A search call measures ~29s, so this must sit above it, not below. */
+const PLAN_SEARCH_MAX_MS = 32_000;
+const PLAN_FALLBACK_MAX_MS = 15_000;
+/** A source-free plan measures ~13s; below this it cannot return. */
+const PLAN_FALLBACK_MIN_MS = 15_000;
+
 export async function prepareSimpleArticleAction(projectId: string) {
   const loaded = await ctxFor(projectId);
   if (loaded.project.outline?.markdown.trim()) {
@@ -88,6 +102,23 @@ export async function prepareSimpleArticleAction(projectId: string) {
       required: ["title", "introAngle", "sections", "sources", "cta"],
       additionalProperties: false,
   };
+  /*
+   * MEASURED, NOT GUESSED. Against the real API with this request shape,
+   * Haiku 4.5 takes ~29s with one web search and ~13s without — a search is a
+   * round trip inside the model's turn and costs about 16 seconds.
+   *
+   * This step used to give the primary 25s, BELOW what a search call needs, so
+   * it timed out almost every time; the fallback then ran for another 25s and
+   * the pair overran the 60s function. That is "The draft did not start".
+   *
+   * The two calls now share one deadline instead of each holding an
+   * independent ceiling, sized from those measurements. Research still runs —
+   * an outline with sources is worth the wait here in a way it was not for the
+   * idea list — but it can no longer take the fallback down with it.
+   */
+  const startedAt = Date.now();
+  const msLeft = () => PLAN_BUDGET_MS - PLAN_HEADROOM_MS - (Date.now() - startedAt);
+
   let data: OutlineJson;
   try {
     ({ data } = await runJson<OutlineJson>({
@@ -96,24 +127,35 @@ export async function prepareSimpleArticleAction(projectId: string) {
       cache: false,
       task,
       schema,
-      maxTokens: 2000,
+      // Roomy on purpose: truncation triggers the heal retry in
+      // lib/anthropic.ts, which silently doubles the call. Headroom is free.
+      maxTokens: 3000,
+      // No heal. It would double a 32s call to 64s and blow the function; the
+      // budget above has no room for that, and 3000 tokens is roughly twice
+      // what an outline needs, so truncation should not arise anyway.
+      allowHeal: false,
       webSearch: { maxUses: 1 },
-      timeoutMs: 25000,
+      timeoutMs: Math.min(PLAN_SEARCH_MAX_MS, msLeft() - PLAN_FALLBACK_MIN_MS),
       projectId,
       stage: "article_research_plan",
     }));
-  } catch {
+  } catch (researchError) {
     // Research must improve a draft, never prevent one. If the provider's web
     // tool is slow or unavailable, build a conservative source-free plan and
-    // let the writer avoid unsupported current claims.
+    // let the writer avoid unsupported current claims — but only while there
+    // is still time to return one. Starting a call that cannot finish turns a
+    // readable error into a dead request.
+    const left = msLeft();
+    if (left < PLAN_FALLBACK_MIN_MS) throw researchError;
     ({ data } = await runJson<OutlineJson>({
       model: research,
       system: buildResearchSystem(),
       cache: false,
       task: `${task}\n\nLive source lookup is unavailable. Return a conservative plan now. Leave sources empty and avoid unsupported claims about popularity, release dates, rankings, or current trends.`,
       schema,
-      maxTokens: 1600,
-      timeoutMs: 25000,
+      maxTokens: 2400,
+      allowHeal: false,
+      timeoutMs: Math.min(PLAN_FALLBACK_MAX_MS, left),
       projectId,
       stage: "article_plan_fallback",
     }));

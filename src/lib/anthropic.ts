@@ -184,6 +184,14 @@ export async function runJson<T>(params: {
   maxTokens: number;
   webSearch?: boolean | { maxUses: number };
   timeoutMs?: number;
+  /**
+   * Retry once at 1.6x the token budget when a response is cut off by
+   * `max_tokens`. On by default, and worth knowing about: `timeoutMs` is a
+   * ceiling per CALL, so a heal makes a runJson cost up to twice its timeout.
+   * Callers on a fixed function budget that cannot absorb that doubling set
+   * this false and take a clear error instead of a silent 504.
+   */
+  allowHeal?: boolean;
   projectId: string | null;
   stage: string;
   /** Set false for the research stage (system is under Haiku's cache minimum). */
@@ -242,7 +250,7 @@ export async function runJson<T>(params: {
   const attemptWithHeal = async (extra?: string): Promise<{ raw: unknown; usage: Usage }> => {
     let budget = params.maxTokens;
     let result = await attempt(extra, budget);
-    if ("truncated" in result && budget < MAX_TOKENS_CEILING) {
+    if ("truncated" in result && budget < MAX_TOKENS_CEILING && params.allowHeal !== false) {
       retries += 1;
       budget = Math.min(Math.ceil(budget * 1.6), MAX_TOKENS_CEILING);
       result = await attempt(extra, budget);
