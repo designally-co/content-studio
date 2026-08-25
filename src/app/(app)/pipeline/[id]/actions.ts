@@ -54,18 +54,36 @@ async function bumpStage(projectId: string, to: number) {
 }
 
 /*
- * Budget for the research plan, mirroring `maxDuration = 60` on this route's
- * page. Vercel Hobby does not allow more, so the work has to fit.
- * Worst case: 4s setup + 32s search + 15s fallback = 51s.
+ * MEASURED FOR THIS CALL, not borrowed from another one.
+ *
+ * Against the real API, Haiku 4.5, with this plan's schema and prompt:
+ *
+ *     with one web search   36.4s   (1718 output tokens)
+ *     without web search    18.6s   (1089 output tokens)
+ *
+ * The ideas step measures 29.1s with search; this one is heavier — a longer
+ * system prompt, 4-8 sections and 4-10 sources. Ceilings of 25s and then 32s
+ * were both set below 36.4s, so the call kept aborting itself and the draft
+ * "did not start". Reusing a number measured on a different call is what went
+ * wrong, twice.
+ *
+ * Finding topics has to be fast; drafting does not. So the search call gets
+ * room to finish — 42s — and nothing is reserved from it up front. The
+ * source-free fallback runs only if the primary fails with time to spare,
+ * which in practice means an early failure such as a provider error rather
+ * than a timeout. After a full-length timeout there is correctly no room, and
+ * the real error is raised instead of a dead request.
+ *
+ * Worst case: 4s setup + 42s = 46s, inside the 60s function.
  */
 const PLAN_BUDGET_MS = 60_000;
 /** Auth, the project load, settings, the write-back and the response. */
-const PLAN_HEADROOM_MS = 8_000;
-/** A search call measures ~29s, so this must sit above it, not below. */
-const PLAN_SEARCH_MAX_MS = 32_000;
-const PLAN_FALLBACK_MAX_MS = 15_000;
-/** A source-free plan measures ~13s; below this it cannot return. */
-const PLAN_FALLBACK_MIN_MS = 15_000;
+const PLAN_HEADROOM_MS = 6_000;
+/** Above the 36.4s a search call needs, not below it. */
+const PLAN_SEARCH_MAX_MS = 42_000;
+/** A source-free plan measures 18.6s, so its ceiling sits above that too. */
+const PLAN_FALLBACK_MAX_MS = 22_000;
+const PLAN_FALLBACK_MIN_MS = 22_000;
 
 export async function prepareSimpleArticleAction(projectId: string) {
   const loaded = await ctxFor(projectId);
@@ -135,7 +153,7 @@ export async function prepareSimpleArticleAction(projectId: string) {
       // what an outline needs, so truncation should not arise anyway.
       allowHeal: false,
       webSearch: { maxUses: 1 },
-      timeoutMs: Math.min(PLAN_SEARCH_MAX_MS, msLeft() - PLAN_FALLBACK_MIN_MS),
+      timeoutMs: Math.min(PLAN_SEARCH_MAX_MS, msLeft()),
       projectId,
       stage: "article_research_plan",
     }));
