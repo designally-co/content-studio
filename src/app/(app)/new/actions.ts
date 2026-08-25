@@ -82,76 +82,35 @@ type TopicIdeasResponse = {
 };
 
 /*
- * The function's own ceiling, mirroring `export const maxDuration = 60` on the
- * Create page. Vercel's Hobby plan does not allow more, so the work has to fit
- * rather than the limit being raised.
+ * WEB SEARCH IS WHAT MADE THIS SLOW, AND IT DID NOT FIT.
+ *
+ * Measured against the real API with this exact request shape, Haiku 4.5:
+ *
+ *     with one web search   29.1s   (1142 output tokens)
+ *     without web search    13.2s   ( 722 output tokens)
+ *
+ * A search is a round trip taken inside the model's turn, and it costs ~16s.
+ * The original ceiling was 30s, barely above the 29.1s the call actually needs,
+ * so ideas were always one slow day from timing out — and when they did, the
+ * fallback ran and the pair overran the 60s function. That is the 504 in the
+ * logs, and every later "Request timed out" was a ceiling set below 29s.
+ *
+ * No amount of arithmetic makes a 29s call plus a fallback fit in a 60s
+ * function with room to spare. So the search is gone from this step: 13s, one
+ * call, no fallback, no truncation heal to budget around.
+ *
+ * WHAT THIS COSTS: ideas are no longer grounded in live sources, so they claim
+ * no recency. The prompt already had a task variant for exactly this — the old
+ * fallback used it whenever search was unavailable — so the wording is honest
+ * about it rather than inventing dates.
  */
-const FUNCTION_BUDGET_MS = 60_000;
-/** Auth, the database, settings lookups, JSON parsing and the response itself. */
-const RESPONSE_HEADROOM_MS = 10_000;
-/*
- * TIMEOUTS ARE CEILINGS, AND max_tokens IS NOT A SPEED CONTROL.
- *
- * Two mistakes are recorded here because each produced a different production
- * failure and the second was caused by fixing the first.
- *
- * 1. `attemptWithHeal` in lib/anthropic.ts retries once at 1.6x the budget when
- *    a response is cut off by `max_tokens`, and `timeoutMs` is handed to each
- *    `messages.create` — a ceiling per CALL, not per runJson. Budgeting as
- *    though one runJson were one call let the pair overrun the 60s function.
- *
- * 2. Cutting `max_tokens` to make it "faster" did the opposite. It is a
- *    ceiling, not a target: latency comes from the tokens the model actually
- *    writes, so a lower ceiling saves nothing and only risks truncation — which
- *    then triggers the heal above and doubles the time. Then halving every
- *    timeout to compensate left 14s for a call that has to run a web search
- *    inside its turn, and it aborted itself:
- *
- *        Error: Request timed out.   POST /  ->  500
- *
- * So: generous ceilings on `max_tokens` (truncation is the expensive failure,
- * not the wasted headroom), realistic per-call timeouts, and speed comes from
- * asking for three ideas and one web lookup instead of eight and three.
- *
- * Sized so that even a heal on the primary leaves the total inside 60s:
- * 5s setup + 2x24s = 53s, with the fallback skipped for lack of room.
- */
-const PRIMARY_MAX_MS = 24_000;
-const FALLBACK_MAX_MS = 12_000;
-/** Below this the fallback cannot realistically return, so it is not started. */
-const FALLBACK_MIN_MS = 12_000;
-/** Likewise for the primary: under this there is no point starting at all. */
-const PRIMARY_MIN_MS = 8_000;
+const IDEAS_TIMEOUT_MS = 35_000;
 
 export async function generateTopicIdeasAction(input: {
   categoryId?: string;
   categoryName?: string;
   language: Language;
 }): Promise<TopicIdea[]> {
-  /*
-   * ONE WALL-CLOCK BUDGET FOR BOTH MODEL CALLS.
-   *
-   * This action used to give the primary call 30s and its fallback another
-   * 25s. Those are ceilings the Anthropic SDK actually enforces, so a slow
-   * primary spent its full 30s, failed, and handed the fallback a further 25s
-   * — 55s of model time before auth, the database, three settings lookups,
-   * web-search latency and cold start. The function is capped at 60s, so the
-   * pair overran it and Vercel killed the request:
-   *
-   *     Vercel Runtime Timeout Error: Task timed out after 60 seconds
-   *     POST /  ->  504
-   *
-   * which reaches the editor as "An unexpected response was received from the
-   * server" — a Next Server Action error that says nothing about the cause.
-   *
-   * The two calls now share a deadline instead of each holding their own, so
-   * their sum cannot exceed what the function has. If the fallback would not
-   * have time to finish, it is not started and the original failure is raised
-   * instead: a real message beats a 504.
-   */
-  const startedAt = Date.now();
-  const budgetMsLeft = () => FUNCTION_BUDGET_MS - RESPONSE_HEADROOM_MS - (Date.now() - startedAt);
-
   await requireUser();
   const db = await getDb();
   const [category] = input.categoryId
@@ -218,55 +177,21 @@ export async function generateTopicIdeasAction(input: {
     additionalProperties: false,
   };
 
-  /* Clamped, not just capped. A cold start with a slow database can eat enough
-     of the budget that `left - FALLBACK_MIN_MS` goes negative, and handing the
-     SDK a negative timeout is not a defined thing to do. If there is not even
-     room for the primary, say so plainly rather than starting a call that
-     cannot land. */
-  const primaryTimeoutMs = Math.min(PRIMARY_MAX_MS, budgetMsLeft() - FALLBACK_MIN_MS);
-  if (primaryTimeoutMs < PRIMARY_MIN_MS) {
-    throw new Error("The server ran out of time before it could start. Try again.");
-  }
-
-  let data: TopicIdeasResponse;
-  try {
-    ({ data } = await runJson<TopicIdeasResponse>({
-      model: models.research,
-      system,
-      task: buildTask(true),
-      schema,
-      // A ceiling, deliberately roomy. Three ideas will not come close to it,
-      // and headroom costs nothing — truncation costs a whole extra call.
-      maxTokens: 2400,
-      // One lookup. Each search is a round trip inside the model's turn and is
-      // the single largest thing between clicking Generate and seeing ideas;
-      // open mode no longer has to cover four directions, so it no longer
-      // needs an extra one.
-      webSearch: { maxUses: 1 },
-      // Capped so that a full-length failure still leaves the fallback room.
-      timeoutMs: primaryTimeoutMs,
-      projectId: null,
-      stage: "topic_ideas",
-    }));
-  } catch (primaryError) {
-    // Ideas must never be blocked by the web tool. If search is slow or
-    // unavailable, return a conservative set that claims no recency rather
-    // than failing the editor's only starting point — but only if there is
-    // still time to return it. Starting a call that cannot finish turns a
-    // readable error into a 504.
-    const left = budgetMsLeft();
-    if (left < FALLBACK_MIN_MS) throw primaryError;
-    ({ data } = await runJson<TopicIdeasResponse>({
-      model: models.research,
-      system,
-      task: buildTask(false),
-      schema,
-      maxTokens: 1600,
-      timeoutMs: Math.min(FALLBACK_MAX_MS, left),
-      projectId: null,
-      stage: "topic_ideas_fallback",
-    }));
-  }
+  /* One call, no web search — see the note on IDEAS_TIMEOUT_MS. `buildTask`
+     takes `researchLive: false`, which is the variant that does not claim
+     recency it cannot verify. */
+  const { data } = await runJson<TopicIdeasResponse>({
+    model: models.research,
+    system,
+    task: buildTask(false),
+    schema,
+    // A ceiling, deliberately roomy: truncation costs an entire extra call via
+    // the heal retry in lib/anthropic.ts, while unused headroom costs nothing.
+    maxTokens: 2400,
+    timeoutMs: IDEAS_TIMEOUT_MS,
+    projectId: null,
+    stage: "topic_ideas",
+  });
 
   return (data.topics || []).flatMap((topic) => {
     if (!topic.title?.trim()) return [];
