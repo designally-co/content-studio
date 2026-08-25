@@ -28,10 +28,8 @@ import { pillarForDirection } from "@/lib/content-pillars";
 import type { BrandReviewResult } from "@/lib/brand-review";
 import {
   IMAGE_DIRECTIONS,
-  ART_DIRECTION_PRESETS,
-  ART_DIRECTION_GUIDE,
+  visualDirectionBlock,
   type ArticleVisualBrief,
-  type ArtDirectionSelection,
   type DraftedImagePrompt,
   type ImageDirection,
 } from "@/lib/image/visual-brief";
@@ -199,7 +197,7 @@ export async function goToFinalizeAction(formData: FormData) {
 // ---- Stage 6: image prompt + finalize ----
 export async function generateImagePromptAction(
   projectId: string,
-  imageContext?: { model?: string; aspectRatio?: string; hasReferenceImage?: boolean; direction?: ImageDirection; artDirection?: ArtDirectionSelection }
+  imageContext?: { model?: string; aspectRatio?: string; hasReferenceImage?: boolean; direction?: ImageDirection }
 ): Promise<DraftedImagePrompt> {
   const loaded = await ctxFor(projectId);
   const ctx = pipelineContext(loaded);
@@ -213,11 +211,6 @@ export async function generateImagePromptAction(
   const direction = IMAGE_DIRECTIONS.some((option) => option.value === requestedDirection)
     ? requestedDirection as ImageDirection
     : "auto";
-  const requestedArtDirection = imageContext?.artDirection;
-  // Designally house style is the official default when none is explicitly chosen.
-  const artDirection = ART_DIRECTION_PRESETS.some((option) => option.value === requestedArtDirection)
-    ? requestedArtDirection as ArtDirectionSelection
-    : "designally_ci";
   const hasReferenceImage = Boolean(imageContext?.hasReferenceImage);
 
   const { data: brief } = await runJson<ArticleVisualBrief>({
@@ -227,7 +220,6 @@ export async function generateImagePromptAction(
       title,
       article: article.slice(0, 24000),
       direction,
-      artDirection,
       hasReferenceImage,
     }),
     schema: {
@@ -235,8 +227,8 @@ export async function generateImagePromptAction(
       properties: {
         articleType: { type: "string", enum: ["typography", "ux_ui", "tools", "design_principles", "branding", "websites", "trend", "other"] },
         articleStructure: { type: "string", enum: ["roundup", "resources", "releases", "comparison", "explainer", "profile", "trend"] },
-        artDirection: { type: "string", enum: ["abstract_insight", "metaphorical_editorial", "editorial_studio", "retro_futurist", "tactile_flat_lay", "interface_showcase", "designally_ci"] },
-        artDirectionReason: { type: "string" },
+        concept: { type: "string" },
+        conceptReason: { type: "string" },
         imageRole: { type: "string" },
         mainSubject: { type: "string" },
         namedSubjects: { type: "array", items: { type: "string" } },
@@ -247,7 +239,7 @@ export async function generateImagePromptAction(
         mustAvoid: { type: "array", items: { type: "string" } },
         referenceGuidance: { type: "string" },
       },
-      required: ["articleType", "articleStructure", "artDirection", "artDirectionReason", "imageRole", "mainSubject", "namedSubjects", "visualCharacteristics", "composition", "mood", "mustInclude", "mustAvoid", "referenceGuidance"],
+      required: ["articleType", "articleStructure", "concept", "conceptReason", "imageRole", "mainSubject", "namedSubjects", "visualCharacteristics", "composition", "mood", "mustInclude", "mustAvoid", "referenceGuidance"],
       additionalProperties: false,
     },
     maxTokens: 1800,
@@ -285,9 +277,12 @@ export async function generateImagePromptAction(
       throw new SchemaValidationError("image_prompt", "image prompt must be English (Thai characters found)");
     }
   }
-  // No fixed brand palette — color is left to the article, art direction, and
-  // the brief's mood/visual characteristics so images can be expressive.
-  const prompt = `${generatedPrompt}\n\nArt direction: ${ART_DIRECTION_GUIDE[brief.artDirection]} Central visible subject: ${brief.mainSubject}. Must include: ${brief.mustInclude.join(", ") || brief.mainSubject}. Avoid: ${brief.mustAvoid.join(", ") || "unrelated generic imagery"}.`;
+  /* The direction is restated on the finished prompt as well as in the task
+     that wrote it. The image model never sees the task — only this string — so
+     anything the direction requires has to survive into it. The concept leads,
+     because the whole point of the direction is that the image is not a
+     picture of the subject. */
+  const prompt = `${generatedPrompt}\n\n${visualDirectionBlock()}\n\nConcept the image must carry: ${brief.concept}. Anchor subject: ${brief.mainSubject}. Must include: ${brief.mustInclude.join(", ") || brief.mainSubject}. Avoid: ${brief.mustAvoid.join(", ") || "readable text, invented logos, stock-photography framing"}.`;
   return { prompt, brief };
 }
 

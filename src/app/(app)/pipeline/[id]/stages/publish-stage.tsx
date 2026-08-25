@@ -34,10 +34,8 @@ import type { LogoOverlay } from "@/db/schema";
 import type { ImageAspectRatio } from "@/lib/image/providers";
 import type { BrandReviewResult } from "@/lib/brand-review";
 import {
-  ART_DIRECTION_PRESETS,
   IMAGE_DIRECTIONS,
   type ArticleVisualBrief,
-  type ArtDirectionSelection,
   type ImageDirection,
 } from "@/lib/image/visual-brief";
 
@@ -372,7 +370,6 @@ function ImagePanel({
   const [prompt, setPrompt] = useState("");
   const [direction, setDirection] = useState<ImageDirection>("auto");
   // Designally house style is the official default; users can override it below.
-  const [artDirection, setArtDirection] = useState<ArtDirectionSelection>("designally_ci");
   const [visualBrief, setVisualBrief] = useState<ArticleVisualBrief | null>(null);
   const [optionId, setOptionId] = useState(initialOptionId);
   const [count, setCount] = useState(
@@ -450,7 +447,6 @@ function ImagePanel({
         aspectRatio,
         hasReferenceImage: Boolean(reference),
         direction,
-        artDirection,
       });
       setPrompt(result.prompt);
       setVisualBrief(result.brief);
@@ -616,21 +612,6 @@ function ImagePanel({
           <div className="mb-2 rounded-2xl border border-line bg-surface p-4 shadow-[var(--shadow-pop)] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-200">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <label htmlFor="art-direction" className="text-sm font-semibold text-ink">Visual style</label>
-                <MenuSelect
-                  id="art-direction"
-                  ariaLabel="Visual style override"
-                  className="w-full text-sm"
-                  value={artDirection}
-                  onChange={(value) => {
-                    setArtDirection(value as ArtDirectionSelection);
-                    setVisualBrief(null);
-                    setPrompt("");
-                  }}
-                  options={ART_DIRECTION_PRESETS.map((item) => ({ value: item.value, label: item.label, description: item.description }))}
-                />
-              </div>
-              <div className="space-y-2">
                 <label htmlFor="image-direction" className="text-sm font-semibold text-ink">Composition</label>
                 <MenuSelect
                   id="image-direction"
@@ -651,8 +632,8 @@ function ImagePanel({
         {openPanel === "brief" && visualBrief && (
           <dl className="mb-2 grid gap-x-6 gap-y-4 rounded-2xl border border-line bg-surface p-4 text-sm shadow-[var(--shadow-pop)] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-200 sm:grid-cols-2">
             <div><dt className="font-semibold text-ink">Main subject</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.mainSubject}</dd></div>
-            <div><dt className="font-semibold text-ink">Visual style</dt><dd className="mt-1 leading-relaxed text-ink-2">{ART_DIRECTION_PRESETS.find((item) => item.value === visualBrief.artDirection)?.label ?? visualBrief.artDirection}</dd></div>
-            <div className="sm:col-span-2"><dt className="font-semibold text-ink">Why this style</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.artDirectionReason}</dd></div>
+            <div><dt className="font-semibold text-ink">Concept</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.concept}</dd></div>
+            <div className="sm:col-span-2"><dt className="font-semibold text-ink">Why this concept</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.conceptReason}</dd></div>
             <div><dt className="font-semibold text-ink">Image role</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.imageRole}</dd></div>
             <div><dt className="font-semibold text-ink">Composition</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.composition}</dd></div>
             <div><dt className="font-semibold text-ink">Reference guidance</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.referenceGuidance}</dd></div>
@@ -671,7 +652,7 @@ function ImagePanel({
             }`}
           >
             Style overrides
-            {(artDirection !== "designally_ci" || direction !== "auto") && (
+            {direction !== "auto" && (
               <span aria-hidden className="size-1.5 rounded-full bg-accent" />
             )}
           </button>

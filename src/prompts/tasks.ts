@@ -1,8 +1,8 @@
 import type { Language } from "@/db/schema";
 import { EDITORIAL_SCOPE_TEXT } from "@/lib/designally-strategy";
 import {
-  ART_DIRECTION_GUIDE,
-  type ArtDirectionSelection,
+  visualDirectionBlock,
+  IMAGE_CRITERIA,
 } from "@/lib/image/visual-brief";
 
 /** Task layer — stage-specific instructions. Versioned per template. */
@@ -192,16 +192,28 @@ export function imagePromptTask(params: {
   hasReferenceImage?: boolean;
 }): string {
   return `## Task: turn an article visual brief into an image-generation prompt
-Write one concrete, model-ready prompt for an image that visibly represents the article's real subject. Follow the structured visual brief exactly. Prioritize named objects, products, creative artifacts, and supported visual characteristics over abstract metaphors. Do not add business strategy, agency-office scenes, growth symbolism, generic futuristic technology, or facts not present in the brief.
+Write one model-ready prompt for a single image.
 
-For typography, interfaces, websites, products, and identity systems, never claim exact visual fidelity without a reference image. Do not ask the image model to render readable names, logos, UI copy, or other precise text. If no reference is attached, create an editorial interpretation of the subject rather than a counterfeit specimen or interface. Be concrete about subject, composition, medium, lighting, color relationships, depth, and mood. Avoid text and letters unless the brief identifies typography as the subject; even then, request expressive abstract letterforms rather than readable words.
+${visualDirectionBlock()}
+
+It is judged against these criteria:
+${IMAGE_CRITERIA.map((c) => `- ${c.id} ${c.name} — ${c.principle}`).join("\n")}
+
+How to apply them here:
+- Lead with the CONCEPT from the brief, not the subject. The image should make someone think, not caption the article. A piece about type licensing is not a picture of a font; it is a metaphor for permission, ownership, or constraint.
+- Give the concept one deliberate surreal move — an impossible juxtaposition, a shifted scale, an object where it does not belong — and let the rest of the frame stay disciplined around it. One strange thing, composed calmly, beats five strange things.
+- Be specific about composition: where the subject sits, what is left empty, what the eye reaches first.
+- Be specific about styling: setting, materials, surface, light direction and quality, colour relationships. Commit to a palette that belongs to THIS article rather than a house look.
+- Aim at the register of a creative magazine or fashion editorial. Not advertising, not stock, not a product shot.
+
+Hard limits:
+- No readable text, letterforms as words, invented logos, or counterfeit interfaces. Without a reference image, never claim exact fidelity to a real typeface, product, or UI — interpret instead.
+- Nothing disturbing. "Slightly uncanny" means intriguing, not unsettling.
+- No agency offices, handshakes, lightbulbs, rockets, growth arrows, glowing blue grids, or robots.
 
 Title: ${params.title}
-Requested direction: ${params.direction}
+Requested framing: ${params.direction}
 Visual brief: ${JSON.stringify(params.visualBrief)}
-Selected art direction: ${ART_DIRECTION_GUIDE[params.visualBrief.artDirection]}
-Feel: aim for the visual language of a creative-industry publication (Creative Boom, It's Nice That, Eye on Design) — expressive, editorial, and genuinely varied from piece to piece. Prefer real photographic or crafted quality over generic AI stylization.
-Color: choose a bold, story-specific palette that fits THIS article's subject and mood — commit to it. Do not default to a fixed house palette, muted off-white/beige studio look, or the same colors as other articles. Let color vary strongly from article to article.
 Model: ${params.model ?? "Not specified"}
 Aspect ratio: ${params.aspectRatio ?? "1:1"}
 Reference image: ${params.hasReferenceImage ? "Attached; preserve its important subject, product, and visual identity details" : "None"}
@@ -213,16 +225,22 @@ export function articleVisualBriefTask(params: {
   title: string;
   article: string;
   direction: import("@/lib/image/visual-brief").ImageDirection;
-  artDirection: ArtDirectionSelection;
   hasReferenceImage: boolean;
 }): string {
-  return `## Task: extract an article-aware visual brief
-Read the finished article and identify what an editorial image must visibly communicate. Base every detail on the article. Classify the subject, retain the most visually important named fonts, tools, websites, projects, or principles, and extract concrete visual characteristics. Do not turn the subject into a business metaphor.
+  return `## Task: extract a visual brief from a finished article
+Read the article and decide what its image should MEAN, then what it should show. Both come from the article; neither is a summary of it.
 
-Target the visual variety of a creative-industry publication (Creative Boom / It's Nice That): each image should feel distinct. In "mood" and "visualCharacteristics", commit to an expressive, story-specific color palette (bold or muted as the subject demands) and a specific medium — do NOT describe a uniform muted, beige, or off-white studio look, and do not reuse a generic house palette. Let the color and medium be driven by this article alone. Exception: when the requested art direction is designally_ci, this variety rule does not apply — instead follow the Designally house system (one bold subject on a calm charcoal, steel blue, or warm off-white field with a single orange accent), and set "mood" and "visualCharacteristics" to match that restrained palette and one-object discipline.
+${visualDirectionBlock()}
 
-Requested direction: ${params.direction}
-Requested art direction: ${params.artDirection}
+The most important field is \`concept\`: the metaphor, contrast, or unexpected relationship the image turns on. Write it as an idea, not a scene — "permission granted and withdrawn", "a structure holding something that does not need holding", "precision that arrives at the wrong answer". Then let \`mainSubject\`, \`composition\` and \`mood\` realise it.
+
+What that rules out: a picture of the thing the article is about. An article on colour contrast is not swatches; an article on design systems is not a component grid. If the brief could be satisfied by stock photography of the subject, the concept is not doing its job.
+
+Keep the article's real named subjects in \`namedSubjects\` even when the image is metaphorical — they constrain what the metaphor may claim, and they matter if a reference image is attached later.
+
+In \`mood\` and \`visualCharacteristics\`, commit to a specific palette, material and light for THIS article. Controlled, not muted by default; a strong point of view is one of the criteria. Do not reach for a uniform beige studio look, and do not carry a palette over from other articles.
+
+Requested framing: ${params.direction}
 Reference image available: ${params.hasReferenceImage ? "yes" : "no"}
 Finished title: ${params.title}
 
@@ -231,28 +249,17 @@ Finished article:
 ${params.article}
 ---
 
-Direction rules:
-- auto: choose the most appropriate image role for this article type.
-- editorial_cover: create a publication-quality hero image focused on the main subject.
-- subject_collage: organize several genuinely featured subjects into one coherent composition.
-- conceptual_illustration: interpret the central idea, but keep the article's actual subject recognizable.
-- realistic_scene: place the subject in a credible real-world creative context.
-- minimal_graphic: reduce the subject to one restrained, unmistakable visual idea.
+Framing rules — these govern the composition, never the literalness:
+- auto: choose the framing that carries the concept best.
+- editorial_cover: one conceptual hero image.
+- subject_collage: several objects placed in a deliberate relationship to each other.
+- conceptual_illustration: the central idea as metaphor, most abstract of the set.
+- realistic_scene: a staged, art-directed scene — composed for the camera, never documentary.
+- minimal_graphic: one idea, heavy negative space.
 
-Art-direction routing:
-- abstract_insight: reports, industry shifts, trend analysis, and evidence-led perspectives.
-- metaphorical_editorial: design principles, methods, mindset, process, accessibility, and human creative challenges.
-- editorial_studio: profiles, interviews, studio visits, identity showcases, and individual projects.
-- retro_futurist: AI, software, emerging tools, and future-facing creative technology.
-- tactile_flat_lay: fonts, books, tools, templates, gift guides, roundups, and resource collections.
-- interface_showcase: websites, UI libraries, digital products, interfaces, and experience-design showcases.
-- designally_ci: ONLY when explicitly requested — never choose it in auto. It is the Designally house system (one object per frame on a calm charcoal, steel grey-blue, or warm off-white field with a single orange accent); when it is requested, follow that restrained house palette instead of an expressive per-article one.
+Return articleStructure as one of roundup, resources, releases, comparison, explainer, profile, or trend. Return \`concept\` and one sentence in \`conceptReason\` explaining what it lets the image say that a literal picture could not.
 
-When requested art direction is auto, choose from the article’s meaning and structure, not its category alone. A typography profile should use editorial_studio, a typography roundup tactile_flat_lay, and a typography trend abstract_insight. When a specific art direction is requested, use it unless it would create a deceptive representation; explain any safer interpretation in artDirectionReason.
-
-Return articleStructure as one of roundup, resources, releases, comparison, explainer, profile, or trend. Return the selected artDirection and one concise sentence explaining the choice.
-
-For typography, UI, websites, branding, or products, explain when real specimen or screenshot references are needed for accuracy. Avoid readable generated text, invented logos, fake interfaces, generic offices, charts, rockets, lightbulbs, handshakes, and unrelated abstract technology imagery.`;
+For typography, UI, websites, branding, or products, note in \`referenceGuidance\` when a real specimen or screenshot would be needed for accuracy. In \`mustAvoid\`, exclude readable generated text, invented logos, counterfeit interfaces, generic offices, charts, rockets, lightbulbs, handshakes, robots, and glowing-grid technology imagery.`;
 }
 
 export function brandReviewTask(article: string): string {
