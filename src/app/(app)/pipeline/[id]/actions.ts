@@ -146,7 +146,14 @@ async function preparePlan(projectId: string): Promise<{ ok: true }> {
     model: research,
     system: buildResearchSystem(),
     cache: false,
-    task: `${task}\n\nLive source lookup is unavailable. Return a conservative plan now. Leave sources empty and avoid unsupported claims about popularity, release dates, rankings, or current trends.`,
+    /* "Leave sources empty" used to be right: this wording was a fallback for
+       a search that had already FAILED, so there was genuinely nothing to
+       cite. It is now the only path, and that instruction guaranteed every
+       article shipped with no references — observed on two articles in a row
+       before it was traced back to this line.
+       Stable references do not need a live lookup. What a lookup provides is
+       currency, so that is what is forbidden here, not citation. */
+    task: `${task}\n\nLive web lookup is unavailable for this request. Do not claim anything current: no release dates, version numbers, rankings, popularity, or recent developments you cannot support without checking.\n\nYou may still cite stable, canonical references you are confident exist — official documentation, specifications, standards, and long-established resources. Use canonical URLs and never invent one. If you are not confident a URL is correct, leave that source out: two references that are right beat six that might not be.`,
     schema,
     maxTokens: 3000,
     // The heal retry would double this call; the budget has no room for that.
