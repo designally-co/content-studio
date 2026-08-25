@@ -81,7 +81,12 @@ export function topicsTask(params: {
 }): string {
   const open = !params.categoryName;
   const scopeLine = open
-    ? `Suggest timely, researchable article ideas from anywhere in Designally's editorial territory in ${marketFor(params.language)}. Range widely: the set you return must span at least four different content directions, so the editor sees genuine variety rather than variations on one subject.`
+    // "At least four directions" was raised to force variety, and it also
+    // forced the model to research four subjects before it could answer. With
+    // three ideas requested the two constraints contradict each other, so this
+    // asks for distinctness instead of a count — variety without the breadth
+    // tax. See the note on the count below.
+    ? `Suggest timely, researchable article ideas from anywhere in Designally's editorial territory in ${marketFor(params.language)}. Make the ideas genuinely distinct from one another rather than variations on one subject.`
     : `Suggest timely, researchable directions for the content direction "${params.categoryName}" in ${marketFor(params.language)}.`;
   const pillarLine = !open && params.pillarName
     ? `\nThis direction lives under the "${params.pillarName}" content pillar${params.pillarPurpose ? ` — ${params.pillarPurpose}` : ""}. Every idea must serve that pillar's intent.`
@@ -115,7 +120,7 @@ Anchor every idea in time:
 
 Favor useful editorial formats such as curated resources, notable new releases, practical reference collections, informed explainers, design-principle analysis, and evidence-led perspectives on changes affecting designers. Reject broad topics that do not have a strong creative-agency or designer angle.
 
-Return 5–8 topic ideas. For each: a proposed title, the angle, why it is relevant now, and the likely reader intent.
+Return exactly 3 topic ideas. For each: a proposed title, the angle, why it is relevant now, and the likely reader intent.
 
 Respond as JSON:
 {

@@ -89,12 +89,16 @@ type TopicIdeasResponse = {
 const FUNCTION_BUDGET_MS = 60_000;
 /** Auth, the database, settings lookups, JSON parsing and the response itself. */
 const RESPONSE_HEADROOM_MS = 10_000;
-const PRIMARY_MAX_MS = 30_000;
-const FALLBACK_MAX_MS = 25_000;
+/* Sized for the work actually asked for: three ideas, ~1000 tokens, one web
+   lookup. The old 30s/25s pair was scaled for five to eight ideas across four
+   directions with three lookups, so it mostly served to make a failure take
+   half a minute to admit. */
+const PRIMARY_MAX_MS = 22_000;
+const FALLBACK_MAX_MS = 15_000;
 /** Below this the fallback cannot realistically return, so it is not started. */
-const FALLBACK_MIN_MS = 12_000;
+const FALLBACK_MIN_MS = 8_000;
 /** Likewise for the primary: under this there is no point starting at all. */
-const PRIMARY_MIN_MS = 8_000;
+const PRIMARY_MIN_MS = 6_000;
 
 export async function generateTopicIdeasAction(input: {
   categoryId?: string;
@@ -208,10 +212,14 @@ export async function generateTopicIdeasAction(input: {
       system,
       task: buildTask(true),
       schema,
-      maxTokens: 2400,
-      // Open mode has to cover four or more directions, so it gets one more
-      // lookup than a single-direction request.
-      webSearch: { maxUses: categoryName ? 2 : 3 },
+      // Three ideas, not five to eight — the editor picks one and the rest are
+      // thrown away, so the extra ones were latency spent on nothing.
+      maxTokens: 1000,
+      // One lookup. Each search is a round trip inside the model's turn and is
+      // the single largest thing between clicking Generate and seeing ideas;
+      // open mode no longer has to cover four directions, so it no longer
+      // needs an extra one.
+      webSearch: { maxUses: 1 },
       // Capped so that a full-length failure still leaves the fallback room.
       timeoutMs: primaryTimeoutMs,
       projectId: null,
@@ -230,7 +238,7 @@ export async function generateTopicIdeasAction(input: {
       system,
       task: buildTask(false),
       schema,
-      maxTokens: 1600,
+      maxTokens: 700,
       timeoutMs: Math.min(FALLBACK_MAX_MS, left),
       projectId: null,
       stage: "topic_ideas_fallback",
