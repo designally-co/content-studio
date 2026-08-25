@@ -54,36 +54,30 @@ async function bumpStage(projectId: string, to: number) {
 }
 
 /*
- * MEASURED FOR THIS CALL, not borrowed from another one.
+ * NO WEB SEARCH HERE. It does not fit, and this is the end of a long argument
+ * with the clock rather than the start of another one.
  *
- * Against the real API, Haiku 4.5, with this plan's schema and prompt:
+ * Measured locally against the real API, Haiku 4.5, with this plan's schema:
  *
- *     with one web search   36.4s   (1718 output tokens)
- *     without web search    18.6s   (1089 output tokens)
+ *     with one web search   36.4s
+ *     without web search    18.6s
  *
- * The ideas step measures 29.1s with search; this one is heavier — a longer
- * system prompt, 4-8 sections and 4-10 sources. Ceilings of 25s and then 32s
- * were both set below 36.4s, so the call kept aborting itself and the draft
- * "did not start". Reusing a number measured on a different call is what went
- * wrong, twice.
+ * Ceilings of 25s, 32s and 42s were all tried. The 42s attempt was watched in
+ * production: the call ran to roughly 0:43 on the page's own timer and then
+ * reported "Request timed out." Production is slower than the local
+ * measurement — the function runs in sin1 and pays cold starts — so a search
+ * call cannot be relied on to land inside a 60s function at all, and every
+ * ceiling that fit the budget sat under what the call needs.
  *
- * Finding topics has to be fast; drafting does not. So the search call gets
- * room to finish — 42s — and nothing is reserved from it up front. The
- * source-free fallback runs only if the primary fails with time to spare,
- * which in practice means an early failure such as a provider error rather
- * than a timeout. After a full-length timeout there is correctly no room, and
- * the real error is raised instead of a dead request.
+ * One call, no search, no fallback, ~19s. The task variant used is the one the
+ * old fallback used whenever the web tool was unavailable, so the plan states
+ * no recency it cannot support rather than inventing it.
  *
- * Worst case: 4s setup + 42s = 46s, inside the 60s function.
+ * TO GET SOURCES BACK, the fix is not a bigger number: it is a function that
+ * can run longer (a paid plan raises 60s to 300s) or moving the plan to a
+ * background job that is not bound by a request timeout.
  */
-const PLAN_BUDGET_MS = 60_000;
-/** Auth, the project load, settings, the write-back and the response. */
-const PLAN_HEADROOM_MS = 6_000;
-/** Above the 36.4s a search call needs, not below it. */
-const PLAN_SEARCH_MAX_MS = 42_000;
-/** A source-free plan measures 18.6s, so its ceiling sits above that too. */
-const PLAN_FALLBACK_MAX_MS = 22_000;
-const PLAN_FALLBACK_MIN_MS = 22_000;
+const PLAN_TIMEOUT_MS = 40_000;
 
 /**
  * Returns its failure instead of throwing it.
@@ -146,64 +140,22 @@ async function preparePlan(projectId: string): Promise<{ ok: true }> {
       required: ["title", "introAngle", "sections", "sources", "cta"],
       additionalProperties: false,
   };
-  /*
-   * MEASURED, NOT GUESSED. Against the real API with this request shape,
-   * Haiku 4.5 takes ~29s with one web search and ~13s without — a search is a
-   * round trip inside the model's turn and costs about 16 seconds.
-   *
-   * This step used to give the primary 25s, BELOW what a search call needs, so
-   * it timed out almost every time; the fallback then ran for another 25s and
-   * the pair overran the 60s function. That is "The draft did not start".
-   *
-   * The two calls now share one deadline instead of each holding an
-   * independent ceiling, sized from those measurements. Research still runs —
-   * an outline with sources is worth the wait here in a way it was not for the
-   * idea list — but it can no longer take the fallback down with it.
-   */
-  const startedAt = Date.now();
-  const msLeft = () => PLAN_BUDGET_MS - PLAN_HEADROOM_MS - (Date.now() - startedAt);
+  /* Source-free by design — see the note on PLAN_TIMEOUT_MS. The task tells
+     the writer not to claim current facts it has no source for. */
+  const { data } = await runJson<OutlineJson>({
+    model: research,
+    system: buildResearchSystem(),
+    cache: false,
+    task: `${task}\n\nLive source lookup is unavailable. Return a conservative plan now. Leave sources empty and avoid unsupported claims about popularity, release dates, rankings, or current trends.`,
+    schema,
+    maxTokens: 3000,
+    // The heal retry would double this call; the budget has no room for that.
+    allowHeal: false,
+    timeoutMs: PLAN_TIMEOUT_MS,
+    projectId,
+    stage: "article_research_plan",
+  });
 
-  let data: OutlineJson;
-  try {
-    ({ data } = await runJson<OutlineJson>({
-      model: research,
-      system: buildResearchSystem(),
-      cache: false,
-      task,
-      schema,
-      // Roomy on purpose: truncation triggers the heal retry in
-      // lib/anthropic.ts, which silently doubles the call. Headroom is free.
-      maxTokens: 3000,
-      // No heal. It would double a 32s call to 64s and blow the function; the
-      // budget above has no room for that, and 3000 tokens is roughly twice
-      // what an outline needs, so truncation should not arise anyway.
-      allowHeal: false,
-      webSearch: { maxUses: 1 },
-      timeoutMs: Math.min(PLAN_SEARCH_MAX_MS, msLeft()),
-      projectId,
-      stage: "article_research_plan",
-    }));
-  } catch (researchError) {
-    // Research must improve a draft, never prevent one. If the provider's web
-    // tool is slow or unavailable, build a conservative source-free plan and
-    // let the writer avoid unsupported current claims — but only while there
-    // is still time to return one. Starting a call that cannot finish turns a
-    // readable error into a dead request.
-    const left = msLeft();
-    if (left < PLAN_FALLBACK_MIN_MS) throw researchError;
-    ({ data } = await runJson<OutlineJson>({
-      model: research,
-      system: buildResearchSystem(),
-      cache: false,
-      task: `${task}\n\nLive source lookup is unavailable. Return a conservative plan now. Leave sources empty and avoid unsupported claims about popularity, release dates, rankings, or current trends.`,
-      schema,
-      maxTokens: 2400,
-      allowHeal: false,
-      timeoutMs: Math.min(PLAN_FALLBACK_MAX_MS, left),
-      projectId,
-      stage: "article_plan_fallback",
-    }));
-  }
   const markdown = outlineToMarkdown(data, true);
   const db = await getDb();
   await db.update(projects).set({
