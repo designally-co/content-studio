@@ -1049,9 +1049,24 @@ main:has(.cs-create-page),
   --sl-primary-deep: #d9482d; /* hover darkens, never lightens */
   --sl-focus: #112d4a; /* focus is steel, never orange */
   --sl-ink: #1b1d23;
-  --sl-ink-2: #53575e;
+  /* The platform's `--ink-2`, not its `--ink-3`. This page carried #53575e,
+     which set the one sentence on the door a step lighter than the team app
+     sets it — the two doors are meant to be the same screen. */
+  --sl-ink-2: #262a30;
   --sl-display: var(--font-zalando), var(--font-plex-thai), system-ui, sans-serif;
   --sl-ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* The rail's geometry above 1080, carried over from the platform value for
+     value: `--sl-disc` is the questionnaire's disc, `--sl-eye` the height its
+     Point crosses the rail at, and `--sl-rail-x` the expression that centres
+     the GROUP — rail and column together — rather than centring the column and
+     hanging the rail off its edge. */
+  --sl-disc: clamp(54px, 6.5vw, 84px);
+  --sl-rail-air: 40px;
+  --sl-rail-lead: calc(var(--sl-disc) / 2 + var(--sl-rail-air));
+  --sl-col: min(880px, 100vw - 340px);
+  --sl-rail-x: calc(50vw - var(--sl-col) / 2 - var(--sl-rail-lead) / 2);
+  --sl-eye: clamp(96px, 18vh, 170px);
 
   position: relative;
   min-height: 100dvh;
@@ -1209,6 +1224,57 @@ main:has(.cs-create-page),
   outline: 2px solid var(--sl-focus);
   outline-offset: 2px;
   border-color: var(--sl-focus);
+}
+
+/*
+ * THE CUT STANDS UP ON A WIDE SCREEN — the half of the platform's door this
+ * port was missing.
+ *
+ * Below 1080 the rule lies flat with the Point on it and everything centres
+ * beneath: that is the questionnaire's phone grammar, and it was being used at
+ * every width. Above 1080 the team app makes the Cut a full-height rail down
+ * the left edge with the content in a column beside it, which is the product's
+ * signature composition — and a sign-in screen is the one place it costs
+ * nothing, because there is a single control and nothing to lay out around.
+ *
+ * `position: fixed`, as on the survey: the rail belongs to the window rather
+ * than to the column, and it is the one thing on the page that does not move.
+ */
+@media (min-width: 1080px) {
+  .signin {
+    /* Pad by the rail's lead and let the column centre itself in what is left,
+       so the group a person sees sits in the middle of the screen. */
+    padding-left: var(--sl-rail-lead);
+    padding-right: 0;
+  }
+
+  .signin .card {
+    width: var(--sl-col);
+    text-align: left;
+  }
+
+  .sl-cut {
+    position: fixed;
+    inset: 0 auto 0 var(--sl-rail-x);
+    z-index: 4;
+    display: block;
+    width: 2px;
+    margin: 0;
+    background: var(--sl-primary);
+    pointer-events: none;
+  }
+
+  .sl-cut::before {
+    content: none;
+  }
+
+  /* The Point crosses the rail at eye height, centred on the line. */
+  .signin .brandmark {
+    position: absolute;
+    top: var(--sl-eye);
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
 }
 
 /* The block rises once, in order: the Cut, the name, the line, then the way in. */
