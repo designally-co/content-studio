@@ -23,13 +23,12 @@ import {
   findReferenceImagesAction,
   setCoverImageAction,
   uploadImageReferenceAction,
-  type GeneratedImageView,
-  type UploadedReferenceView,
 } from "../image-actions";
 import { IconSpark, IconDownload, IconCheck, IconTrash } from "@/components/icons";
 import { ChipSelect } from "@/components/ui/chip-select";
 import { AccentOrb } from "@/components/accent-orb";
 import type { ImageAspectRatio } from "@/lib/image/providers";
+import type { GeneratedImageView, UploadedReferenceView } from "@/lib/pipeline/views";
 import { MAX_FOUND_REFERENCES } from "@/lib/image/reference-policy";
 import type { BrandReviewResult } from "@/lib/brand-review";
 import { type ArticleVisualBrief, type ImagePromptVariant } from "@/lib/image/visual-brief";

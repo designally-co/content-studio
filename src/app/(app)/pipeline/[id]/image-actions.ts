@@ -13,16 +13,15 @@ import {
   generateImagesCore,
   loadSharp,
   referenceView,
-  type GeneratedImageView,
-  type GenerationRunResult,
-  type UploadedReferenceView,
 } from "@/lib/pipeline/images";
+import type { GenerationRunResult, UploadedReferenceView } from "@/lib/pipeline/views";
 import type { ImageAspectRatio } from "@/lib/image/providers";
 
-/* Types and cores live in @/lib/pipeline/images so the autopilot runner can use
-   them too. Re-exported here because the stage has always imported them from
-   this module; a type re-export creates no endpoint. */
-export type { GeneratedImageView, GenerationRunResult, UploadedReferenceView };
+/* The work lives in @/lib/pipeline/images so the autopilot runner can do it
+   too, and the shapes in @/lib/pipeline/views so the stage can import them
+   without going through this file. NOTHING IS RE-EXPORTED FROM HERE: a
+   `export type { … }` in a "use server" module is emitted as a real runtime
+   export and throws "X is not defined" when the module is evaluated. */
 
 const MAX_REFERENCE_BYTES = 2 * 1024 * 1024;
 const REFERENCE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);

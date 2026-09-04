@@ -6,11 +6,11 @@ import { projects } from "@/db/schema";
 import { requireUser } from "@/lib/session";
 import { loadProject } from "@/lib/projects";
 import { stripTitleHeading } from "@/lib/markdown";
-import { generateDek, publishToHubCore, type PublishToHubResult } from "@/lib/pipeline/publish";
+import { generateDek, publishToHubCore } from "@/lib/pipeline/publish";
+import type { PublishToHubResult } from "@/lib/pipeline/views";
 
 /* A type re-export creates no endpoint — only exported async FUNCTIONS in a
    "use server" module become callable. */
-export type { PublishToHubResult };
 
 export type PublishToHubOutcome =
   | ({ ok: true } & PublishToHubResult)

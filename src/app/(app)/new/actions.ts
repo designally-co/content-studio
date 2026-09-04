@@ -11,13 +11,8 @@ import { getBrand } from "@/lib/brand";
 import { getArticleRules } from "@/lib/article-template";
 import { buildSystemPrompt, getModels, runJson } from "@/lib/anthropic";
 import { articleSetupTask } from "@/prompts/tasks";
-import { generateTopicIdeas, loadDirections, type TopicIdea } from "@/lib/pipeline/topics";
-
-/* Re-exported for the composer, which has always imported it from here. A type
-   is erased at compile time, so this creates no server-action endpoint — only
-   exported async FUNCTIONS in a "use server" module become callable. */
-export type { TopicIdea };
-
+import { generateTopicIdeas, loadDirections } from "@/lib/pipeline/topics";
+import type { TopicIdea } from "@/lib/pipeline/views";
 
 /**
  * Decides whether free-text input is a brief (instructions to honor) or a topic

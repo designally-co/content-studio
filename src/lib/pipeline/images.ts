@@ -10,7 +10,13 @@ import type { ImageAspectRatio, ReferenceImageInput } from "@/lib/image/provider
 import { IMAGE_ASPECT_RATIOS } from "@/lib/image/providers";
 import { findReferenceCandidates } from "@/lib/image/reference-sources";
 import { MAX_FOUND_REFERENCES } from "@/lib/image/reference-policy";
-import type { ReferenceOrigin } from "@/db/schema";
+import type {
+  GeneratedImageView,
+  GenerationRunResult,
+  UploadedReferenceView,
+} from "./views";
+
+export type { GeneratedImageView, GenerationRunResult, UploadedReferenceView };
 
 /**
  * Finding reference photographs and generating images, with no session check.
@@ -22,34 +28,8 @@ import type { ReferenceOrigin } from "@/db/schema";
  * shared-secret check.
  */
 
-export type GeneratedImageView = {
-  id: string;
-  url: string;
-  provider: string;
-  model: string;
-  aspectRatio: string;
-  variationNo: number;
-};
 
-export type GenerationRunResult = {
-  images: GeneratedImageView[];
-  /** Variations that were requested but produced nothing. */
-  failedCount: number;
-  /** The first failure's message, so the caller can act on it. */
-  failureReason?: string;
-};
 
-export type UploadedReferenceView = {
-  id: string;
-  url: string;
-  name: string;
-  width: number;
-  height: number;
-  origin: ReferenceOrigin;
-  sourceUrl: string | null;
-  sourceName: string | null;
-  license: string | null;
-};
 
 export const referenceView = (row: typeof imageReferences.$inferSelect): UploadedReferenceView => ({
   id: row.id,

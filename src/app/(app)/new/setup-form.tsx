@@ -8,9 +8,9 @@ import {
   createProjectAction,
   generateTopicIdeasAction,
   inferArticleSetupAction,
-  type TopicIdea,
 } from "./actions";
 import { PillarDirectionPicker, pillarIcon } from "./pillar-direction-picker";
+import type { TopicIdea } from "@/lib/pipeline/views";
 
 export type PillarGroup = {
   id: string;

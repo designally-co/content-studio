@@ -14,22 +14,9 @@ import { createSignedImageUrls, resolveImage } from "@/lib/image/storage";
 import { stripTitleHeading } from "@/lib/markdown";
 import { splitSourcesSection } from "@/lib/outline";
 import { getModels, runText } from "@/lib/anthropic";
+import type { PublishToHubResult } from "./views";
 
-export type PublishToHubResult = {
-  url: string;
-  slug: string;
-  status: string;
-  /**
-   * Why the article went up without its cover, when it did.
-   *
-   * The cover is deliberately optional — a bad image must never stop an article
-   * being published. But "optional" was implemented as an empty `catch`, so a
-   * cover that failed for TEN DAYS looked exactly like a cover nobody asked
-   * for: articles arriving at the Hub with no image and no complaint. The
-   * decision to carry on is right; throwing the reason away was not.
-   */
-  coverWarning?: string;
-};
+export type { PublishToHubResult } from "./views";
 
 /**
  * Generate a one-sentence dek (subtitle) for an article. Best-effort — returns

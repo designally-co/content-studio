@@ -3,6 +3,7 @@ import { asc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { categories } from "@/db/schema";
 import type { Language, SelectedTopic } from "@/db/schema";
+import type { TopicIdea } from "./views";
 import { getBrand } from "@/lib/brand";
 import { getArticleRules } from "@/lib/article-template";
 import { buildSystemPrompt, getModels, runJson } from "@/lib/anthropic";
@@ -21,7 +22,7 @@ import { pillarForDirection } from "@/lib/content-pillars";
  */
 
 /** A generated idea plus the content direction it was filed under. */
-export type TopicIdea = SelectedTopic & { directionId: string; directionName: string };
+export type { TopicIdea } from "./views";
 
 /** Keeps only real http(s) sources, so a hallucinated URL never reaches the draft. */
 export function cleanSources(raw: { name?: string; url?: string }[] | undefined) {
