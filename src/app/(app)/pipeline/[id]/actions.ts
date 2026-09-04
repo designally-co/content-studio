@@ -7,6 +7,7 @@ import { getDb } from "@/db";
 import { projects, drafts } from "@/db/schema";
 import { requireUser } from "@/lib/session";
 import { loadProject, pipelineContext } from "@/lib/projects";
+import { loadStoredImage } from "@/lib/image/storage";
 import {
   getModels,
   buildSystemPrompt,
@@ -236,6 +237,25 @@ export async function generateImagePromptAction(
     0,
     Math.min(Number(imageContext?.referenceCount ?? (hasReferenceImage ? 1 : 0)) || 0, 16)
   );
+  /*
+   * Show the prompt writer the photograph it is being asked to match.
+   *
+   * Without this, "match the reference" was an instruction with nothing behind
+   * it: the writer knew only how many references existed, never what was in
+   * them, so it invented a scene from the article and the attached photograph
+   * only ever reached the image model. One image on the brief call — not on
+   * each of the four prompt calls — is enough, because the brief records what
+   * it sees in `referenceScene` and all four prompts read that.
+   */
+  const referenceImage = await (async () => {
+    if (!hasReferenceImage) return undefined;
+    const first = loaded.imageReferences[0];
+    if (!first) return undefined;
+    const stored = await loadStoredImage(first.storagePath);
+    if (!stored) return undefined;
+    return [{ base64: stored.data.toString("base64"), mediaType: stored.mimeType }];
+  })();
+
   const requestedVariants = Number(imageContext?.variationCount ?? 1);
   const variantCount = Number.isFinite(requestedVariants)
     ? Math.min(Math.max(Math.floor(requestedVariants), 1), MAX_PROMPT_VARIANTS)
@@ -254,6 +274,7 @@ export async function generateImagePromptAction(
       hasReferenceImage,
       mode,
     }),
+    images: referenceImage,
     schema: {
       type: "object",
       properties: {
@@ -263,6 +284,7 @@ export async function generateImagePromptAction(
         conceptReason: { type: "string" },
         alternateConcepts: { type: "array", items: { type: "string" } },
         photoQuery: { type: "string" },
+        referenceScene: { type: "string" },
         imageRole: { type: "string" },
         mainSubject: { type: "string" },
         namedSubjects: { type: "array", items: { type: "string" } },
@@ -273,7 +295,7 @@ export async function generateImagePromptAction(
         mustAvoid: { type: "array", items: { type: "string" } },
         referenceGuidance: { type: "string" },
       },
-      required: ["articleType", "articleStructure", "concept", "conceptReason", "alternateConcepts", "photoQuery", "imageRole", "mainSubject", "namedSubjects", "visualCharacteristics", "composition", "mood", "mustInclude", "mustAvoid", "referenceGuidance"],
+      required: ["articleType", "articleStructure", "concept", "conceptReason", "alternateConcepts", "photoQuery", "referenceScene", "imageRole", "mainSubject", "namedSubjects", "visualCharacteristics", "composition", "mood", "mustInclude", "mustAvoid", "referenceGuidance"],
       additionalProperties: false,
     },
     // Room for the alternate concepts the brief now carries as well.
@@ -319,6 +341,7 @@ export async function generateImagePromptAction(
       aspectRatio: imageContext?.aspectRatio?.slice(0, 10),
       hasReferenceImage,
       referenceCount,
+      referenceScene: brief.referenceScene,
       mode,
     });
     const run = (extra?: string) =>

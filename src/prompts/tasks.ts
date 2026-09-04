@@ -6,7 +6,7 @@ import {
 } from "@/lib/image/visual-brief";
 
 /** Task layer — stage-specific instructions. Versioned per template. */
-export const TASKS_VERSION = "tasks@2.0.0";
+export const TASKS_VERSION = "tasks@2.1.0";
 
 /** How far back a news-driven idea may sit and still count as current. */
 const RECENCY_DAYS = 90;
@@ -198,6 +198,8 @@ export function imagePromptTask(params: {
   hasReferenceImage?: boolean;
   /** How many real photographs are attached, and therefore how to speak about them. */
   referenceCount?: number;
+  /** What the attached photograph shows — the brief looked at it. */
+  referenceScene?: string;
   mode: import("@/lib/image/visual-brief").ImageMode;
 }): string {
   const conceptual = params.mode === "conceptual";
@@ -251,7 +253,9 @@ Model: ${params.model ?? "Not specified"}
 Aspect ratio: ${params.aspectRatio ?? "1:1"}
 Reference images: ${
     (params.referenceCount ?? 0) > 0
-      ? `${params.referenceCount} attached. They are REAL photographs — the lead images of the sources this article cites, or openly licensed work matched to its subject.
+      ? `${params.referenceCount} attached. They are REAL photographs — openly licensed work matched to this article's subject, or the lead images of the sources it cites.${
+          params.referenceScene ? `\n\nWHAT THE REFERENCE SHOWS: ${params.referenceScene}\n\nYour scene must be the same kind of picture as that. Same sort of subject, setting, activity, framing and light — a different person in a different room on a different day.` : ""
+        }
 
 How to use them, which is not how it sounds:
 - Take MATERIAL from them: surface, texture, weight, wear, how light falls on the actual thing. That is what a generated image lacks and why it reads as synthetic.
@@ -299,6 +303,14 @@ ${
     : "Then write \`alternateConcepts\`: two or three OTHER real scenes from the same world, written the same way. Not the same moment from another angle — a different moment: a different part of the work, a different room, a different pair of hands, a different time of day. An editor is choosing between the finished photographs, so two scenes that would produce the same picture are one wasted choice."
 }
 
+${
+  params.hasReferenceImage
+    ? `A REFERENCE PHOTOGRAPH IS ATTACHED TO THIS MESSAGE. Look at it. Write \`referenceScene\`: one sentence describing what it actually shows — the subject, what they are doing, the setting, the framing, the light. Describe the photograph in front of you, not what you expect it to be.
+
+Then make \`concept\` a scene OF THE SAME KIND: a different person, a different room, a different moment, recognisably the same sort of picture, and about this article's subject. That correspondence is the whole job — an editor asked for an image like the reference, not an image inspired by it.`
+    : "Set `referenceScene` to an empty string — no reference photograph is attached."
+}
+
 Write \`photoQuery\`: three to six words to search a stock photo library with, describing the SCENE and nothing else — "designer working at desk laptop", "typographer inspecting metal type", "team reviewing wireframes on wall". No brand names, no abstract nouns, no adjectives about mood. This phrase is used to find the reference photograph the finished image will be matched against, so it must describe a situation a photographer would actually have shot.
 
 Keep the article's real named subjects in \`namedSubjects\` even when the image is metaphorical — they constrain what the metaphor may claim, and they matter if a reference image is attached later.
@@ -330,7 +342,7 @@ Return articleStructure as one of roundup, resources, releases, comparison, expl
   conceptual
     ? "Return \`concept\` and one sentence in \`conceptReason\` explaining what it lets the image say that a literal picture could not."
     : "Return \`concept\` and one sentence in \`conceptReason\` explaining what a reader learns about the article from seeing this scene."
-} Return \`alternateConcepts\` and \`photoQuery\` as described above.
+} Return \`alternateConcepts\`, \`photoQuery\` and \`referenceScene\` as described above.
 
 For typography, UI, websites, branding, or products, note in \`referenceGuidance\` when a real specimen or screenshot would be needed for accuracy. In \`mustAvoid\`, exclude readable generated text, invented logos, counterfeit interfaces, generic offices, charts, rockets, lightbulbs, handshakes, robots, and glowing-grid technology imagery.`;
 }

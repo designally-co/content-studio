@@ -437,13 +437,21 @@ function ImagePanel({
    * at ten and fourteen. Slicing here rather than at the server keeps what the
    * editor is told and what is sent as the same number.
    */
-  const usableReferences = useMemo(
-    () =>
-      selectedOption?.capabilities.referenceImages
-        ? references.slice(0, selectedOption.capabilities.maxReferenceImages)
-        : [],
-    [references, selectedOption]
-  );
+  const usableReferences = useMemo(() => {
+    if (!selectedOption?.capabilities.referenceImages) return [];
+    /*
+     * ONE photograph in grounded mode, not four.
+     *
+     * The editing endpoints accept ten and fourteen because they are built to
+     * COMPOSITE — hand them four unrelated photographs and they blend the
+     * subjects. That is the opposite of what "make a picture like this one"
+     * needs, where a single clear example is the entire instruction. The rest
+     * of the set stays attached to the article and visible; it is simply not
+     * sent, and the dock says so.
+     */
+    const room = mode === "grounded" ? 1 : selectedOption.capabilities.maxReferenceImages;
+    return references.slice(0, room);
+  }, [references, selectedOption, mode]);
   /** The editing entry in the same model line, which is the one that takes references. */
   const referenceCapableSibling = useMemo(
     () =>
@@ -744,6 +752,12 @@ function ImagePanel({
           <p className="text-sm text-ink-2">Your edited prompt will be used for all {count} images.</p>
         )}
         {findNote && <p className="text-sm text-ink-2">{findNote}</p>}
+        {mode === "grounded" && references.length > 1 && usableReferences.length === 1 && (
+          <p className="text-sm text-ink-2">
+            Only the first reference is sent. Editing models blend several photographs together,
+            which is the opposite of matching one. Remove it to use the next.
+          </p>
+        )}
         {/* Said once, plainly, wherever a not-licensed reference is in the set.
             The chip carries the badge; this carries the consequence. */}
         {references.some((item) => item.origin === "article_source") && (
@@ -947,12 +961,12 @@ function ImagePanel({
                 nothing on one taken from a publisher — the absence is the
                 information. */}
             {references.map((item, index) => {
-              const beyondModel = index >= (selectedOption?.capabilities.maxReferenceImages ?? 0);
+              const beyondModel = index >= usableReferences.length;
               const detail = [
                 item.origin === "article_source" ? `From ${item.sourceName ?? "a cited source"} — not licensed` :
                 item.origin === "open_license" ? `${item.sourceName ?? "Unknown"} — ${item.license ?? "licence unknown"}` :
                 "Uploaded",
-                beyondModel ? "Beyond this model's reference limit — not sent" : null,
+                beyondModel ? "Not sent — only the first reference is used" : null,
               ].filter(Boolean).join(". ");
               return (
                 <span

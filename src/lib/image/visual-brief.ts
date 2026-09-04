@@ -208,6 +208,15 @@ export type ArticleVisualBrief = {
    * the brief described one until this field existed.
    */
   photoQuery: string;
+  /**
+   * What the attached reference photograph actually shows, in one sentence.
+   *
+   * Empty when nothing is attached. This exists because the prompt writer used
+   * to be told only HOW MANY references there were, never what was in them — so
+   * "match the reference" was an instruction it had no way to follow. One look
+   * at the photograph, recorded here, is what the four prompt calls then share.
+   */
+  referenceScene: string;
   imageRole: string;
   mainSubject: string;
   namedSubjects: string[];
@@ -237,28 +246,45 @@ export type DraftedImagePrompt = {
 export const MAX_PROMPT_VARIANTS = 4;
 
 /**
- * Restate the direction and the brief's hard constraints on a finished prompt.
+ * A short style line for the image model, and nothing more.
  *
- * The image model never sees the task that wrote the prompt — only this string
- * — so anything the direction requires has to survive into it. The concept
- * leads, because the whole point of the direction is that the image is not a
- * picture of the subject.
+ * This used to append the whole `visualDirectionBlock` — six named
+ * characteristics with a paragraph of explanation each. Measured on a real
+ * brief, the finished prompt was 2,088 characters of which 269 described the
+ * picture: 13%. The other 87% was art direction written to instruct the model
+ * that WRITES the prompt, being handed to the model that DRAWS it.
  *
- * Every variant is finished identically, so the difference between them is the
- * concept and nothing else.
+ * That is not a harmless surplus. An image model does not reason about
+ * "Photographic, Not Rendered — real camera behaviour"; it treats it as more
+ * text to represent, and the actual scene is diluted to a fraction of the
+ * signal. It is worse on an editing endpoint, where a wall of independent
+ * description competes with the attached photograph and the model generates
+ * from the words instead of working from the image — which is exactly the
+ * complaint this is fixing.
+ *
+ * The direction still governs. It governs where it belongs: in the task that
+ * asks Claude for the paragraph. What survives into the image model is a style
+ * line, and the constraints it genuinely cannot infer.
  */
+const STYLE_LINE: Record<ImageMode, string> = {
+  grounded:
+    "Photograph. Natural available light, real materials, ordinary untidiness, believable hands and faces. Not an illustration, not a render, not a stock pose.",
+  conceptual:
+    "Editorial photograph in the register of a design magazine. One deliberate surreal element, everything else composed calmly.",
+};
+
 export const finishImagePrompt = (
   written: string,
   brief: ArticleVisualBrief,
   concept: string,
   mode: ImageMode = DEFAULT_IMAGE_MODE
 ): string => {
+  const avoid = brief.mustAvoid.join(", ") || "readable text, invented logos, counterfeit interfaces";
   const tail =
     mode === "conceptual"
-      ? `Concept the image must carry: ${concept}. Anchor subject: ${brief.mainSubject}. Must include: ${brief.mustInclude.join(", ") || brief.mainSubject}. Avoid: ${brief.mustAvoid.join(", ") || "readable text, invented logos, stock-photography framing"}.`
-      : // Grounded: the scene leads, and the reference is named as the thing to
-        // match in kind. "Avoid" drops the stock-photography line, which would
-        // contradict the direction — a stock photograph is the model here.
-        `Scene the image must show: ${concept}. Subject in frame: ${brief.mainSubject}. Must include: ${brief.mustInclude.join(", ") || brief.mainSubject}. Avoid: ${brief.mustAvoid.join(", ") || "readable text, invented logos, counterfeit interfaces"}. Match the reference photograph in kind — same sort of subject, setting, activity and light — without copying it.`;
-  return `${written.trim()}\n\n${visualDirectionBlock(mode)}\n\n${tail}`;
+      ? `${STYLE_LINE.conceptual} Avoid: ${avoid}.`
+      : // Named last and named plainly, because on an editing endpoint this is
+        // the instruction that decides whether the reference is used at all.
+        `${STYLE_LINE.grounded} Avoid: ${avoid}. Match the attached photograph: same kind of subject, setting, activity and light. Do not copy it.`;
+  return `${written.trim()}\n\n${tail}`;
 };

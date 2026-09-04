@@ -169,6 +169,30 @@ function textOf(content: Anthropic.ContentBlock[]): string {
 }
 
 /**
+ * An image to show the model, alongside the task text.
+ *
+ * The Messages API takes images as content blocks in the user turn, image
+ * first. `media_type` must be one of the four the API accepts; anything else is
+ * dropped rather than sent, because a rejected block fails the whole call.
+ */
+export type PromptImage = { base64: string; mediaType: string };
+
+const VISION_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
+
+/** The user turn: images first, then the text that refers to them. */
+function userContent(text: string, images?: PromptImage[]) {
+  const usable = (images ?? []).filter((image) => VISION_TYPES.has(image.mediaType));
+  if (usable.length === 0) return text;
+  return [
+    ...usable.map((image) => ({
+      type: "image" as const,
+      source: { type: "base64" as const, media_type: image.mediaType as "image/png", data: image.base64 },
+    })),
+    { type: "text" as const, text },
+  ];
+}
+
+/**
  * Structured (JSON) generation. The model's shape is guaranteed natively via
  * `output_config.format`; an optional `validate` (a Zod parse) enforces rules
  * JSON Schema can't express — e.g. English-only image prompts. On a validation
@@ -181,6 +205,8 @@ export async function runJson<T>(params: {
   system: string | SystemLayers;
   task: string;
   schema: Record<string, unknown>;
+  /** Images to show the model, e.g. a reference photograph to describe. */
+  images?: PromptImage[];
   maxTokens: number;
   webSearch?: boolean | { maxUses: number };
   timeoutMs?: number;
@@ -224,7 +250,10 @@ export async function runJson<T>(params: {
         },
       },
       messages: [
-        { role: "user", content: extra ? `${params.task}\n\n${extra}` : params.task },
+        {
+          role: "user",
+          content: userContent(extra ? `${params.task}\n\n${extra}` : params.task, params.images),
+        },
       ],
     }, { timeout: params.timeoutMs ?? 120000, maxRetries: 0 });
 
@@ -338,6 +367,7 @@ export async function runText(params: {
   model: string;
   system?: string | SystemLayers;
   task: string;
+  images?: PromptImage[];
   maxTokens: number;
   projectId: string | null;
   stage: string;
@@ -351,7 +381,7 @@ export async function runText(params: {
       ? { thinking: thinkingParam(params.model) }
       : {}),
     ...(params.system ? { system: cachedSystem(params.system) } : {}),
-    messages: [{ role: "user", content: params.task }],
+    messages: [{ role: "user", content: userContent(params.task, params.images) }],
   });
   await logUsage({
     projectId: params.projectId,
