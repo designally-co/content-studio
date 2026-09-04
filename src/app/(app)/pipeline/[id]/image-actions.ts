@@ -21,6 +21,22 @@ export type GeneratedImageView = {
   variationNo: number;
 };
 
+/**
+ * What one generation run produced, including what it failed to produce.
+ *
+ * The action used to return only the successes. Variations run as independent
+ * calls, so asking for four and receiving one was a normal outcome — and the
+ * editor was shown one image with nothing to say the other three had been
+ * attempted and refused. A partial failure is information, not noise.
+ */
+export type GenerationRunResult = {
+  images: GeneratedImageView[];
+  /** Variations that were requested but produced nothing. */
+  failedCount: number;
+  /** The first failure's message, so the editor can act on it. */
+  failureReason?: string;
+};
+
 export type UploadedReferenceView = {
   id: string;
   url: string;
@@ -115,13 +131,27 @@ export async function generateImagesAction(
     aspectRatio: ImageAspectRatio;
     variationCount: number;
     referenceIds: string[];
+    /**
+     * One prompt per variation, each carrying a different concept, from
+     * `generateImagePromptAction`. Variation `i` uses `variantPrompts[i]`, or
+     * `prompt` where there is no entry for it — which is what happens when the
+     * editor has written or edited the prompt themselves, and their words
+     * should govern every image rather than be silently replaced.
+     */
+    variantPrompts?: string[];
   }
-): Promise<GeneratedImageView[]> {
+): Promise<GenerationRunResult> {
   await requireUser();
   if (!request || typeof request !== "object") throw new Error("Invalid generation request.");
   const prompt = typeof request.prompt === "string" ? request.prompt.trim() : "";
   if (!prompt) throw new Error("Enter an image prompt.");
   if (prompt.length > 8000) throw new Error("Image prompts must be 8,000 characters or shorter.");
+  const variantPrompts = Array.isArray(request.variantPrompts)
+    ? request.variantPrompts.map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+    : [];
+  if (variantPrompts.some((entry) => entry.length > 8000)) {
+    throw new Error("Image prompts must be 8,000 characters or shorter.");
+  }
   if (typeof request.optionId !== "string" || request.optionId.length > 240) {
     throw new Error("Invalid image model selection.");
   }
@@ -161,25 +191,36 @@ export async function generateImagesAction(
     references.push({ id: row.id, ...stored });
   }
 
+  const promptFor = (index: number) => variantPrompts[index] || prompt;
+
   const generations = await Promise.allSettled(
-    Array.from({ length: variationCount }, () =>
+    Array.from({ length: variationCount }, (_, index) =>
       provider.generate(
-        { prompt, aspectRatio: request.aspectRatio, referenceImages: references },
+        { prompt: promptFor(index), aspectRatio: request.aspectRatio, referenceImages: references },
         keyId || undefined
       )
     )
   );
   const generated = generations.flatMap((result, index) =>
     result.status === "fulfilled"
-      ? result.value.images.map((image) => ({ image, variationNo: index + 1 }))
+      ? result.value.images.map((image) => ({ image, variationNo: index + 1, prompt: promptFor(index) }))
       : []
   );
+  const rejection = generations.find((result) => result.status === "rejected");
+  // Nothing at all is a failure and throws, as it always did. Some of what was
+  // asked for is a result, and travels back with an account of the rest.
   if (generated.length === 0) {
-    const failed = generations.find((result) => result.status === "rejected");
-    throw failed && failed.status === "rejected"
-      ? failed.reason
+    throw rejection && rejection.status === "rejected"
+      ? rejection.reason
       : new Error("No images were returned.");
   }
+  const failedCount = generations.filter((result) => result.status === "rejected").length;
+  const failureReason =
+    rejection && rejection.status === "rejected"
+      ? rejection.reason instanceof Error
+        ? rejection.reason.message
+        : String(rejection.reason)
+      : undefined;
 
   await db
     .update(projects)
@@ -197,7 +238,7 @@ export async function generateImagesAction(
 
   const out: GeneratedImageView[] = [];
 
-  for (const { image: img, variationNo } of generated) {
+  for (const { image: img, variationNo, prompt: usedPrompt } of generated) {
     const { storagePath } = await saveImage(img);
     const metadata = imageSize(img.data) ?? { width: null, height: null };
     const [row] = await db
@@ -206,7 +247,9 @@ export async function generateImagesAction(
         projectId,
         provider: provider.provider,
         model: provider.model,
-        prompt,
+        // The prompt this image came from, not the set's first one — the row is
+        // the only record of why a given variation looks the way it does.
+        prompt: usedPrompt,
         aspectRatio: request.aspectRatio,
         width: metadata.width ?? null,
         height: metadata.height ?? null,
@@ -226,7 +269,7 @@ export async function generateImagesAction(
   }
 
   revalidatePath(`/pipeline/${projectId}`);
-  return out;
+  return { images: out, failedCount, failureReason };
 }
 
 

@@ -33,6 +33,7 @@ import type { BrandReviewResult } from "@/lib/brand-review";
 import {
   IMAGE_DIRECTIONS,
   type ArticleVisualBrief,
+  type ImagePromptVariant,
   type ImageDirection,
 } from "@/lib/image/visual-brief";
 
@@ -355,6 +356,17 @@ function ImagePanel({
     ? requestedInitialRatio
     : initialOption?.capabilities.aspectRatios[0] ?? "1:1";
   const [prompt, setPrompt] = useState("");
+  /*
+   * The set Auto-draft produced, and the exact text it put in the field.
+   *
+   * Keeping both is what lets the editor's own words win: while the field still
+   * holds `draftedPrompt`, the whole set is sent and each image carries a
+   * different concept. The moment they change a word, that edit is the brief
+   * and it governs every image — silently generating three other concepts
+   * beside it would be ignoring what they just wrote.
+   */
+  const [variants, setVariants] = useState<ImagePromptVariant[]>([]);
+  const [draftedPrompt, setDraftedPrompt] = useState("");
   const [direction, setDirection] = useState<ImageDirection>("auto");
   // Designally house style is the official default; users can override it below.
   const [visualBrief, setVisualBrief] = useState<ArticleVisualBrief | null>(null);
@@ -380,6 +392,11 @@ function ImagePanel({
     () => options.find((option) => option.optionId === optionId) ?? options[0],
     [optionId, options]
   );
+  // Untouched since Auto-draft wrote it, so the other concepts still apply.
+  const usingDraftedSet = variants.length > 1 && prompt === draftedPrompt;
+  // Drafted for fewer images than are now requested — the extra slots repeat
+  // the first concept unless the set is written again.
+  const conceptsBehindCount = usingDraftedSet && count > variants.length;
 
   // Measured from the value, not from `onInput`. Auto-draft sets the prompt
   // programmatically, and `onInput` only fires for user typing — so the longest
@@ -434,8 +451,11 @@ function ImagePanel({
         aspectRatio,
         hasReferenceImage: Boolean(reference),
         direction,
+        variationCount: count,
       });
       setPrompt(result.prompt);
+      setDraftedPrompt(result.prompt);
+      setVariants(result.variants);
       setVisualBrief(result.brief);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to draft prompt.");
@@ -455,8 +475,14 @@ function ImagePanel({
         aspectRatio,
         variationCount: count,
         referenceIds: reference ? [reference.id] : [],
+        variantPrompts: usingDraftedSet ? variants.map((variant) => variant.prompt) : undefined,
       });
-      setImgs((prev) => [...result, ...prev]);
+      setImgs((prev) => [...result.images, ...prev]);
+      if (result.failedCount > 0) {
+        setError(
+          `${result.failedCount} of ${count} images failed. ${result.failureReason ?? ""}`.trim()
+        );
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Image generation failed.");
     } finally {
@@ -571,6 +597,24 @@ function ImagePanel({
         {!selectedOption?.capabilities.referenceImages && (
           <p className="text-sm text-ink-3">This model supports text-to-image only.</p>
         )}
+        {/* What the editor is about to get is not obvious from a single prompt
+            field: the field shows one prompt, but a drafted set sends a
+            different concept to each image. Said plainly, and only when it
+            changes the outcome. */}
+        {usingDraftedSet && !conceptsBehindCount && (
+          <p className="text-sm text-ink-2">
+            {count} images, {count} different concepts — drafted from the article.
+          </p>
+        )}
+        {conceptsBehindCount && (
+          <p className="text-sm text-ink-2">
+            {variants.length} of the {count} images will carry different concepts. Auto-draft again
+            for {count}.
+          </p>
+        )}
+        {variants.length > 0 && !usingDraftedSet && count > 1 && (
+          <p className="text-sm text-ink-2">Your edited prompt will be used for all {count} images.</p>
+        )}
         {error && <p className="text-sm text-danger" role="alert">{error}</p>}
       </div>
 
@@ -608,6 +652,9 @@ function ImagePanel({
                     setDirection(value as ImageDirection);
                     setVisualBrief(null);
                     setPrompt("");
+                    // The concepts were drawn for the old composition.
+                    setVariants([]);
+                    setDraftedPrompt("");
                   }}
                   options={IMAGE_DIRECTIONS.map((item) => ({ value: item.value, label: item.label, description: item.description }))}
                 />
@@ -782,7 +829,12 @@ function ImagePanel({
               <button
                 type="button"
                 onClick={draftPrompt}
-                disabled={busy !== null || !anthropicReady || hasPrompt}
+                /* Blocked while the field holds words the editor wrote, which
+                   is what this rule was always for — not while it holds the
+                   draft this button itself produced. Re-drafting then overwrites
+                   nothing of theirs, and it is the only way to get a fuller set
+                   of concepts after raising the image count. */
+                disabled={busy !== null || !anthropicReady || (hasPrompt && prompt !== draftedPrompt)}
                 aria-describedby={!anthropicReady ? "auto-draft-requirement" : undefined}
                 className="cs-btn cs-dock-btn cs-dock-btn--wide shrink-0 border-[var(--orange-200)] bg-accent-soft text-accent-press enabled:hover:border-[var(--orange-300)] enabled:hover:bg-[var(--orange-200)]"
               >

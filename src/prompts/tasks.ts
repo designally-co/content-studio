@@ -6,7 +6,7 @@ import {
 } from "@/lib/image/visual-brief";
 
 /** Task layer — stage-specific instructions. Versioned per template. */
-export const TASKS_VERSION = "tasks@1.5.0";
+export const TASKS_VERSION = "tasks@1.6.0";
 
 /** How far back a news-driven idea may sit and still count as current. */
 const RECENCY_DAYS = 90;
@@ -187,6 +187,12 @@ export function imagePromptTask(params: {
   title: string;
   visualBrief: import("@/lib/image/visual-brief").ArticleVisualBrief;
   direction: import("@/lib/image/visual-brief").ImageDirection;
+  /** The concept THIS prompt realises — the brief's lead concept, or one of its alternates. */
+  concept: string;
+  /** Where this prompt sits in the set, so it can be told what it must not repeat. */
+  variantNo: number;
+  variantCount: number;
+  siblingConcepts: string[];
   model?: string;
   aspectRatio?: string;
   hasReferenceImage?: boolean;
@@ -200,7 +206,7 @@ It is judged against these criteria:
 ${IMAGE_CRITERIA.map((c) => `- ${c.id} ${c.name} — ${c.principle}`).join("\n")}
 
 How to apply them here:
-- Lead with the CONCEPT from the brief, not the subject. The image should make someone think, not caption the article. A piece about type licensing is not a picture of a font; it is a metaphor for permission, ownership, or constraint.
+- Lead with THE CONCEPT ASSIGNED BELOW, not the subject, and not the brief's other concepts. The image should make someone think, not caption the article. A piece about type licensing is not a picture of a font; it is a metaphor for permission, ownership, or constraint.
 - Give the concept one deliberate surreal move — an impossible juxtaposition, a shifted scale, an object where it does not belong — and let the rest of the frame stay disciplined around it. One strange thing, composed calmly, beats five strange things.
 - Be specific about composition: where the subject sits, what is left empty, what the eye reaches first.
 - Be specific about styling: setting, materials, surface, light direction and quality, colour relationships. Commit to a palette that belongs to THIS article rather than a house look.
@@ -213,7 +219,15 @@ Hard limits:
 
 Title: ${params.title}
 Requested framing: ${params.direction}
-Visual brief: ${JSON.stringify(params.visualBrief)}
+
+THE CONCEPT THIS IMAGE MUST CARRY (image ${params.variantNo} of ${params.variantCount}):
+${params.concept}
+${
+  params.siblingConcepts.length > 0
+    ? `\nThe other images in this set carry these concepts. Yours must not resemble them in metaphor, setting, subject, palette, or composition — an editor is choosing between them, so overlap wastes a slot:\n${params.siblingConcepts.map((c) => `- ${c}`).join("\n")}\n`
+    : ""
+}
+Visual brief (context — take the constraints from it, but take the concept from above): ${JSON.stringify(params.visualBrief)}
 Model: ${params.model ?? "Not specified"}
 Aspect ratio: ${params.aspectRatio ?? "1:1"}
 Reference image: ${params.hasReferenceImage ? "Attached; preserve its important subject, product, and visual identity details" : "None"}
@@ -236,6 +250,8 @@ The most important field is \`concept\`: the metaphor, contrast, or unexpected r
 
 What that rules out: a picture of the thing the article is about. An article on colour contrast is not swatches; an article on design systems is not a component grid. If the brief could be satisfied by stock photography of the subject, the concept is not doing its job.
 
+Then write \`alternateConcepts\`: two or three OTHER ideas the same article could turn on, written the same way. They are not variations of the lead concept and not restatements of it — each must work by a different mechanism, so that images made from them look nothing alike. If the lead concept is a contrast, an alternate should be a substitution or an absence rather than another contrast. An editor will choose between the finished images, so two concepts that would produce similar frames are one wasted choice.
+
 Keep the article's real named subjects in \`namedSubjects\` even when the image is metaphorical — they constrain what the metaphor may claim, and they matter if a reference image is attached later.
 
 In \`mood\` and \`visualCharacteristics\`, commit to a specific palette, material and light for THIS article. Controlled, not muted by default; a strong point of view is one of the criteria. Do not reach for a uniform beige studio look, and do not carry a palette over from other articles.
@@ -257,7 +273,7 @@ Framing rules — these govern the composition, never the literalness:
 - realistic_scene: a staged, art-directed scene — composed for the camera, never documentary.
 - minimal_graphic: one idea, heavy negative space.
 
-Return articleStructure as one of roundup, resources, releases, comparison, explainer, profile, or trend. Return \`concept\` and one sentence in \`conceptReason\` explaining what it lets the image say that a literal picture could not.
+Return articleStructure as one of roundup, resources, releases, comparison, explainer, profile, or trend. Return \`concept\` and one sentence in \`conceptReason\` explaining what it lets the image say that a literal picture could not. Return \`alternateConcepts\` as described above.
 
 For typography, UI, websites, branding, or products, note in \`referenceGuidance\` when a real specimen or screenshot would be needed for accuracy. In \`mustAvoid\`, exclude readable generated text, invented logos, counterfeit interfaces, generic offices, charts, rockets, lightbulbs, handshakes, robots, and glowing-grid technology imagery.`;
 }

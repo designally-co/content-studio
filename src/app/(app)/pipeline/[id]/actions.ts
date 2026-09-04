@@ -29,10 +29,12 @@ import type { BrandReviewResult } from "@/lib/brand-review";
 import { IMAGE_SYSTEM_PROMPT } from "@/prompts/system";
 import {
   IMAGE_DIRECTIONS,
-  visualDirectionBlock,
+  MAX_PROMPT_VARIANTS,
+  finishImagePrompt,
   type ArticleVisualBrief,
   type DraftedImagePrompt,
   type ImageDirection,
+  type ImagePromptVariant,
 } from "@/lib/image/visual-brief";
 
 async function ctxFor(projectId: string) {
@@ -198,7 +200,14 @@ export async function goToFinalizeAction(formData: FormData) {
 // ---- Stage 6: image prompt + finalize ----
 export async function generateImagePromptAction(
   projectId: string,
-  imageContext?: { model?: string; aspectRatio?: string; hasReferenceImage?: boolean; direction?: ImageDirection }
+  imageContext?: {
+    model?: string;
+    aspectRatio?: string;
+    hasReferenceImage?: boolean;
+    direction?: ImageDirection;
+    /** How many images the editor intends to generate — one prompt is written per image. */
+    variationCount?: number;
+  }
 ): Promise<DraftedImagePrompt> {
   const loaded = await ctxFor(projectId);
   const ctx = pipelineContext(loaded);
@@ -213,6 +222,10 @@ export async function generateImagePromptAction(
     ? requestedDirection as ImageDirection
     : "auto";
   const hasReferenceImage = Boolean(imageContext?.hasReferenceImage);
+  const requestedVariants = Number(imageContext?.variationCount ?? 1);
+  const variantCount = Number.isFinite(requestedVariants)
+    ? Math.min(Math.max(Math.floor(requestedVariants), 1), MAX_PROMPT_VARIANTS)
+    : 1;
 
   const { data: brief } = await runJson<ArticleVisualBrief>({
     model: drafting,
@@ -233,6 +246,7 @@ export async function generateImagePromptAction(
         articleStructure: { type: "string", enum: ["roundup", "resources", "releases", "comparison", "explainer", "profile", "trend"] },
         concept: { type: "string" },
         conceptReason: { type: "string" },
+        alternateConcepts: { type: "array", items: { type: "string" } },
         imageRole: { type: "string" },
         mainSubject: { type: "string" },
         namedSubjects: { type: "array", items: { type: "string" } },
@@ -243,51 +257,87 @@ export async function generateImagePromptAction(
         mustAvoid: { type: "array", items: { type: "string" } },
         referenceGuidance: { type: "string" },
       },
-      required: ["articleType", "articleStructure", "concept", "conceptReason", "imageRole", "mainSubject", "namedSubjects", "visualCharacteristics", "composition", "mood", "mustInclude", "mustAvoid", "referenceGuidance"],
+      required: ["articleType", "articleStructure", "concept", "conceptReason", "alternateConcepts", "imageRole", "mainSubject", "namedSubjects", "visualCharacteristics", "composition", "mood", "mustInclude", "mustAvoid", "referenceGuidance"],
       additionalProperties: false,
     },
-    maxTokens: 1800,
+    // Room for the alternate concepts the brief now carries as well.
+    maxTokens: 2200,
     projectId,
     stage: "image_visual_brief",
   });
 
+  /*
+   * One prompt per image, each carrying a different concept.
+   *
+   * This used to write a single prompt and `generateImagesAction` sent it N
+   * times, so four images were four samples of one idea — the same metaphor,
+   * setting and palette, differing only where the sampler wandered. An editor
+   * choosing a cover was choosing between renders, not between ideas.
+   *
+   * The calls run in parallel rather than as one larger call. Wall time then
+   * stays that of a single prompt, which matters: this whole action lives
+   * inside the page's 60s `maxDuration`, and a sequential set of four would
+   * not fit. Only the count the editor actually asked for is written, so the
+   * common single-image case costs exactly what it did before.
+   */
+  const concepts = [brief.concept, ...(brief.alternateConcepts ?? [])]
+    .map((concept) => concept.trim())
+    .filter((concept) => concept.length > 0)
+    .slice(0, variantCount);
+  // A brief that returned no usable alternates still owes one prompt.
+  if (concepts.length === 0) concepts.push(brief.concept);
+
   // Image prompts must be English — the Fal models are English-trained.
   // Enforced in the prompt AND here: if Thai leaks in, retry once with an
   // explicit instruction, then reject rather than send a non-English prompt.
-  const imagePromptTaskText = imagePromptTask({
-    title,
-    visualBrief: brief,
-    direction,
-    model: imageContext?.model?.slice(0, 100),
-    aspectRatio: imageContext?.aspectRatio?.slice(0, 10),
-    hasReferenceImage,
-  });
-  const runImagePrompt = (extra?: string) =>
-    runText({
-      model: drafting,
-      system: IMAGE_SYSTEM_PROMPT,
-      task: extra ? `${imagePromptTaskText}\n\n${extra}` : imagePromptTaskText,
-      maxTokens: 650,
-      projectId,
-      stage: "image_prompt",
+  const writeVariant = async (concept: string, index: number): Promise<ImagePromptVariant> => {
+    const taskText = imagePromptTask({
+      title,
+      visualBrief: brief,
+      direction,
+      concept,
+      variantNo: index + 1,
+      variantCount: concepts.length,
+      siblingConcepts: concepts.filter((_, other) => other !== index),
+      model: imageContext?.model?.slice(0, 100),
+      aspectRatio: imageContext?.aspectRatio?.slice(0, 10),
+      hasReferenceImage,
     });
+    const run = (extra?: string) =>
+      runText({
+        model: drafting,
+        system: IMAGE_SYSTEM_PROMPT,
+        task: extra ? `${taskText}\n\n${extra}` : taskText,
+        maxTokens: 650,
+        projectId,
+        stage: "image_prompt",
+      });
 
-  let generatedPrompt = (await runImagePrompt()).text.trim();
-  if (containsThai(generatedPrompt)) {
-    generatedPrompt = (
-      await runImagePrompt("The previous image prompt contained Thai characters. Rewrite it entirely in English — no Thai, no other non-English script.")
-    ).text.trim();
-    if (containsThai(generatedPrompt)) {
-      throw new SchemaValidationError("image_prompt", "image prompt must be English (Thai characters found)");
+    let written = (await run()).text.trim();
+    if (containsThai(written)) {
+      written = (
+        await run("The previous image prompt contained Thai characters. Rewrite it entirely in English — no Thai, no other non-English script.")
+      ).text.trim();
+      if (containsThai(written)) {
+        throw new SchemaValidationError("image_prompt", "image prompt must be English (Thai characters found)");
+      }
     }
+    return { concept, prompt: finishImagePrompt(written, brief, concept) };
+  };
+
+  const settled = await Promise.allSettled(concepts.map(writeVariant));
+  const variants = settled
+    .filter((result): result is PromiseFulfilledResult<ImagePromptVariant> => result.status === "fulfilled")
+    .map((result) => result.value);
+  // One prompt is the minimum this action can honestly return. Losing a later
+  // variant costs a choice; losing them all is a failure, and the first
+  // rejection says why.
+  if (variants.length === 0) {
+    const failed = settled.find((result) => result.status === "rejected");
+    throw failed && failed.status === "rejected" ? failed.reason : new Error("No image prompt was written.");
   }
-  /* The direction is restated on the finished prompt as well as in the task
-     that wrote it. The image model never sees the task — only this string — so
-     anything the direction requires has to survive into it. The concept leads,
-     because the whole point of the direction is that the image is not a
-     picture of the subject. */
-  const prompt = `${generatedPrompt}\n\n${visualDirectionBlock()}\n\nConcept the image must carry: ${brief.concept}. Anchor subject: ${brief.mainSubject}. Must include: ${brief.mustInclude.join(", ") || brief.mainSubject}. Avoid: ${brief.mustAvoid.join(", ") || "readable text, invented logos, stock-photography framing"}.`;
-  return { prompt, brief };
+
+  return { prompt: variants[0].prompt, brief, variants };
 }
 
 export async function reviewBrandAlignmentAction(projectId: string): Promise<BrandReviewResult> {

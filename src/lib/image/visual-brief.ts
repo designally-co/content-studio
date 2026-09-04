@@ -110,6 +110,16 @@ export type ArticleVisualBrief = {
   /** The metaphor the image turns on — the "concept, not literal" decision. */
   concept: string;
   conceptReason: string;
+  /**
+   * Other metaphors the same article could turn on, each distinct in mechanism
+   * from `concept` and from each other.
+   *
+   * These exist so that asking for four images produces four ideas rather than
+   * four renders of one idea. Generation used to send a single prompt N times
+   * and let the sampler differ; that yields near-copies, which is no choice at
+   * all for an editor picking one cover.
+   */
+  alternateConcepts: string[];
   imageRole: string;
   mainSubject: string;
   namedSubjects: string[];
@@ -121,7 +131,37 @@ export type ArticleVisualBrief = {
   referenceGuidance: string;
 };
 
+/** One image prompt and the concept it realises. */
+export type ImagePromptVariant = {
+  concept: string;
+  prompt: string;
+};
+
 export type DraftedImagePrompt = {
+  /** `variants[0].prompt` — the one shown in the editable field. */
   prompt: string;
   brief: ArticleVisualBrief;
+  /** One entry per requested variation, each a different concept. */
+  variants: ImagePromptVariant[];
 };
+
+/** Never write more prompts than the providers will render in one go. */
+export const MAX_PROMPT_VARIANTS = 4;
+
+/**
+ * Restate the direction and the brief's hard constraints on a finished prompt.
+ *
+ * The image model never sees the task that wrote the prompt — only this string
+ * — so anything the direction requires has to survive into it. The concept
+ * leads, because the whole point of the direction is that the image is not a
+ * picture of the subject.
+ *
+ * Every variant is finished identically, so the difference between them is the
+ * concept and nothing else.
+ */
+export const finishImagePrompt = (
+  written: string,
+  brief: ArticleVisualBrief,
+  concept: string
+): string =>
+  `${written.trim()}\n\n${visualDirectionBlock()}\n\nConcept the image must carry: ${concept}. Anchor subject: ${brief.mainSubject}. Must include: ${brief.mustInclude.join(", ") || brief.mainSubject}. Avoid: ${brief.mustAvoid.join(", ") || "readable text, invented logos, stock-photography framing"}.`;
