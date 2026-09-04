@@ -577,11 +577,19 @@ function Progress({ live }: { live: Live }) {
  */
 function humanise(message: string): string {
   const text = message.trim();
+  /* Credit before key: an account with no credit can answer 401 as well as 400,
+     and "your key is wrong" would send someone to check a key that is fine. */
+  if (/credit balance is too low|billing/i.test(text)) {
+    return "The Anthropic account is out of credit. Add credit under Plans & Billing at console.anthropic.com, then run it again — nothing can be written until then.";
+  }
   if (/authentication_error|API key is invalid|401/.test(text)) {
     return "The Anthropic key was rejected. Check ANTHROPIC_API_KEY in the deployment settings.";
   }
   if (/rate_limit|429/.test(text)) {
     return "The provider is rate limiting us. It will try again on the next run.";
+  }
+  if (/insufficient|payment|quota/i.test(text) && /fal|image/i.test(text)) {
+    return "The image provider refused the request — usually credit. Check the Fal.ai account; the article itself is unaffected.";
   }
   if (/took longer than|timed out|ETIMEDOUT/.test(text)) {
     return text.replace(/\s+/g, " ");
