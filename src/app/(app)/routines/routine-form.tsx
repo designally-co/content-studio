@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  TIME_ZONES,
   WEEKDAY_NAMES,
   describeSchedule,
   nextRunAt,
@@ -42,7 +41,7 @@ export function RoutineForm({
 }) {
   const [kind, setKind] = useState<RoutineScheduleKind>(routine?.scheduleKind ?? "daily");
   const [runAt, setRunAt] = useState(routine?.runAt ?? "09:00");
-  const [timeZone, setTimeZone] = useState(routine?.timeZone ?? "Asia/Bangkok");
+  const timeZone = routine?.timeZone ?? "Asia/Bangkok";
   const [weekday, setWeekday] = useState(routine?.weekday ?? 1);
 
   const spec = { kind, runAt, timeZone, weekday };
@@ -52,8 +51,8 @@ export function RoutineForm({
     <form action={action} className="space-y-6">
       {routine && <input type="hidden" name="id" value={routine.id} />}
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div className="space-y-2 sm:col-span-2">
+      <div className="grid gap-5 sm:grid-cols-6">
+        <div className="space-y-2 sm:col-span-6">
           <Label htmlFor="name">Name</Label>
           <Input
             id="name"
@@ -64,7 +63,7 @@ export function RoutineForm({
           />
         </div>
 
-        <div className="space-y-2">
+        <div className={`space-y-2 ${kind === "manual" ? "sm:col-span-6" : kind === "weekly" ? "sm:col-span-2" : "sm:col-span-3"}`}>
           <Label htmlFor="scheduleKind">When it runs</Label>
           <select
             id="scheduleKind"
@@ -73,15 +72,19 @@ export function RoutineForm({
             onChange={(event) => setKind(event.target.value as RoutineScheduleKind)}
             className={FIELD}
           >
-            <option value="manual">Only when I press Run now</option>
             <option value="daily">Every day</option>
-            <option value="weekdays">Monday to Friday</option>
             <option value="weekly">Once a week</option>
+            <option value="manual">Only when I press Run now</option>
+            {/* Not offered any more, but a routine already set to it keeps it
+                rather than being silently changed by opening its form. */}
+            {routine?.scheduleKind === "weekdays" && (
+              <option value="weekdays">Monday to Friday</option>
+            )}
           </select>
         </div>
 
         {kind === "weekly" && (
-          <div className="space-y-2">
+          <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="weekday">Day</Label>
             <select
               id="weekday"
@@ -102,7 +105,7 @@ export function RoutineForm({
 
         {kind !== "manual" && (
           <>
-            <div className="space-y-2">
+            <div className={`space-y-2 ${kind === "weekly" ? "sm:col-span-2" : "sm:col-span-3"}`}>
               <Label htmlFor="runAt">Time</Label>
               <Input
                 id="runAt"
@@ -111,33 +114,17 @@ export function RoutineForm({
                 value={runAt}
                 onChange={(event) => setRunAt(event.target.value)}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="timeZone">Time zone</Label>
-              <select
-                id="timeZone"
-                name="timeZone"
-                value={timeZone}
-                onChange={(event) => setTimeZone(event.target.value)}
-                className={FIELD}
-              >
-                {TIME_ZONES.map((zone) => (
-                  <option key={zone} value={zone}>
-                    {zone.replace(/_/g, " ")}
-                  </option>
-                ))}
-              </select>
+              <p className="text-sm text-ink-2">{timeZone.replace(/_/g, " ")} time.</p>
             </div>
           </>
         )}
-        {kind === "manual" && (
-          <>
-            <input type="hidden" name="runAt" value={runAt} />
-            <input type="hidden" name="timeZone" value={timeZone} />
-          </>
-        )}
+        <input type="hidden" name="runAt" value={runAt} />
+        {/* One zone, not a picker: everyone who edits these sits in the same
+            place, and a per-routine zone is a field to get wrong every time for
+            a case that has not come up. The column stays, so it can come back. */}
+        <input type="hidden" name="timeZone" value={timeZone} />
 
-        <div className="space-y-2">
+        <div className="space-y-2 sm:col-span-3">
           <Label htmlFor="categoryId">Content direction</Label>
           <select
             id="categoryId"
@@ -156,49 +143,23 @@ export function RoutineForm({
           </select>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="hubStatus">What it creates in the Hub</Label>
+        <div className="space-y-2 sm:col-span-3">
+          <Label htmlFor="hubStatus">When the article is finished</Label>
           <select
             id="hubStatus"
             name="hubStatus"
             defaultValue={routine?.hubStatus ?? "draft"}
             className={FIELD}
           >
-            <option value="draft">A draft — somebody publishes it</option>
-            <option value="published">Published — live immediately</option>
+            <option value="draft">Save it as a draft</option>
+            <option value="published">Publish it live</option>
           </select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="maxPerDay">Articles per day</Label>
-          <Input
-            id="maxPerDay"
-            name="maxPerDay"
-            type="number"
-            min={1}
-            max={5}
-            defaultValue={routine?.maxPerDay ?? 1}
-          />
           <p className="text-sm leading-relaxed text-ink-2">
-            A ceiling a mistake cannot spend past. Capped at five whatever is typed here, and
-            ignored when you press Run now.
+            A draft keeps one human check at the far end. Publishing live skips it — the article is
+            on the site before anyone has read it.
           </p>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="imagesPerRun">Images per article</Label>
-          <Input
-            id="imagesPerRun"
-            name="imagesPerRun"
-            type="number"
-            min={0}
-            max={4}
-            defaultValue={routine?.imagesPerRun ?? 1}
-          />
-          <p className="text-sm leading-relaxed text-ink-2">
-            Zero writes the article without a cover, and skips three of the seven steps.
-          </p>
-        </div>
       </div>
 
       {kind === "manual" ? (

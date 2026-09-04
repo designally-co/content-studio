@@ -369,7 +369,7 @@ function RoutineRow({
             </div>
             <p className="mt-0.5 text-sm text-ink-2">
               {schedule} · {routine.directionName ?? "All directions in turn"} ·{" "}
-              {routine.hubStatus === "published" ? "publishes live" : "sends a draft"}
+              {routine.hubStatus === "published" ? "publishes live" : "saves a draft"}
             </p>
           </div>
 
@@ -432,18 +432,21 @@ function RoutineRow({
             <>
               <dl className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
                 <Fact label="Direction" value={routine.directionName ?? "Rotates through all of them"} />
+                <Fact label="Each run" value="One article with one cover image" />
                 <Fact
-                  label="In the Hub"
-                  value={routine.hubStatus === "published" ? "Published immediately" : "Created as a draft"}
+                  label="When finished"
+                  value={
+                    routine.hubStatus === "published"
+                      ? "Published live, unchecked"
+                      : "Saved in the Hub as a draft"
+                  }
                 />
-                <Fact
-                  label="Images"
-                  value={routine.imagesPerRun === 0 ? "No cover" : `${routine.imagesPerRun} per article`}
-                />
-                <Fact
-                  label="Scheduled limit"
-                  value={`${routine.maxPerDay} a day`}
-                />
+                {routine.scheduleKind !== "manual" && (
+                  <Fact
+                    label="Runs at"
+                    value={`${routine.runAt} ${routine.timeZone.replace(/_/g, " ")}`}
+                  />
+                )}
               </dl>
 
               <div className="mt-4 flex flex-wrap gap-2">

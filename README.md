@@ -154,8 +154,8 @@ other branches and pull requests receive isolated preview deployments.
 
 A routine writes one article end to end and sends it to the Knowledge Hub with
 no human in the loop. Routines live in the **Routines** tab: name, content
-direction (or rotate through all of them), when it runs, how many images, how
-many articles a day, and whether the Hub gets a draft or a published post. Every
+direction (or rotate through all of them), when it runs, and whether the
+finished article is saved as a Hub draft or published live without a check. Every
 routine also has **Run now**, which starts one immediately and drives it to the
 end while the page is open — one request per step, so a manual run finishes in a
 few minutes instead of waiting for the schedule.
@@ -198,16 +198,16 @@ most of a week to finish one article.
 the ones nobody demonstrates.
 
 *Making one.* Routines → New routine → name it, choose when it runs, choose a
-direction (or let it rotate), choose draft or published, set the two limits →
-Create. The sentence under the form says what the schedule means and when the
+direction (or let it rotate), choose whether it saves a draft or publishes live
+→ Create. The sentence under the form says what the schedule means and when the
 first run lands, before it is saved. A routine set to "only when I press Run
 now" has no switch at all: there is no schedule for it to be on for.
 
 *Running one by hand.* Run now, on the row. The article starts immediately and
 the page drives it — seven steps, one request each, about three minutes, with
-the step named as it happens. It ignores the per-day ceiling, because that
-number exists to stop a schedule spending all day and a person pressing a button
-is not a schedule. When it finishes, the row links to what it wrote.
+the step named as it happens. It ignores the one-a-day ceiling, because that
+ceiling exists to stop a schedule spending all day and a person pressing a
+button is not a schedule. When it finishes, the row links to what it wrote.
 
 *Running on a schedule.* Every five minutes the app is asked whether anything is
 due. A routine whose time has passed starts one article, then its clock moves to
@@ -235,9 +235,11 @@ again from that moment.
 history go. **The articles it wrote stay in the Library**, published ones
 included; nothing on the Hub is touched.
 
-**The brakes.** Articles per day is a hard ceiling (five, whatever is typed) on
-scheduled runs; pressing Run now is an explicit instruction and is not subject to
-it. A
+**The brakes.** A routine produces exactly one article, with one cover image, per
+run, and at most one a day on a schedule — neither is a setting, because a run
+that quietly produced two articles is a run nobody asked for, and the second
+image was only ever a variation for an editor to choose between. Pressing Run
+now is an explicit instruction and is not subject to the daily ceiling. A
 step that fails is retried twice and then the run stops with the error visible in
 the history — and a step is counted as attempted the moment it is picked up, not
 when it fails, so one killed by the platform (a 504, which runs none of our code)

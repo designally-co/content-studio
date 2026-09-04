@@ -46,10 +46,13 @@ function readForm(formData: FormData) {
     runAt: /^\d{1,2}:\d{2}$/.test(runAt) ? runAt : "09:00",
     timeZone: (TIME_ZONES as readonly string[]).includes(zone) ? zone : "Asia/Bangkok",
     weekday: clamp(formData.get("weekday"), 0, 6, 1),
-    imagesPerRun: clamp(formData.get("imagesPerRun"), 0, 4, 1),
-    // Capped at 5 whatever is submitted: this number's whole job is to be a
-    // ceiling a mistake cannot spend past, so it needs one of its own.
-    maxPerDay: clamp(formData.get("maxPerDay"), 1, 5, 1),
+    /* One article, one cover, once. Both were settings; neither earned being a
+       question on every form. A run that produces two articles is a run nobody
+       asked for, and the second image was only ever a variation to choose
+       between — which is an editor's job, and there is no editor here. The
+       columns stay, so the runner still honours anything already stored. */
+    imagesPerRun: 1,
+    maxPerDay: 1,
   };
 }
 
