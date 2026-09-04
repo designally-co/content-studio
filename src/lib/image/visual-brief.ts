@@ -28,10 +28,11 @@ export const IMAGE_DIRECTION = {
  * the difference matters.
  */
 export const IMAGE_RULES = [
-  "Show the real subject: the people, tools and places the article is actually about, doing the thing it describes.",
-  "Match the reference photograph in kind — same sort of subject, setting, activity, framing and light. A different person in a different room on a different day, recognisably the same kind of picture.",
-  "Photographic, not rendered: one light source that makes sense, natural falloff, believable depth of field, honest skin and surface texture.",
-  "An ordinary moment: a person mid-task rather than posed, hands doing something, the small untidiness of a real desk.",
+  "THE REFERENCE DECIDES WHAT IS IN FRAME. If it shows no people, yours shows none. An abstract or graphic reference means an abstract or graphic image — a printed layout, an arrangement of objects, a surface, a space. Do not add a person to a picture that had none.",
+  "Show the real subject the article is about, whatever kind of thing that is: people at work, objects on a table, printed material, a screen, a room.",
+  "Match the reference photograph in kind — same sort of subject, setting, framing and light. Another instance of that kind of picture, not that one.",
+  "Photographic, not rendered: one light source that makes sense, natural falloff, believable depth of field, honest surface texture.",
+  "Unstaged: things as they would actually be, the small untidiness of real use, nothing arranged for the camera.",
   "The colours the setting would really have. No neon, no gradient backdrop, no teal-and-orange grade.",
   "Nothing surreal, symbolic, floating, or impossible. If it could not exist in the room, it does not belong.",
 ] as const;
@@ -54,7 +55,11 @@ export type ArticleVisualBrief = {
    * Empty when nothing is attached.
    */
   referenceScene: string;
-  /** The scene this article's image should show — a moment, not a metaphor. */
+  /**
+   * The scene this article's image should show — a moment, not a metaphor, and
+   * the same KIND of subject as the reference. If the reference has no people
+   * in it, this must not put any in.
+   */
   scene: string;
   /** Other real scenes from the same world, one per extra variation. */
   alternateScenes: string[];
@@ -94,4 +99,4 @@ export type DraftedImagePrompt = {
  * the photograph comes last, because last is what gets read.
  */
 export const finishImagePrompt = (written: string): string =>
-  `${written.trim()}\n\nPhotograph. Natural available light, real materials, ordinary untidiness, believable hands and faces. Not an illustration, not a render, not a stock pose. No readable text or logos. Match the attached photograph: same kind of subject, setting, activity and light. Do not copy it.`;
+  `${written.trim()}\n\nPhotograph. Natural available light, real materials and surfaces, ordinary untidiness. Not an illustration, not a render, not a stock pose. No readable text or logos. Match the attached photograph: the same kind of subject, setting and light. If there are no people in it, there are none in this one. Do not copy it.`;

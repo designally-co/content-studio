@@ -11,7 +11,7 @@ const visualDirectionBlock = (): string =>
   ].join("\n");
 
 /** Task layer — stage-specific instructions. Versioned per template. */
-export const TASKS_VERSION = "tasks@3.0.0";
+export const TASKS_VERSION = "tasks@3.1.0";
 
 /** How far back a news-driven idea may sit and still count as current. */
 const RECENCY_DAYS = 90;
@@ -204,7 +204,7 @@ export function imagePromptTask(params: {
 ${visualDirectionBlock()}
 
 Write it the way a photographer would be briefed:
-- Describe the scene assigned below as a photograph: who is in it, what their hands are doing, where they are, what is on the surfaces around them.
+- Describe the scene assigned below as a photograph: what is in frame, how it is arranged, where it is, what surrounds it. If there are people in it, what their hands are doing; if there are none, do not invent any.
 - Lens feel and distance, where the light comes from and how hard it is, what is sharp and what falls away, the time of day the room suggests.
 - Specific ordinary detail — a cooling coffee, a cable half-coiled, a second monitor turned away, papers that have been moved. That is what makes a photograph read as real.
 - Do not call it art, conceptual, surreal, editorial, or a metaphor. It is a photograph of something that happened.
@@ -218,7 +218,9 @@ ${
     ? `
 THE REFERENCE PHOTOGRAPH SHOWS: ${params.visualBrief.referenceScene}
 
-Yours must be the same kind of picture as that — same sort of subject, setting, activity, framing and light. A different person in a different room on a different day.
+Yours must be the same kind of picture as that — same sort of subject, setting, framing and light. Another instance of that kind of photograph, not that one.
+
+THE REFERENCE DECIDES WHETHER ANYBODY IS IN THE FRAME. If it shows no person, yours shows no person: an abstract or graphic reference means an abstract or graphic image — printed material, an arrangement of objects, a surface, a space. Adding a human to a picture that had none is the single most common way this goes wrong.
 `
     : ""
 }${
@@ -248,17 +250,19 @@ ${
 
 Write \`referenceScene\`: one sentence describing what it actually shows — the subject, what they are doing, the setting, the framing, the light. Describe the photograph in front of you, not what you expect it to be.
 
-Then write \`scene\`: a picture OF THE SAME KIND, about this article's subject. A different person, a different room, a different moment, recognisably the same sort of photograph. That correspondence is the whole job — an image LIKE the reference, not one merely inspired by it.`
+Then write \`scene\`: a picture OF THE SAME KIND, about this article's subject. Another instance of that sort of photograph, not that one. That correspondence is the whole job — an image LIKE the reference, not one merely inspired by it.
+
+THE SAME KIND INCLUDES WHETHER ANYBODY IS IN IT. If the photograph in front of you has no person in it, your scene must have none — describe printed material, objects on a surface, a screen, a room. Do not put a designer at a desk into a scene the reference answered with a flat-lay.`
     : `Set \`referenceScene\` to an empty string — no photograph is attached.
 
-Write \`scene\`: one sentence describing a real moment a photographer could have walked in on. Name the person, what their hands are doing, where they are, and what is around them.`
+Write \`scene\`: one sentence describing something a photographer could have walked in on. Name what is in frame, how it is arranged, where it is, and what surrounds it — people at work, or objects and printed material with nobody there. Either is right; the article decides.`
 }
 
-An article about designers using AI is a designer working — not a glowing brain, a robot hand, or a floating interface. An article about type licensing is somebody at a screen with a foundry's licence page open, or a drawer of metal type in a workshop. If a reader could not say what is happening in the picture, the scene is not doing its job. Ordinary and slightly untidy beats styled.
+An article about designers using AI is a designer working — not a glowing brain, a robot hand, or a floating interface. An article about a brand audit is the printed brand material itself: stationery and packaging laid out on a table, a wall of pinned logo variations, a colour book open beside a swatch fan — no person required, and none unless the reference has one. An article about type licensing is a drawer of metal type in a workshop, or somebody at a screen with a foundry's licence page open. If a reader could not say what is in the picture, the scene is not doing its job. Ordinary and slightly untidy beats styled.
 
-Write \`alternateScenes\`: ${Math.max(params.variantCount - 1, 0)} other real scenes from the same world. Not the same moment from another angle — a different moment: a different part of the work, a different room, a different pair of hands, a different time of day. An editor is choosing between the finished photographs, so two scenes that would produce the same picture are one wasted choice.
+Write \`alternateScenes\`: ${Math.max(params.variantCount - 1, 0)} other real scenes from the same world. Not the same moment from another angle — a different one: a different part of the work, a different arrangement, a different room, a different time of day. An editor is choosing between the finished photographs, so two scenes that would produce the same picture are one wasted choice.
 
-Write \`photoQuery\`: three to six words to search a stock photo library with, describing the SITUATION and nothing else — "designer working at desk laptop", "typographer inspecting metal type", "team reviewing wireframes on wall". No brand names, no abstract nouns, no adjectives about mood. This finds the reference photograph the finished image is matched against, so it must describe something a photographer would actually have shot.
+Write \`photoQuery\`: three to six words to search a stock photo library with, describing the SITUATION and nothing else — "designer working at desk laptop", "brand stationery flat lay table", "typographer inspecting metal type", "colour swatches and print samples". No brand names, no abstract nouns, no adjectives about mood. This finds the reference photograph the finished image is matched against, so it must describe something a photographer would actually have shot.
 
 Finished title: ${params.title}
 
