@@ -64,7 +64,6 @@ export default async function PipelinePage({
   // Only one image reaches the Hub, and `coverImage` is the single answer to
   // which one — shared with publishing, which used to decide separately and
   // disagree.
-  const chosenCoverId = loaded.project.inputs.coverImageId;
   const cover = coverImage(loaded);
   // Cover aspect ratio (width / height) — drives the preview hero's 50% overflow.
   const coverAspectRatio = parseAspectRatio(

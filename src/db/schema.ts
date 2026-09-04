@@ -262,6 +262,62 @@ export const images = pgTable("images", {
 });
 
 /**
+ * A schedule that writes and publishes an article without an editor.
+ *
+ * See migration 0020 for why the schedule and its runs are separate tables.
+ */
+export type RoutineHubStatus = "draft" | "published";
+
+export const routines = pgTable("routines", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull().default("Autopilot"),
+  /** Off. An automation that publishes to a live site does not arrive switched on. */
+  enabled: boolean("enabled").notNull().default(false),
+  /** Null rotates through every active direction rather than repeating one. */
+  categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
+  /**
+   * What the article becomes in the Hub. `draft` keeps a human gate at the far
+   * end even when everything before it is automatic.
+   */
+  hubStatus: text("hub_status").$type<RoutineHubStatus>().notNull().default("draft"),
+  imagesPerRun: integer("images_per_run").notNull().default(1),
+  /** A ceiling a bug cannot spend past. */
+  maxPerDay: integer("max_per_day").notNull().default(1),
+  lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+  createdBy: uuid("created_by").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Where a run has got to.
+ *
+ * A full article takes minutes and a serverless function gets 60 seconds, so
+ * the position lives in the database and one request advances one step.
+ */
+export type RoutineStep = "topic" | "plan" | "draft" | "images" | "publish" | "done";
+export type RoutineRunStatus = "running" | "done" | "failed";
+
+export const routineRuns = pgTable("routine_runs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  routineId: uuid("routine_id")
+    .notNull()
+    .references(() => routines.id, { onDelete: "cascade" }),
+  /**
+   * Set null rather than cascade: deleting the article should not erase the
+   * record that the machine made one.
+   */
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+  step: text("step").$type<RoutineStep>().notNull().default("topic"),
+  status: text("status").$type<RoutineRunStatus>().notNull().default("running"),
+  error: text("error"),
+  attempts: integer("attempts").notNull().default(0),
+  /** Concurrency guard — see migration 0020. */
+  lockedUntil: timestamp("locked_until", { withTimezone: true }),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
  * Where a reference image came from.
  *
  * `article_source` is the lead image of a page the article already cites, and

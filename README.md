@@ -33,6 +33,11 @@ for Designally’s article platform, in Thai and English.
 - **Editorial fact-check** — source consistency and factual review without performance scores.
 - **Copy-to-clipboard** export (Markdown + plain text).
 - **Content Library** with filters and reopen.
+- **Autopilot** — an optional schedule that writes and publishes an article on
+  its own: it picks the direction, researches, drafts, generates the cover
+  image, and sends the result to the Knowledge Hub with nobody reviewing it on
+  the way. Off until switched on in **Settings → Autopilot**, capped per day,
+  and every run is listed there with its outcome.
 
 ## Tech stack
 
@@ -145,6 +150,41 @@ The private GitHub repository is connected to the dedicated Vercel staging
 project. Pushing to `main` automatically updates the stable staging deployment;
 other branches and pull requests receive isolated preview deployments.
 
+## Autopilot (unattended publishing)
+
+The autopilot writes one article end to end and sends it to the Knowledge Hub
+with no human in the loop. It is off until somebody turns it on.
+
+**Turning it on**
+
+1. Set `CRON_SECRET` in the deployment environment (`openssl rand -hex 32`).
+   The endpoint refuses to run without it — a 503, deliberately.
+2. Add two repository secrets so the shipped GitHub Actions workflow can poke
+   it every ten minutes: `AUTOPILOT_URL` (`https://<your-app>/api/cron/autopilot`)
+   and `AUTOPILOT_SECRET` (the same value as `CRON_SECRET`). Without them the
+   workflow exits quietly instead of failing.
+3. Switch it on in **Settings → Autopilot**, and choose how many articles a day,
+   which direction (or rotate through all of them), how many images, and whether
+   the Hub gets a draft or a published post.
+
+**Why a poke and not one long job.** A full article is five model-and-provider
+steps taking two to three minutes; a serverless function gets sixty seconds. So
+a run is a state machine whose position lives in `routine_runs`, advanced a step
+at a time by whatever calls the endpoint. A crashed run resumes where it stopped
+rather than being lost, and two schedulers arriving together cannot advance the
+same run twice (`FOR UPDATE SKIP LOCKED` plus a claim that expires).
+
+`vercel.json` also calls the endpoint daily as a backstop. That is a safety net,
+not the schedule — Vercel's Hobby cron fires about once a day, which would take
+most of a week to finish one article.
+
+**The brakes.** Articles per day is a hard ceiling (five, whatever is typed). A
+step that fails is retried twice and then the run stops with the error visible in
+the history. Five failed *starts* in a day and it stops trying until tomorrow.
+Leaving "What it creates in the Hub" on **draft** keeps one human gate at the far
+end while everything before it stays automatic — the safer of the two by a wide
+margin.
+
 ## Docker / self-hosting
 
 A `Dockerfile` and `docker-compose.yml` are provided from day one.
@@ -185,10 +225,14 @@ src/
     api/
       pipeline/[id]/draft  streamed draft generation (NDJSON)
       pipeline/[id]/refine streamed refinement (NDJSON)
+      cron/autopilot       the autopilot's heartbeat (shared-secret, no session)
       images/[id]          serves stored images
       brand-image/[id]     serves the brand's uploaded logo/avatar
   db/                      Drizzle schema, dual PGlite/Postgres driver, seed
-  lib/                     anthropic client, brand strategy, projects, image providers, …
+  lib/
+    pipeline/              each pipeline step as a plain function, session-free
+    autopilot/             the unattended runner that calls those functions
+    …                      anthropic client, brand strategy, projects, image providers
   prompts/                 layered, versioned prompt templates
 ```
 

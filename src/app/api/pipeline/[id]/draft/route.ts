@@ -1,18 +1,7 @@
 import { NextRequest } from "next/server";
-import { eq } from "drizzle-orm";
-import { getDb } from "@/db";
-import { drafts, refinements } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
-import { loadProject, pipelineContext } from "@/lib/projects";
-import {
-  getModels,
-  buildSystemLayers,
-  streamText,
-  isAnthropicConfigured,
-} from "@/lib/anthropic";
-import { draftTask } from "@/prompts/tasks";
-import { extractOutlineSources } from "@/lib/outline";
-import { countMetrics, deDash } from "@/lib/text";
+import { generateDraftCore } from "@/lib/pipeline/draft";
+import { countMetrics } from "@/lib/text";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -24,6 +13,12 @@ export const runtime = "nodejs";
  */
 export const maxDuration = 60;
 
+/**
+ * The streaming half of drafting. The writing itself lives in
+ * `@/lib/pipeline/draft` so the autopilot runner can do the same work without a
+ * session and without a stream; this route supplies the session, the NDJSON
+ * envelope, and the deltas an editor watches arrive.
+ */
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -31,105 +26,22 @@ export async function POST(
   const user = await getSessionUser();
   if (!user) return new Response("Unauthorized", { status: 401 });
   const { id } = await params;
-  // A single draft is generated per project (the old 1-of-3 variation flow is gone).
-  const variation = 1;
-
-  const loaded = await loadProject(id);
-  if (!loaded) return new Response("Not found", { status: 404 });
-  if (!(await isAnthropicConfigured()))
-    return new Response("The Anthropic API key is not configured", { status: 503 });
-  const outline = loaded.project.outline?.markdown;
-  if (!outline) return new Response("No approved outline", { status: 400 });
-
-  const ctx = pipelineContext(loaded);
-  const { drafting } = await getModels();
-  const longForm = loaded.articleRules.longForm;
-  const bothLang = ctx.language === "both";
-  const maxTokens = longForm ? (bothLang ? 12000 : 8000) : bothLang ? 4000 : 3000;
 
   const encoder = new TextEncoder();
-  const send = (
-    controller: ReadableStreamDefaultController,
-    obj: unknown
-  ) => controller.enqueue(encoder.encode(JSON.stringify(obj) + "\n"));
+  const send = (controller: ReadableStreamDefaultController, obj: unknown) =>
+    controller.enqueue(encoder.encode(JSON.stringify(obj) + "\n"));
 
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        const { text } = await streamText({
-          model: drafting,
-          system: buildSystemLayers(ctx),
-          task: draftTask({ outlineMarkdown: outline, longForm }),
-          maxTokens,
-          onDelta: (d) => send(controller, { t: "delta", d }),
-          projectId: id,
-          stage: "draft",
-        });
-
-        /* Append a Sources section from the outline's research, so a draft
-           always cites where it was written from rather than relying on the
-           writer to add one. Streamed as a final chunk so it appears as the
-           article finishes.
-
-           EVERY draft, not only long-form ones. The gate used to be
-           `if (longForm)`, while the drafting prompt tells every draft — long
-           or short — "do not add your own references or Sources section, a
-           sources list is appended automatically after your draft". Short-form
-           articles were therefore told to leave sources out and then never
-           given any, so they published with none at all. Now that the Hub
-           stores them as structured references rather than prose, an article
-           without them is missing data, not merely a paragraph.
-
-           The two guards below still decide whether anything is added: no
-           researched sources means nothing to append, and a draft that wrote
-           its own Sources heading anyway is left alone. */
-        let finalText = text;
-        {
-          const sources = extractOutlineSources(outline);
-          const alreadyHasSection = /(^|\n)#{1,6}\s*(sources|references)\b/i.test(text);
-          if (sources.length && !alreadyHasSection) {
-            const block =
-              "\n\n## Sources\n\n" +
-              sources.map((s) => `- [${s.name}](${s.url})`).join("\n");
-            send(controller, { t: "delta", d: block });
-            finalText = text + block;
-          }
-        }
-
-        // Strip em dashes from the saved article (belt-and-suspenders with the
-        // system-prompt rule) so the persisted/exported copy reads human-written.
-        finalText = deDash(finalText);
-
-        // Keep one selected draft. Regeneration snapshots the previous version
-        // before replacing its content so history remains restorable.
-        const db = await getDb();
-        const existing = loaded.drafts.find((draft) => draft.variationNo === variation);
-        let row;
-        if (existing) {
-          if (existing.contentMd.trim()) {
-            await db.insert(refinements).values({
-              projectId: id,
-              draftId: existing.id,
-              userMessage: "Version before regeneration",
-              resultMd: existing.contentMd,
-            });
-          }
-          [row] = await db.update(drafts).set({ contentMd: finalText, isSelected: true }).where(eq(drafts.id, existing.id)).returning();
-        } else {
-          [row] = await db.insert(drafts).values({
-            projectId: id,
-            variationNo: variation,
-            contentMd: finalText,
-            isSelected: true,
-          }).returning();
-        }
-
-        const metric = countMetrics(finalText);
+        const { draftId, content } = await generateDraftCore(id, (d) =>
+          send(controller, { t: "delta", d })
+        );
         send(controller, {
           t: "done",
-          draftId: row.id,
-          metricLabel: metric.label,
-          content: finalText,
+          draftId,
+          metricLabel: countMetrics(content).label,
+          content,
         });
       } catch (err) {
         send(controller, {
