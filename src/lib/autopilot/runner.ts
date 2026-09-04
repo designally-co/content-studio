@@ -33,6 +33,29 @@ import { isAnthropicConfigured } from "@/lib/anthropic";
 const STEP_BUDGET_MS = 50_000;
 
 /**
+ * The most one step is given before it is called off.
+ *
+ * WITHOUT THIS THE PLATFORM DOES THE KILLING, AND THAT IS THE WORST OUTCOME.
+ * A Vercel function is terminated at 60 seconds with a 504 and no code of ours
+ * runs afterwards — so the attempt goes unrecorded, the claim quietly expires,
+ * and the same over-long step is retried on the next poke, and the next, for
+ * as long as the schedule lives. Calling it off ourselves means the run is
+ * marked, counted, and eventually stopped with a message a person can read.
+ */
+const STEP_DEADLINE_MS = 45_000;
+
+/**
+ * Room the loop wants before it begins ANOTHER step in the same poke.
+ *
+ * The first version asked only whether the budget had run out, which is the
+ * wrong question: at 30 seconds spent there is time left, but not enough for a
+ * draft, and starting one there is what produced a 504. Steps are not
+ * interchangeable — a topic takes ten seconds and a draft can take fifty — so
+ * the loop now refuses to start one unless a slow one would still fit.
+ */
+const STEP_ROOM_MS = 45_000;
+
+/**
  * How long a claimed run is off-limits to another worker.
  *
  * Longer than any single step, so two pokes arriving together cannot both
@@ -136,6 +159,12 @@ async function claimRun() {
   const claimMs = CLAIM_MS;
   const result = await db.execute(sql`
     update routine_runs set
+      -- COUNTED HERE, NOT ON FAILURE. A step killed by the platform never
+      -- reaches our error handler, so an attempt counted at the end is an
+      -- attempt never counted at all — and a run that cannot record failure
+      -- cannot be stopped by MAX_ATTEMPTS either. Taking the row is the one
+      -- moment that always happens, so it is the moment that counts.
+      attempts = attempts + 1,
       locked_until = now() + (${claimMs} || ' milliseconds')::interval,
       updated_at = now()
     where id = (
@@ -158,7 +187,8 @@ async function claimRun() {
     routineId: String(row.routine_id),
     projectId: row.project_id ? String(row.project_id) : null,
     step: row.step as RoutineStep,
-    attempts: Number(row.attempts ?? 0),
+    // Post-increment: this claim is already included.
+    attempts: Number(row.attempts ?? 1),
   };
 }
 
@@ -342,10 +372,43 @@ async function advance(run: ClaimedRun, routine: Awaited<ReturnType<typeof getRo
   return next;
 }
 
+/**
+ * Run one step, or give up on it in time to say so.
+ *
+ * The work itself keeps running after the deadline — a fetch in flight cannot
+ * be recalled — but nothing waits on it, and every step either checks what is
+ * already stored before redoing it or overwrites its own output, so a late
+ * arrival costs a duplicate call and not a broken article.
+ */
+function withDeadline<T>(work: Promise<T>, ms: number, step: RoutineStep): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(
+        new Error(
+          `The ${step} step took longer than ${Math.round(ms / 1000)}s and was stopped. ` +
+            "The request has a 60-second ceiling; a step that cannot fit needs less work in it, " +
+            "or a plan that allows longer functions."
+        )
+      );
+    }, ms);
+    work.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (cause) => {
+        clearTimeout(timer);
+        reject(cause);
+      }
+    );
+  });
+}
+
 /** Record a failed step, and stop the run once it has failed enough times. */
 async function recordFailure(run: ClaimedRun, cause: unknown) {
   const db = await getDb();
-  const attempts = run.attempts + 1;
+  // Already counted when the run was claimed — see `claimRun`.
+  const attempts = run.attempts;
   const message = cause instanceof Error ? cause.message : String(cause);
   const exhausted = attempts >= MAX_ATTEMPTS;
   await db
@@ -379,14 +442,20 @@ export async function tick(): Promise<TickReport> {
     return { ...report, note: "ANTHROPIC_API_KEY is not set — nothing can be written." };
   }
 
-  // As many steps as the budget allows: a poke every few minutes would
-  // otherwise take a quarter of an hour to finish one article.
-  while (Date.now() - startedAt < STEP_BUDGET_MS) {
+  // Usually one step per poke, occasionally two. The budget is spent on the
+  // assumption that the NEXT step is a slow one, because sometimes it is.
+  for (;;) {
+    const remaining = STEP_BUDGET_MS - (Date.now() - startedAt);
+    if (remaining < STEP_ROOM_MS) break;
     const run = await claimRun();
     if (!run) break;
     report.idle = false;
     try {
-      const to = await advance(run, routine);
+      const to = await withDeadline(
+        advance(run, routine),
+        Math.min(STEP_DEADLINE_MS, remaining - 3_000),
+        run.step
+      );
       report.advanced.push({ runId: run.id, from: run.step, to });
     } catch (cause) {
       const exhausted = await recordFailure(run, cause);
@@ -412,7 +481,9 @@ export async function tick(): Promise<TickReport> {
       return { ...report, note: "HUB_BASE_URL or HUB_API_KEY is not set — nothing could be published." };
     }
     try {
-      await startRun(routine);
+      // Same ceiling as any other step: the topic request is the one thing a
+      // start does, and a start that hangs should say so rather than be killed.
+      await withDeadline(startRun(routine), STEP_DEADLINE_MS, "topic");
       report.started = 1;
       report.idle = false;
     } catch (cause) {

@@ -160,7 +160,7 @@ with no human in the loop. It is off until somebody turns it on.
 1. Set `CRON_SECRET` in the deployment environment (`openssl rand -hex 32`).
    The endpoint refuses to run without it — a 503, deliberately.
 2. Add two repository secrets so the shipped GitHub Actions workflow can poke
-   it every ten minutes: `AUTOPILOT_URL` (`https://<your-app>/api/cron/autopilot`)
+   it every five minutes: `AUTOPILOT_URL` (`https://<your-app>/api/cron/autopilot`)
    and `AUTOPILOT_SECRET` (the same value as `CRON_SECRET`). Without them the
    workflow exits quietly instead of failing.
 3. Switch it on in **Settings → Autopilot**, and choose how many articles a day,
@@ -174,13 +174,20 @@ at a time by whatever calls the endpoint. A crashed run resumes where it stopped
 rather than being lost, and two schedulers arriving together cannot advance the
 same run twice (`FOR UPDATE SKIP LOCKED` plus a claim that expires).
 
+One poke does one step, because steps are not the same size — a topic takes ten
+seconds and a draft can take fifty — and starting a second one with half the
+budget left is what a 504 looks like from the outside. At a poke every five
+minutes an article lands about twenty-five minutes after it starts.
+
 `vercel.json` also calls the endpoint daily as a backstop. That is a safety net,
 not the schedule — Vercel's Hobby cron fires about once a day, which would take
 most of a week to finish one article.
 
 **The brakes.** Articles per day is a hard ceiling (five, whatever is typed). A
 step that fails is retried twice and then the run stops with the error visible in
-the history. Five failed *starts* in a day and it stops trying until tomorrow.
+the history — and a step is counted as attempted the moment it is picked up, not
+when it fails, so one killed by the platform (a 504, which runs none of our code)
+still counts and cannot retry forever. Five failed *starts* in a day and it stops trying until tomorrow.
 Leaving "What it creates in the Hub" on **draft** keeps one human gate at the far
 end while everything before it stays automatic — the safer of the two by a wide
 margin.
