@@ -49,6 +49,14 @@ export const IconBrand = (p: IconProps) => (
   </svg>
 );
 
+/* A clock face with a hand: a routine is a thing that happens at a time. */
+export const IconRoutine = (p: IconProps) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7.5V12l3 2" />
+  </svg>
+);
+
 export const IconSettings = (p: IconProps) => (
   <svg {...base(p)}>
     <circle cx="12" cy="12" r="3" />

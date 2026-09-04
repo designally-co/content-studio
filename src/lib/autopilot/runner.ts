@@ -1,8 +1,9 @@
 import "server-only";
-import { and, asc, desc, eq, gte, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { categories, projects, routineRuns, routines } from "@/db/schema";
-import type { ProjectInputs, RoutineStep } from "@/db/schema";
+import type { ProjectInputs, Routine, RoutineRunStatus, RoutineStep } from "@/db/schema";
+import { nextRunAt } from "@/lib/autopilot/schedule";
 import { generateTopicIdeas } from "@/lib/pipeline/topics";
 import { preparePlanCore } from "@/lib/pipeline/plan";
 import { generateDraftCore } from "@/lib/pipeline/draft";
@@ -84,12 +85,56 @@ export type TickReport = {
 };
 
 /** The single schedule, created on first use so there is nothing to set up. */
-export async function getRoutine() {
+/** Every routine, oldest first — the order the Routines page lists them in. */
+export async function listRoutines(): Promise<Routine[]> {
   const db = await getDb();
-  const [existing] = await db.select().from(routines).orderBy(asc(routines.createdAt)).limit(1);
-  if (existing) return existing;
-  const [created] = await db.insert(routines).values({}).returning();
-  return created;
+  return db.select().from(routines).orderBy(asc(routines.createdAt));
+}
+
+export async function getRoutineById(id: string): Promise<Routine | null> {
+  const db = await getDb();
+  const [row] = await db.select().from(routines).where(eq(routines.id, id)).limit(1);
+  return row ?? null;
+}
+
+/**
+ * Routines that are switched on and past their next run.
+ *
+ * A routine with no `next_run_at` is never due — that is how `manual` is stored
+ * and how a routine that has just been switched off stays quiet.
+ */
+async function dueRoutines(): Promise<Routine[]> {
+  const db = await getDb();
+  return db
+    .select()
+    .from(routines)
+    .where(
+      and(eq(routines.enabled, true), isNotNull(routines.nextRunAt), lte(routines.nextRunAt, new Date()))
+    )
+    .orderBy(asc(routines.nextRunAt));
+}
+
+/**
+ * Move a routine's clock forward.
+ *
+ * Always from NOW rather than from the run it just missed: a routine switched
+ * back on after a week should write one article, not seven.
+ */
+export async function rescheduleRoutine(routine: Routine): Promise<Date | null> {
+  const db = await getDb();
+  const next = routine.enabled
+    ? nextRunAt({
+        kind: routine.scheduleKind,
+        runAt: routine.runAt,
+        timeZone: routine.timeZone,
+        weekday: routine.weekday,
+      })
+    : null;
+  await db
+    .update(routines)
+    .set({ nextRunAt: next, updatedAt: new Date() })
+    .where(eq(routines.id, routine.id));
+  return next;
 }
 
 /** Midnight UTC — the line both of the day's counts are drawn from. */
@@ -154,9 +199,12 @@ async function failedStartsToday(routineId: string): Promise<number> {
  * claim has to outlive it and survive a worker that dies mid-step — which it
  * does by expiring rather than by needing cleanup.
  */
-async function claimRun() {
+async function claimRun(onlyRunId?: string) {
   const db = await getDb();
   const claimMs = CLAIM_MS;
+  /* `onlyRunId` is how the Routines page takes the run it is watching rather
+     than whichever is oldest. Same claim, same lock, narrower target. */
+  const target = onlyRunId ?? null;
   const result = await db.execute(sql`
     update routine_runs set
       -- COUNTED HERE, NOT ON FAILURE. A step killed by the platform never
@@ -171,6 +219,7 @@ async function claimRun() {
       select id from routine_runs
       where status = 'running'
         and (locked_until is null or locked_until < now())
+        and (${target}::uuid is null or id = ${target}::uuid)
       order by started_at asc
       limit 1
       for update skip locked
@@ -219,7 +268,7 @@ async function pickCategory(routineCategoryId: string | null, runCount: number) 
  * first one. Creating the project here rather than in the `topic` step keeps
  * every later step addressable by `projectId` alone.
  */
-async function startRun(routine: Awaited<ReturnType<typeof getRoutine>>) {
+async function startRun(routine: Routine) {
   const db = await getDb();
   const total = await runsToday(routine.id);
   const category = await pickCategory(routine.categoryId, total);
@@ -390,7 +439,7 @@ async function runImageStep(projectId: string, count: number) {
 /** Advance one run by exactly one step. */
 type ClaimedRun = NonNullable<Awaited<ReturnType<typeof claimRun>>>;
 
-async function advance(run: ClaimedRun, routine: Awaited<ReturnType<typeof getRoutine>>) {
+async function advance(run: ClaimedRun, routine: Routine) {
   const db = await getDb();
   const projectId = run.projectId;
   if (!projectId) throw new Error("This run has no article attached.");
@@ -525,20 +574,64 @@ export async function tick(): Promise<TickReport> {
   const startedAt = Date.now();
   const report: TickReport = { started: 0, advanced: [], idle: true };
 
-  const routine = await getRoutine();
-  if (!routine.enabled) return { ...report, note: "Autopilot is switched off." };
   if (!(await isAnthropicConfigured())) {
     return { ...report, note: "ANTHROPIC_API_KEY is not set — nothing can be written." };
   }
 
-  // Usually one step per poke, occasionally two. The budget is spent on the
-  // assumption that the NEXT step is a slow one, because sometimes it is.
+  /* Work in flight comes first, whichever routine it belongs to. An article
+     part-way through has already spent money on research and drafting, and
+     finishing it matters more than beginning another. */
+  const advancedAny = await advanceInFlight(report, startedAt);
+
+  // A tick that spent its budget advancing does not also start something new.
+  if (advancedAny && Date.now() - startedAt >= STEP_ROOM_MS) return report;
+
+  const due = await dueRoutines();
+  if (due.length === 0) {
+    return advancedAny ? report : { ...report, note: notIdleNote(await listRoutines()) };
+  }
+
+  for (const routine of due) {
+    // Whether or not it starts, its clock moves on. A routine that cannot run
+    // today should try tomorrow, not on every tick for the rest of the day.
+    await rescheduleRoutine(routine);
+
+    const total = await runsToday(routine.id);
+    if (total >= routine.maxPerDay) continue;
+    if ((await failedStartsToday(routine.id)) >= FAILED_STARTS_PER_DAY) continue;
+    if (routine.hubStatus === "published" && !isHubConfigured()) continue;
+
+    try {
+      await withDeadline(startRun(routine), STEP_DEADLINE_MS, "topic");
+      report.started += 1;
+      report.idle = false;
+    } catch (cause) {
+      await recordStartFailure(routine.id, cause);
+      report.note = "A routine could not start — see its history.";
+    }
+    // One start per tick. The next one is five minutes away, and two articles
+    // beginning together would fight over the same sixty seconds anyway.
+    break;
+  }
+
+  return report;
+}
+
+/** Advance whatever is running, within the tick's budget. True if anything was. */
+async function advanceInFlight(report: TickReport, startedAt: number): Promise<boolean> {
+  let moved = false;
   for (;;) {
     const remaining = STEP_BUDGET_MS - (Date.now() - startedAt);
     if (remaining < STEP_ROOM_MS) break;
     const run = await claimRun();
     if (!run) break;
     report.idle = false;
+    moved = true;
+    const routine = await getRoutineById(run.routineId);
+    if (!routine) {
+      await recordFailure(run, new Error("The routine this run belongs to is gone."));
+      break;
+    }
     try {
       const to = await withDeadline(
         advance(run, routine),
@@ -549,50 +642,108 @@ export async function tick(): Promise<TickReport> {
     } catch (cause) {
       const exhausted = await recordFailure(run, cause);
       report.advanced.push({ runId: run.id, from: run.step, to: exhausted ? "failed" : run.step });
-      // Stop this poke rather than spin: whatever failed is likely to fail
+      // Stop this tick rather than spin: whatever failed is likely to fail
       // again inside the same few seconds.
       break;
     }
   }
-
-  if (report.idle) {
-    const total = await runsToday(routine.id);
-    if (total >= routine.maxPerDay) {
-      return { ...report, note: `Today's limit of ${routine.maxPerDay} is already used.` };
-    }
-    if ((await failedStartsToday(routine.id)) >= FAILED_STARTS_PER_DAY) {
-      return {
-        ...report,
-        note: "Too many runs failed to start today — see the history. It will try again tomorrow.",
-      };
-    }
-    if (routine.hubStatus === "published" && !isHubConfigured()) {
-      return { ...report, note: "HUB_BASE_URL or HUB_API_KEY is not set — nothing could be published." };
-    }
-    try {
-      // Same ceiling as any other step: the topic request is the one thing a
-      // start does, and a start that hangs should say so rather than be killed.
-      await withDeadline(startRun(routine), STEP_DEADLINE_MS, "topic");
-      report.started = 1;
-      report.idle = false;
-    } catch (cause) {
-      const db = await getDb();
-      await db.insert(routineRuns).values({
-        routineId: routine.id,
-        step: "topic",
-        status: "failed",
-        attempts: MAX_ATTEMPTS,
-        error: (cause instanceof Error ? cause.message : String(cause)).slice(0, 500),
-      });
-      return { ...report, note: "Could not start a run — see the history." };
-    }
-  }
-
-  return report;
+  return moved;
 }
 
-/** The most recent runs, for the Settings page. */
-export async function recentRuns(limit = 20) {
+/** Why a tick with nothing to do had nothing to do — shown on the Routines page. */
+function notIdleNote(all: Routine[]): string {
+  if (all.length === 0) return "No routines yet.";
+  const on = all.filter((routine) => routine.enabled && routine.scheduleKind !== "manual");
+  if (on.length === 0) return "No routine is on a schedule.";
+  return "Nothing is due yet.";
+}
+
+/** A start that failed leaves a row, so the reason is readable on the page. */
+async function recordStartFailure(routineId: string, cause: unknown) {
+  const db = await getDb();
+  await db.insert(routineRuns).values({
+    routineId,
+    step: "topic",
+    status: "failed",
+    attempts: MAX_ATTEMPTS,
+    error: (cause instanceof Error ? cause.message : String(cause)).slice(0, 500),
+  });
+}
+
+/**
+ * Start a routine now, because somebody pressed the button.
+ *
+ * Deliberately not subject to `maxPerDay`. That ceiling exists so a mistake in
+ * a schedule cannot spend all day; a person clicking Run now is not a mistake
+ * in a schedule, and being refused by a limit they set for the unattended case
+ * would be the wrong kind of safe. The schedule's own clock is left alone.
+ */
+export async function runRoutineNow(routineId: string): Promise<{ runId: string }> {
+  const routine = await getRoutineById(routineId);
+  if (!routine) throw new Error("This routine no longer exists.");
+  if (!(await isAnthropicConfigured())) {
+    throw new Error("The Anthropic API key is not configured, so nothing can be written.");
+  }
+  const run = await withDeadline(startRun(routine), STEP_DEADLINE_MS, "topic");
+  return { runId: run.id };
+}
+
+export type StepOutcome = {
+  runId: string;
+  step: RoutineStep;
+  status: RoutineRunStatus;
+  /** Set when this call did nothing because another worker holds the run. */
+  busy?: boolean;
+  error?: string;
+};
+
+/**
+ * Advance ONE run by one step, and say where it got to.
+ *
+ * This is what the Routines page calls, over and over, while somebody watches a
+ * manual run: the browser is the timer, so a run started by hand finishes in
+ * three minutes instead of waiting out the schedule. It takes the same claim as
+ * a tick, so a person watching and a scheduler ticking cannot both advance the
+ * same run.
+ */
+export async function stepRun(runId: string): Promise<StepOutcome> {
+  const db = await getDb();
+  const [before] = await db.select().from(routineRuns).where(eq(routineRuns.id, runId)).limit(1);
+  if (!before) throw new Error("This run no longer exists.");
+  if (before.status !== "running") {
+    return { runId, step: before.step, status: before.status, error: before.error ?? undefined };
+  }
+
+  const run = await claimRun(runId);
+  if (!run) {
+    // Held by a tick, or by another tab. Report it rather than queueing behind
+    // it: the caller polls, and the next poll will find it moved on.
+    return { runId, step: before.step, status: "running", busy: true };
+  }
+
+  const routine = await getRoutineById(run.routineId);
+  if (!routine) {
+    await recordFailure(run, new Error("The routine this run belongs to is gone."));
+    return { runId, step: run.step, status: "failed", error: "The routine is gone." };
+  }
+
+  try {
+    const to = await withDeadline(advance(run, routine), STEP_DEADLINE_MS, run.step);
+    return { runId, step: to, status: to === "done" ? "done" : "running" };
+  } catch (cause) {
+    const exhausted = await recordFailure(run, cause);
+    return {
+      runId,
+      step: run.step,
+      status: exhausted ? "failed" : "running",
+      error: cause instanceof Error ? cause.message : String(cause),
+    };
+  }
+}
+
+
+/** The most recent runs — all of them, or one routine's. */
+export async function recentRuns(limit = 20, routineId?: string) {
   const db = await getDb();
   return db
     .select({
@@ -603,11 +754,13 @@ export async function recentRuns(limit = 20) {
       error: routineRuns.error,
       startedAt: routineRuns.startedAt,
       updatedAt: routineRuns.updatedAt,
+      routineId: routineRuns.routineId,
       title: projects.selectedTopic,
       publishedTo: projects.publishedTo,
     })
     .from(routineRuns)
     .leftJoin(projects, eq(projects.id, routineRuns.projectId))
+    .where(routineId ? eq(routineRuns.routineId, routineId) : undefined)
     .orderBy(desc(routineRuns.startedAt))
     .limit(limit);
 }

@@ -58,6 +58,7 @@ src/
         publish-actions.ts  dek generation + publish to the Hub
         stages/             prepare-draft, drafts, publish stage UIs
       library/              Content Library (list, filter, delete)
+      routines/             schedules: create, edit, run now, history
       settings/             brand / content / api / account (routed sections)
     api/                    HTTP route handlers (see §7)
     login/                  sign-in + first-run account creation
@@ -78,6 +79,8 @@ src/
     image/                  providers, storage, branding, visual brief
     pipeline/               each pipeline step as a plain function, session-free
     autopilot/runner.ts     the unattended state machine that calls those steps
+    autopilot/schedule.ts   when a routine next runs (plain module, no directive)
+    autopilot/views.ts      the shapes the Routines tab draws
     projects.ts             loadProject() + pipelineContext()
     cost.ts                 token/cost telemetry
   prompts/
@@ -137,9 +140,9 @@ The first account created through the first-run flow is given `role: "admin"`.
 | `model.research` | `claude-haiku-4-5` |
 | `model.drafting` | `claude-sonnet-5` |
 
-**`routines`** — the autopilot's single settings row: `enabled`, `category_id` (null rotates), `max_per_day`, `images_per_run`, `hub_status` (`draft` | `published`), `last_run_at`. Created on first use, so there is nothing to set up.
+**`routines`** — one row per routine, edited in the Routines tab: `name`, `enabled`, `category_id` (null rotates), `max_per_day`, `images_per_run`, `hub_status` (`draft` | `published`), and its own schedule — `schedule_kind` (`manual` | `daily` | `weekdays` | `weekly`), `run_at` (`HH:MM`), `time_zone`, `weekday`, `next_run_at`. The timer outside knows none of this: it says "tick", and a tick starts the routines whose `next_run_at` has passed.
 
-**`routine_runs`** — one row per unattended article, and the autopilot's memory between requests: `project_id`, `step` (`topic` → `plan` → `draft` → `prompt` → `reference` → `images` → `publish` → `done`), `status` (`running` | `done` | `failed`), `attempts`, `error`, `locked_until`. The step column is what makes a run resumable after a crash; `locked_until` is what stops two schedulers advancing the same run. Read by **Settings → Autopilot**.
+**`routine_runs`** — one row per unattended article, and the autopilot's memory between requests: `project_id`, `step` (`topic` → `plan` → `draft` → `prompt` → `reference` → `images` → `publish` → `done`), `status` (`running` | `done` | `failed`), `attempts`, `error`, `locked_until`. The step column is what makes a run resumable after a crash; `locked_until` is what stops two schedulers advancing the same run. Read by the **Routines** tab, grouped under the routine that made each run.
 
 **`api_keys`** — user-saved image-provider keys, `encrypted_value` = AES-256-GCM `iv:authTag:ciphertext` (hex), keyed off `ENCRYPTION_KEY`. Only `fal` is a live provider. **Anthropic is environment-only and never stored here.**
 
@@ -240,7 +243,8 @@ Not HTTP endpoints you can call from another origin — Next.js server actions, 
 | `pipeline/[id]/actions.ts` | `prepareSimpleArticleAction`, `goToFinalizeAction`, `generateImagePromptAction`, `reviewBrandAlignmentAction`, `saveDraftContentAction` |
 | `pipeline/[id]/image-actions.ts` | `uploadImageReferenceAction`, `generateImagesAction`, `setImageBrandingAction`, `setCoverImageAction`, `deleteGeneratedImageAction` |
 | `pipeline/[id]/publish-actions.ts` | `ensurePublishDekAction`, `publishToHubAction` |
-| `settings/actions.ts` | `manageTeamMemberAction`*, `toggleCategoryAction`, `saveArticleTemplateAction`, `saveModelSettingsAction`*, `saveApiKeyAction`*, `deleteApiKeyAction`*, `saveBrandAction`, `saveRoutineAction`* |
+| `settings/actions.ts` | `manageTeamMemberAction`*, `toggleCategoryAction`, `saveArticleTemplateAction`, `saveModelSettingsAction`*, `saveApiKeyAction`*, `deleteApiKeyAction`*, `saveBrandAction` |
+| `routines/actions.ts` | `createRoutineAction`*, `updateRoutineAction`*, `toggleRoutineAction`*, `deleteRoutineAction`*, `runRoutineNowAction`*, `stepRunAction`* |
 
 \* admin-only.
 
@@ -339,7 +343,7 @@ There is no webhook or outbound event system beyond the Hub publish. `publishToH
 | `SUPABASE_URL` | optional | Enables Supabase Storage for generated images. |
 | `SUPABASE_SERVICE_ROLE_KEY` | optional | Paired with the above. |
 | `SUPABASE_STORAGE_BUCKET` | optional | Defaults to `content-studio-images`. Bucket should be public, or adapt `/api/images`. |
-| `CRON_SECRET` | for the autopilot | Shared secret for `/api/cron/autopilot`. `openssl rand -hex 32`. Unset → the endpoint answers `503` and the autopilot cannot run at all. Setting it starts nothing on its own; the switch is in Settings → Autopilot. |
+| `CRON_SECRET` | for the autopilot | Shared secret for `/api/cron/autopilot`. `openssl rand -hex 32`. Unset → the endpoint answers `503` and the autopilot cannot run at all. Setting it starts nothing on its own; routines are created and switched on in the Routines tab. |
 | `SKIP_DB_MIGRATE` | recommended in prod | `1` stops every cold start running the migrator. See §10. |
 | `DB_FORCE_TRANSACTION_POOLER` | rarely | `1` rewrites a Supabase pooler URL `:5432` → `:6543`. **Off by default deliberately — see §11.** |
 
@@ -374,7 +378,7 @@ On boot, `getDb()` runs the migrator and seeder automatically **unless `SKIP_DB_
 
 **Vercel** — push to `main`. Region `sin1`. Set every variable from §9.
 
-**The autopilot's scheduler.** Nothing in Vercel drives it usefully: Hobby cron fires roughly once a day and one article takes seven steps, so a run would take most of a week. `.github/workflows/autopilot.yml` pokes the endpoint every five minutes instead — free, and no plan change. It needs two **repository secrets**: `AUTOPILOT_URL` (`https://<your-app>/api/cron/autopilot`) and `AUTOPILOT_SECRET` (the same value as `CRON_SECRET`). With either missing the workflow exits 0 without calling anything, so a fork or a clone does not fail CI over a feature it has not configured. `vercel.json` keeps a daily cron as a backstop. Anything that can make an HTTPS request on a timer works equally well.
+**The autopilot's scheduler.** Nothing in Vercel drives it usefully: Hobby cron fires roughly once a day and one article takes seven steps, so a run would take most of a week. `.github/workflows/autopilot.yml` pokes the endpoint every five minutes instead — it carries no schedule of its own, only the interval at which the app is asked whether anything is due — free, and no plan change. It needs two **repository secrets**: `AUTOPILOT_URL` (`https://<your-app>/api/cron/autopilot`) and `AUTOPILOT_SECRET` (the same value as `CRON_SECRET`). With either missing the workflow exits 0 without calling anything, so a fork or a clone does not fail CI over a feature it has not configured. `vercel.json` keeps a daily cron as a backstop. Anything that can make an HTTPS request on a timer works equally well.
 
 **Docker** — multi-stage build to `.next/standalone`, runs as non-root `nextjs` (uid 1001), exposes 3000, mounts `/app/data` for PGlite/local images/secrets:
 
@@ -402,7 +406,7 @@ Things that will cost you time if you do not know them.
 
 **Cost telemetry is recorded but not surfaced.** `api_usage_log` and `pricing` are populated; there is no spend dashboard.
 
-**The autopilot publishes without review.** While it is on, articles reach the Hub with nobody having read them. The brakes are a per-day ceiling (five, whatever is typed), two retries per step before a run stops, and a limit of five failed starts a day. An attempt is counted when a step is picked up rather than when it fails, because a step killed at the function's 60s ceiling never reaches any of our code — counting at the end would leave it retrying on every poke forever. For the same reason the runner calls a step off at 45s itself, and does one step per poke unless a slow one would still fit in what is left. Leaving its Hub setting on **draft** keeps one human gate at the far end and costs nothing else. Every run, including failures and their error text, is listed in Settings → Autopilot; there is no alerting beyond that page.
+**The autopilot publishes without review.** While it is on, articles reach the Hub with nobody having read them. The brakes are a per-day ceiling (five, whatever is typed), two retries per step before a run stops, and a limit of five failed starts a day. An attempt is counted when a step is picked up rather than when it fails, because a step killed at the function's 60s ceiling never reaches any of our code — counting at the end would leave it retrying on every poke forever. For the same reason the runner calls a step off at 45s itself, and does one step per poke unless a slow one would still fit in what is left. Leaving its Hub setting on **draft** keeps one human gate at the far end and costs nothing else. Every run, including failures and their error text, is listed in the Routines tab under the routine that made it; there is no alerting beyond that page.
 
 **Thai.** `language: "both"` doubles `maxTokens`. Separately, the Hub auto-translates on publish. These are two different mechanisms — do not assume one implies the other.
 
@@ -421,7 +425,7 @@ Things that will cost you time if you do not know them.
 | Publish destination or payload | `lib/hub.ts` + `pipeline/[id]/publish-actions.ts` |
 | Image providers | `lib/image/fal.ts`, registered in `lib/image/registry.ts` |
 | Adding an inbound API | See §8.2 Option A |
-| What the autopilot does, or how often | Settings → Autopilot; the machine itself is `lib/autopilot/runner.ts`, its schedule `.github/workflows/autopilot.yml` |
+| What a routine does, or how often | The Routines tab. The machine is `lib/autopilot/runner.ts`, the schedule maths `lib/autopilot/schedule.ts`; `.github/workflows/autopilot.yml` only decides how often the app is asked, not what runs |
 
 ---
 

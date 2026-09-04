@@ -9,19 +9,23 @@ import { Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import {
   IconNew,
   IconLibrary,
+  IconRoutine,
   IconSettings,
 } from "./icons";
 
 const NAV = [
   { href: "/", label: "Create", icon: IconNew, exact: true },
   { href: "/library", label: "Library", icon: IconLibrary, exact: true },
+  // A routine publishes to a live site with nobody reading it first, and the
+  // page itself refuses anyone else — so the link is not offered either.
+  { href: "/routines", label: "Routines", icon: IconRoutine, exact: false, adminOnly: true },
   { href: "/settings", label: "Settings", icon: IconSettings, exact: false },
 ];
 
 /** Routes that open with the panel out of the way. */
 const COLLAPSED_ROUTES = new Set(["/"]);
 
-export function SideNav() {
+export function SideNav({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   // The route decides the opening state and nothing else ever does: only the
@@ -89,7 +93,7 @@ export function SideNav() {
                 <X className="size-5" />
               </button>
             </div>
-            <NavLinks pathname={pathname} onNavigate={() => setOpen(false)} />
+            <NavLinks pathname={pathname} isAdmin={isAdmin} onNavigate={() => setOpen(false)} />
           </aside>
         </div>
       )}
@@ -130,7 +134,7 @@ export function SideNav() {
         </div>
         <div className={`h-px shrink-0 bg-line ${collapsed ? "mx-3" : "mx-4"}`} />
 
-        <NavLinks pathname={pathname} collapsed={collapsed} />
+        <NavLinks pathname={pathname} isAdmin={isAdmin} collapsed={collapsed} />
         </div>
       </aside>
     </>
@@ -145,10 +149,10 @@ function MobileBrand() {
   );
 }
 
-function NavLinks({ pathname, onNavigate, collapsed = false }: { pathname: string; onNavigate?: () => void; collapsed?: boolean }) {
+function NavLinks({ pathname, isAdmin, onNavigate, collapsed = false }: { pathname: string; isAdmin: boolean; onNavigate?: () => void; collapsed?: boolean }) {
   return (
     <nav className={`flex-1 space-y-1 overflow-y-auto py-4 ${collapsed ? "px-2" : "px-4"}`} aria-label="Primary navigation">
-      {NAV.map(({ href, label, icon: Icon, exact }) => {
+      {NAV.filter((item) => !item.adminOnly || isAdmin).map(({ href, label, icon: Icon, exact }) => {
           const active = exact
             ? pathname === href
             : pathname === href || pathname.startsWith(href + "/");

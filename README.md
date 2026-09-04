@@ -33,11 +33,11 @@ for Designally’s article platform, in Thai and English.
 - **Editorial fact-check** — source consistency and factual review without performance scores.
 - **Copy-to-clipboard** export (Markdown + plain text).
 - **Content Library** with filters and reopen.
-- **Autopilot** — an optional schedule that writes and publishes an article on
+- **Routines** — as many saved schedules as you like, each writing an article on
   its own: it picks the direction, researches, drafts, generates the cover
   image, and sends the result to the Knowledge Hub with nobody reviewing it on
-  the way. Off until switched on in **Settings → Autopilot**, capped per day,
-  and every run is listed there with its outcome.
+  the way. Built and run from the **Routines** tab — daily, weekdays, weekly or
+  by hand — capped per day, with every run listed under the routine that made it.
 
 ## Tech stack
 
@@ -150,22 +150,29 @@ The private GitHub repository is connected to the dedicated Vercel staging
 project. Pushing to `main` automatically updates the stable staging deployment;
 other branches and pull requests receive isolated preview deployments.
 
-## Autopilot (unattended publishing)
+## Routines (unattended publishing)
 
-The autopilot writes one article end to end and sends it to the Knowledge Hub
-with no human in the loop. It is off until somebody turns it on.
+A routine writes one article end to end and sends it to the Knowledge Hub with
+no human in the loop. Routines live in the **Routines** tab: name, content
+direction (or rotate through all of them), when it runs, how many images, how
+many articles a day, and whether the Hub gets a draft or a published post. Every
+routine also has **Run now**, which starts one immediately and drives it to the
+end while the page is open — one request per step, so a manual run finishes in a
+few minutes instead of waiting for the schedule.
 
-**Turning it on**
+**Everything about WHEN lives in the app.** The external timer knows nothing: it
+calls `/api/cron/autopilot` on a fixed interval and the app decides which
+routines are due. Two things have to be set once for that to happen:
 
-1. Set `CRON_SECRET` in the deployment environment (`openssl rand -hex 32`).
-   The endpoint refuses to run without it — a 503, deliberately.
-2. Add two repository secrets so the shipped GitHub Actions workflow can poke
-   it every five minutes: `AUTOPILOT_URL` (`https://<your-app>/api/cron/autopilot`)
-   and `AUTOPILOT_SECRET` (the same value as `CRON_SECRET`). Without them the
+1. `CRON_SECRET` in the deployment environment (`openssl rand -hex 32`). The
+   endpoint refuses to run without it — a 503, deliberately.
+2. Two GitHub repository secrets so the shipped workflow can call it every five
+   minutes: `AUTOPILOT_URL` (`https://<your-app>/api/cron/autopilot`) and
+   `AUTOPILOT_SECRET` (the same value as `CRON_SECRET`). Without them the
    workflow exits quietly instead of failing.
-3. Switch it on in **Settings → Autopilot**, and choose how many articles a day,
-   which direction (or rotate through all of them), how many images, and whether
-   the Hub gets a draft or a published post.
+
+Nothing else is configured outside the app. Changing a routine's day, hour or
+time zone never means editing the workflow.
 
 **Why a poke and not one long job.** A full article is seven model-and-provider
 steps taking three to four minutes; a serverless function gets sixty seconds. So
@@ -187,7 +194,9 @@ calls in one step took 46 seconds and was killed every time.
 not the schedule — Vercel's Hobby cron fires about once a day, which would take
 most of a week to finish one article.
 
-**The brakes.** Articles per day is a hard ceiling (five, whatever is typed). A
+**The brakes.** Articles per day is a hard ceiling (five, whatever is typed) on
+scheduled runs; pressing Run now is an explicit instruction and is not subject to
+it. A
 step that fails is retried twice and then the run stops with the error visible in
 the history — and a step is counted as attempted the moment it is picked up, not
 when it fails, so one killed by the platform (a 504, which runs none of our code)

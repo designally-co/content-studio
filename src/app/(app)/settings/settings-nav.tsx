@@ -21,7 +21,6 @@ const SECTIONS: Section[] = [
   { href: "/settings/brand", label: "Brand" },
   { href: "/settings/content", label: "Content" },
   { href: "/settings/api", label: "API & models", adminOnly: true },
-  { href: "/settings/automation", label: "Autopilot", adminOnly: true },
   { href: "/settings/account", label: "Account" },
 ];
 

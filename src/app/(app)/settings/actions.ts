@@ -1,7 +1,5 @@
 "use server";
 
-import { routines } from "@/db/schema";
-import { getRoutine } from "@/lib/autopilot/runner";
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
@@ -172,42 +170,4 @@ export async function saveBrandAction(formData: FormData) {
     .where(eq(brandProfiles.id, id));
 
   revalidatePath("/settings");
-}
-
-// ---- autopilot ----
-
-/**
- * Change the schedule that writes and publishes without an editor.
- *
- * Administrator-only, like the model and provider settings, and for a stronger
- * reason: this switch decides whether the machine posts to a live site on its
- * own. `enabled` is read as an explicit "on" rather than as the presence of a
- * checkbox value, so a malformed submission cannot switch it on by accident.
- */
-export async function saveRoutineAction(formData: FormData) {
-  await requireAdmin();
-  const db = await getDb();
-  const routine = await getRoutine();
-
-  const categoryId = String(formData.get("categoryId") ?? "").trim();
-  const hubStatus = String(formData.get("hubStatus") ?? "") === "published" ? "published" : "draft";
-  const clamp = (value: FormDataEntryValue | null, min: number, max: number, fallback: number) => {
-    const parsed = Number(String(value ?? ""));
-    return Number.isFinite(parsed) ? Math.min(Math.max(Math.floor(parsed), min), max) : fallback;
-  };
-
-  await db
-    .update(routines)
-    .set({
-      enabled: String(formData.get("enabled") ?? "") === "on",
-      categoryId: categoryId || null,
-      hubStatus,
-      imagesPerRun: clamp(formData.get("imagesPerRun"), 0, 4, routine.imagesPerRun),
-      // Capped at 5 whatever is submitted. The point of this number is to be a
-      // ceiling a mistake cannot spend past, so it needs one of its own.
-      maxPerDay: clamp(formData.get("maxPerDay"), 1, 5, routine.maxPerDay),
-    })
-    .where(eq(routines.id, routine.id));
-
-  revalidatePath("/settings/automation");
 }

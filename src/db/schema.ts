@@ -1,3 +1,4 @@
+import type { RoutineScheduleKind } from "@/lib/autopilot/schedule";
 import {
   pgTable,
   text,
@@ -285,10 +286,14 @@ export const images = pgTable("images", {
  * See migration 0020 for why the schedule and its runs are separate tables.
  */
 export type RoutineHubStatus = "draft" | "published";
+/* The schedule's shapes live with the code that computes them, in a module a
+   client component can import; re-exported here so the table definition and its
+   readers speak one vocabulary. */
+export type { RoutineScheduleKind };
 
 export const routines = pgTable("routines", {
   id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull().default("Autopilot"),
+  name: text("name").notNull().default("Routine"),
   /** Off. An automation that publishes to a live site does not arrive switched on. */
   enabled: boolean("enabled").notNull().default(false),
   /** Null rotates through every active direction rather than repeating one. */
@@ -301,10 +306,26 @@ export const routines = pgTable("routines", {
   imagesPerRun: integer("images_per_run").notNull().default(1),
   /** A ceiling a bug cannot spend past. */
   maxPerDay: integer("max_per_day").notNull().default(1),
+
+  /* When it runs. The external timer knows none of this — it only says "tick",
+     and these five columns decide whether anything happens. See
+     `src/lib/autopilot/schedule.ts`. */
+  scheduleKind: text("schedule_kind").$type<RoutineScheduleKind>().notNull().default("manual"),
+  /** `HH:MM` on a 24-hour clock, read in `timeZone`. */
+  runAt: text("run_at").notNull().default("09:00"),
+  timeZone: text("time_zone").notNull().default("Asia/Bangkok"),
+  /** 0–6, Sunday first. Only read by a weekly schedule. */
+  weekday: integer("weekday").notNull().default(1),
+  /** The answer, stored: a tick asks which routines are past theirs. */
+  nextRunAt: timestamp("next_run_at", { withTimezone: true }),
+
   lastRunAt: timestamp("last_run_at", { withTimezone: true }),
   createdBy: uuid("created_by").references(() => users.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export type Routine = typeof routines.$inferSelect;
 
 /**
  * Where a run has got to.
