@@ -41,6 +41,7 @@ function readForm(formData: FormData) {
 
   return {
     name: String(formData.get("name") ?? "").trim().slice(0, 80) || "Routine",
+    description: String(formData.get("description") ?? "").trim().slice(0, 200) || null,
     categoryId: String(formData.get("categoryId") ?? "").trim() || null,
     hubStatus: String(formData.get("hubStatus") ?? "") === "published" ? "published" as const : "draft" as const,
     scheduleKind: kind,

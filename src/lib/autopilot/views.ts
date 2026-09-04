@@ -12,6 +12,7 @@ import type { RoutineScheduleKind } from "@/lib/autopilot/schedule";
 export type RoutineView = {
   id: string;
   name: string;
+  description: string | null;
   enabled: boolean;
   categoryId: string | null;
   /** Null means it rotates through every active direction. */

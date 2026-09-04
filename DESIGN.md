@@ -328,8 +328,9 @@ The pipeline runs on its own visual rules: the shell every stage sits in, and th
 
 A working surface, and deliberately the plainest one in the product: one bordered Clean Sheet list on Draft Bed, routines as rows divided by Rule Lines, and a row's details opening inside that same container rather than beside it.
 
-- **Rows, not cards.** A stack of identical cards is what this page was first built as, and it read as five things competing rather than one list. Nested cards are prohibited anyway — the run history and the progress readout sit inside a routine, and as cards they were cards inside a card.
-- **An expanded row stays Clean Sheet.** The page is already Draft Bed, so a Draft Bed panel inside the white list reads as the card ending, not as a grouped region. A hairline rule does the separating.
+- **One card per routine, and nothing card-like inside it.** A routine is a distinct working object, so it takes a bordered Clean Sheet container on Draft Bed. What it contains — its state, its last run, the delete confirmation — is text and rules, never another card.
+- **Name, description, switch, menu.** Everything else about a routine is in its form. Three buttons in a row competed with the name for the eye; one `⋯` holding Run now, Edit and Delete does not, and it puts the destructive action behind a deliberate second step.
+- **A routine reports whether it works, not what it made.** Its card carries the run in flight or the last one's outcome; the articles themselves are in the Library with every other article. Listing them twice made a page of run rows nobody read.
 - **State is a word before it is a colour.** Off / On beside the switch, `Running` in the row, `Stopped at making the cover` in the history. The progress rule and its red or orange fill only reinforce what the words already say.
 - **The page is the timer while it is open.** A run advances one step per request, so the page that is being watched drives it — including a run that something else started, picked up on load. Anything else means a run somebody is watching moves slower than one nobody is.
 - **Provider errors are translated.** `401 {"type":"error"…}` becomes "The Anthropic key was rejected. Check ANTHROPIC_API_KEY in the deployment settings." An unrecognised failure still prints raw and truncated: hiding one is worse than printing it badly.

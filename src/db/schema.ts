@@ -294,6 +294,8 @@ export type { RoutineScheduleKind };
 export const routines = pgTable("routines", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull().default("Routine"),
+  /** What it is for, in a line. Optional. */
+  description: text("description"),
   /** Off. An automation that publishes to a live site does not arrive switched on. */
   enabled: boolean("enabled").notNull().default(false),
   /** Null rotates through every active direction rather than repeating one. */

@@ -52,7 +52,7 @@ export function RoutineForm({
       {routine && <input type="hidden" name="id" value={routine.id} />}
 
       <div className="grid gap-5 sm:grid-cols-6">
-        <div className="space-y-2 sm:col-span-6">
+        <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="name">Name</Label>
           <Input
             id="name"
@@ -60,6 +60,17 @@ export function RoutineForm({
             defaultValue={routine?.name ?? ""}
             placeholder="Daily explainer"
             maxLength={80}
+          />
+        </div>
+
+        <div className="space-y-2 sm:col-span-4">
+          <Label htmlFor="description">Description</Label>
+          <Input
+            id="description"
+            name="description"
+            defaultValue={routine?.description ?? ""}
+            placeholder="What this one is for — optional"
+            maxLength={200}
           />
         </div>
 

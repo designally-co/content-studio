@@ -37,6 +37,7 @@ export default async function RoutinesPage() {
   const routines: RoutineView[] = rows.map((row) => ({
     id: row.id,
     name: row.name,
+    description: row.description,
     enabled: row.enabled,
     categoryId: row.categoryId,
     directionName: row.categoryId ? (directionName.get(row.categoryId) ?? null) : null,

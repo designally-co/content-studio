@@ -208,11 +208,12 @@ the switch on its row, later, which is also the only place it lives — editing
 settings never quietly pauses or resumes a routine. A routine set to "only when
 I press Run now" has no switch at all: there is nothing for it to be on for.
 
-*Running one by hand.* Run now, on the row. The article starts immediately and
+*Running one by hand.* The ⋯ menu → Run now. The article starts immediately and
 the page drives it — seven steps, one request each, about three minutes, with
-the step named as it happens. It ignores the one-a-day ceiling, because that
-ceiling exists to stop a schedule spending all day and a person pressing a
-button is not a schedule. When it finishes, the row links to what it wrote.
+the step named as it happens. **The schedule is not consulted and not moved** —
+a routine set to Monday 09:00 writes its article now, and still runs on Monday.
+It ignores the one-a-day ceiling too, because that ceiling exists to stop a
+schedule spending all day and a person pressing a button is not a schedule.
 
 *Running on a schedule.* Every five minutes the app is asked whether anything is
 due. A routine whose time has passed starts one article, then its clock moves to
@@ -221,6 +222,11 @@ back on after a week writes one article rather than seven. It is skipped, quietl
 and without losing its place, when today's ceiling is used, when too many starts
 have already failed today, or when it publishes live and the Hub is not
 configured.
+
+*Where the articles go.* Every article a routine writes appears in the Library
+like any other, from the moment its topic is chosen — schedule or Run now, no
+distinction. The card says whether the routine is working; the Library holds
+what it made.
 
 *Watching one.* The page shows any run in flight, including one it did not
 start, picks up driving it, and updates while it goes. Closing the page does not
@@ -232,11 +238,11 @@ and the error stands in the routine's history in plain words — a rejected key
 says so and names the variable. Nothing else is attempted, and the next
 scheduled run starts a fresh article rather than resuming a dead one.
 
-*Changing one.* Details → Edit settings. Saving recomputes the next run from the
+*Changing one.* The card's ⋯ menu → Edit. Saving recomputes the next run from the
 new schedule. Switching a routine off clears it; switching it back on sets it
 again from that moment.
 
-*Deleting one.* Details → Delete → Delete for good. The schedule and its run
+*Deleting one.* The ⋯ menu → Delete → Delete for good. The schedule and its run
 history go. **The articles it wrote stay in the Library**, published ones
 included; nothing on the Hub is touched.
 

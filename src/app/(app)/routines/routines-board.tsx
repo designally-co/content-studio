@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
+import { MoreHorizontal } from "lucide-react";
 import { IconTrash, IconEdit, IconSpark, IconArrowRight } from "@/components/icons";
 import { describeSchedule } from "@/lib/autopilot/schedule";
 import {
@@ -50,7 +52,6 @@ export function RoutinesBoard({
 }) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
-  const [open, setOpen] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [live, setLive] = useState<Live[]>(initialLive);
   const [failures, setFailures] = useState<Record<string, string>>({});
@@ -171,103 +172,101 @@ export function RoutinesBoard({
   const busy = live.some((run) => !run.finished);
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-5">
+    <div className="mx-auto w-full max-w-3xl space-y-4">
       <Readiness anthropic={anthropicReady} hub={hubReady} cron={cronReady} />
 
-      <div className="overflow-hidden rounded-2xl border border-line bg-surface">
-        <div className="flex items-center justify-between gap-4 border-b border-line px-5 py-3.5">
-          <h2 className="text-sm font-semibold text-ink">
-            {routines.length} {routines.length === 1 ? "routine" : "routines"}
-          </h2>
-          {!creating && (
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => {
-                setCreating(true);
-                setEditing(null);
-                setOpen(null);
-              }}
-            >
-              New routine
-            </Button>
-          )}
-        </div>
-
-        {creating && (
-          <div className="border-b border-line px-5 py-5">
-            <RoutineForm
-              directions={directions}
-              submitLabel="Create routine"
-              action={(formData) => {
-                setCreating(false);
-                startTransition(async () => {
-                  await createRoutineAction(formData);
-                  router.refresh();
-                });
-              }}
-              onCancel={() => setCreating(false)}
-            />
-          </div>
-        )}
-
-        {routines.length === 0 && !creating ? (
-          <Empty onCreate={() => setCreating(true)} />
-        ) : (
-          <ul className="divide-y divide-line">
-            {routines.map((routine) => (
-              <RoutineRow
-                key={routine.id}
-                routine={routine}
-                runs={history.filter((run) => run.routineId === routine.id)}
-                live={live.find((run) => run.routineId === routine.id) ?? null}
-                failure={failures[routine.id]}
-                anyRunning={busy}
-                expanded={open === routine.id}
-                editing={editing === routine.id}
-                directions={directions}
-                onToggleOpen={() =>
-                  setOpen((current) => (current === routine.id ? null : routine.id))
-                }
-                onEdit={() => {
-                  setEditing(routine.id);
-                  setOpen(routine.id);
-                  setCreating(false);
-                }}
-                onCancelEdit={() => setEditing(null)}
-                onSave={(formData) => {
-                  setEditing(null);
-                  startTransition(async () => {
-                    await updateRoutineAction(formData);
-                    router.refresh();
-                  });
-                }}
-                onRunNow={() => runNow(routine.id)}
-                onToggle={async (enabled) => {
-                  await toggleRoutineAction(routine.id, enabled);
-                  router.refresh();
-                }}
-                onDelete={() =>
-                  startTransition(async () => {
-                    await deleteRoutineAction(routine.id);
-                    router.refresh();
-                  })
-                }
-              />
-            ))}
-          </ul>
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="text-sm font-semibold text-ink-2">
+          {routines.length} {routines.length === 1 ? "routine" : "routines"}
+        </h2>
+        {!creating && (
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => {
+              setCreating(true);
+              setEditing(null);
+            }}
+          >
+            New routine
+          </Button>
         )}
       </div>
 
-      <p className="px-1 text-sm leading-relaxed text-ink-3">
-        A routine writes and sends an article with nobody reading it first. While this page is open
-        it moves runs along itself; closed, they advance on the schedule instead.
+      {creating && (
+        <div className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
+          <RoutineForm
+            directions={directions}
+            submitLabel="Create routine"
+            action={(formData) => {
+              setCreating(false);
+              startTransition(async () => {
+                await createRoutineAction(formData);
+                router.refresh();
+              });
+            }}
+            onCancel={() => setCreating(false)}
+          />
+        </div>
+      )}
+
+      {routines.length === 0 && !creating && <Empty onCreate={() => setCreating(true)} />}
+
+      {routines.map((routine) =>
+        editing === routine.id ? (
+          <div key={routine.id} className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
+            <RoutineForm
+              routine={routine}
+              directions={directions}
+              submitLabel="Save changes"
+              action={(formData) => {
+                setEditing(null);
+                startTransition(async () => {
+                  await updateRoutineAction(formData);
+                  router.refresh();
+                });
+              }}
+              onCancel={() => setEditing(null)}
+            />
+          </div>
+        ) : (
+          <RoutineCard
+            key={routine.id}
+            routine={routine}
+            /* The newest run only. Which article came from which routine is a
+               question the Library answers; this card answers "is it working". */
+            last={history.find((run) => run.routineId === routine.id) ?? null}
+            live={live.find((run) => run.routineId === routine.id) ?? null}
+            failure={failures[routine.id]}
+            anyRunning={busy}
+            onEdit={() => {
+              setEditing(routine.id);
+              setCreating(false);
+            }}
+            onRunNow={() => runNow(routine.id)}
+            onToggle={async (enabled) => {
+              await toggleRoutineAction(routine.id, enabled);
+              router.refresh();
+            }}
+            onDelete={() =>
+              startTransition(async () => {
+                await deleteRoutineAction(routine.id);
+                router.refresh();
+              })
+            }
+          />
+        )
+      )}
+
+      <p className="px-1 pt-1 text-sm leading-relaxed text-ink-3">
+        Every article a routine writes appears in the Library like any other, whether it ran on its
+        schedule or you pressed Run now. While this page is open it moves runs along itself; closed,
+        they advance on the schedule instead.
       </p>
     </div>
   );
 }
 
-/** Only says anything when something is actually missing. */
 function Readiness({ anthropic, hub, cron }: { anthropic: boolean; hub: boolean; cron: boolean }) {
   const problems = [
     !anthropic && "The Anthropic key is not set, so nothing can be written.",
@@ -301,35 +300,23 @@ function Empty({ onCreate }: { onCreate: () => void }) {
   );
 }
 
-function RoutineRow({
+function RoutineCard({
   routine,
-  runs,
+  last,
   live,
   failure,
   anyRunning,
-  expanded,
-  editing,
-  directions,
-  onToggleOpen,
   onEdit,
-  onCancelEdit,
-  onSave,
   onRunNow,
   onToggle,
   onDelete,
 }: {
   routine: RoutineView;
-  runs: RunView[];
+  last: RunView | null;
   live: Live | null;
   failure?: string;
   anyRunning: boolean;
-  expanded: boolean;
-  editing: boolean;
-  directions: { id: string; name: string }[];
-  onToggleOpen: () => void;
   onEdit: () => void;
-  onCancelEdit: () => void;
-  onSave: (formData: FormData) => void;
   onRunNow: () => void;
   onToggle: (enabled: boolean) => Promise<void>;
   onDelete: () => void;
@@ -350,37 +337,34 @@ function RoutineRow({
   });
 
   return (
-    <li>
-      <div className="px-5 py-4">
-        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-              <h3 className="font-heading text-base font-bold text-ink">{routine.name}</h3>
-              {/* The state is a word first. Colour only reinforces it. */}
-              {running ? (
-                <span className="text-sm font-semibold text-accent-press">Running</span>
-              ) : enabled && routine.nextRunAt ? (
-                <span className="text-sm text-ink-3">
-                  {`Next ${new Date(routine.nextRunAt).toLocaleString(undefined, {
-                    weekday: "short",
-                    day: "numeric",
-                    month: "short",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}`}
-                </span>
-              ) : null}
-            </div>
-            <p className="mt-0.5 text-sm text-ink-2">
-              {schedule} · {routine.directionName ?? "All directions in turn"} ·{" "}
-              {routine.hubStatus === "published" ? "publishes live" : "saves a draft"}
-            </p>
-          </div>
+    <section className="rounded-2xl border border-line bg-surface p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h3 className="font-heading text-base font-bold text-ink">{routine.name}</h3>
+          {routine.description && (
+            <p className="mt-0.5 text-sm leading-relaxed text-ink-2">{routine.description}</p>
+          )}
+          <p className="mt-1.5 text-sm text-ink-3">
+            {schedule}
+            {enabled && routine.nextRunAt && !running && (
+              <>
+                {" · next "}
+                {new Date(routine.nextRunAt).toLocaleString(undefined, {
+                  weekday: "short",
+                  day: "numeric",
+                  month: "short",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </>
+            )}
+          </p>
+        </div>
 
-          <div className="flex shrink-0 items-center gap-2">
-            {routine.scheduleKind === "manual" ? (
-              <span className="px-1.5 py-1 text-sm text-ink-2">By hand</span>
-            ) : (
+        <div className="flex shrink-0 items-center gap-1.5">
+          {routine.scheduleKind === "manual" ? (
+            <span className="px-1.5 text-sm text-ink-3">By hand</span>
+          ) : (
             <label className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 text-sm">
               <input
                 type="checkbox"
@@ -399,169 +383,142 @@ function RoutineRow({
                 {enabled ? "On" : "Off"}
               </span>
             </label>
-            )}
-            <Button
-              type="button"
-              size="sm"
-              onClick={onRunNow}
-              disabled={anyRunning}
-              title={anyRunning && !running ? "Another run is in progress" : undefined}
-            >
-              <IconSpark width={15} height={15} data-icon="inline-start" />
-              {running ? "Running…" : "Run now"}
+          )}
+
+          <RoutineMenu
+            name={routine.name}
+            running={running}
+            anyRunning={anyRunning}
+            onRunNow={onRunNow}
+            onEdit={onEdit}
+            onDelete={() => setConfirming(true)}
+          />
+        </div>
+      </div>
+
+      {live && <Progress live={live} />}
+      {!live && failure && (
+        <p className="mt-3 text-sm leading-relaxed text-danger-ink">{humanise(failure)}</p>
+      )}
+      {!live && !failure && last && <LastRun run={last} />}
+
+      {confirming && (
+        /* Not a dialog. The question is one line and the answer is two buttons;
+           a modal for that is ceremony, and it hides the thing being deleted. */
+        <div className="mt-4 border-t border-line pt-4">
+          <p className="text-sm leading-relaxed text-ink-2">
+            Delete <strong className="font-semibold text-ink">{routine.name}</strong>? The articles
+            it wrote stay in the Library — only the schedule goes.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button type="button" size="sm" variant="destructive" onClick={onDelete}>
+              Delete for good
             </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={onToggleOpen}
-              aria-expanded={expanded}
-            >
-              {expanded ? "Close" : "Details"}
+            <Button type="button" size="sm" variant="ghost" onClick={() => setConfirming(false)}>
+              Keep it
             </Button>
           </div>
         </div>
-
-        {live && <Progress live={live} />}
-        {failure && !live && (
-          <p className="mt-3 text-sm leading-relaxed text-danger-ink">{humanise(failure)}</p>
-        )}
-      </div>
-
-      {expanded && (
-        <div className="border-t border-line px-5 py-5">
-          {editing ? (
-            <RoutineForm
-              routine={routine}
-              directions={directions}
-              submitLabel="Save changes"
-              action={onSave}
-              onCancel={onCancelEdit}
-            />
-          ) : (
-            <>
-              <dl className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
-                <Fact label="Direction" value={routine.directionName ?? "Rotates through all of them"} />
-                <Fact label="Each run" value="One article with one cover image" />
-                <Fact
-                  label="When finished"
-                  value={
-                    routine.hubStatus === "published"
-                      ? "Published live, unchecked"
-                      : "Saved in the Hub as a draft"
-                  }
-                />
-                {routine.scheduleKind !== "manual" && (
-                  <Fact
-                    label="Runs at"
-                    value={`${routine.runAt} ${routine.timeZone.replace(/_/g, " ")}`}
-                  />
-                )}
-              </dl>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Button type="button" size="sm" variant="outline" onClick={onEdit}>
-                  <IconEdit width={15} height={15} data-icon="inline-start" />
-                  Edit settings
-                </Button>
-                {confirming ? (
-                  <>
-                    <Button type="button" size="sm" variant="destructive" onClick={onDelete}>
-                      Delete for good
-                    </Button>
-                    <Button type="button" size="sm" variant="ghost" onClick={() => setConfirming(false)}>
-                      Keep it
-                    </Button>
-                    <p className="w-full text-sm text-ink-2">
-                      The articles it has written stay in the Library. Only the schedule and its run
-                      history go.
-                    </p>
-                  </>
-                ) : (
-                  <Button type="button" size="sm" variant="ghost" onClick={() => setConfirming(true)}>
-                    <IconTrash width={15} height={15} data-icon="inline-start" />
-                    Delete
-                  </Button>
-                )}
-              </div>
-
-              <h4 className="mt-6 text-xs font-semibold uppercase tracking-[var(--tracking-caps)] text-ink-3">
-                Runs
-              </h4>
-              {runs.length === 0 ? (
-                <p className="mt-2 text-sm text-ink-2">It has not run yet.</p>
-              ) : (
-                <ul className="mt-2 divide-y divide-line border-t border-line">
-                  {runs.slice(0, 6).map((run) => (
-                    <li key={run.id} className="py-2.5">
-                      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
-                        <span className="min-w-0 flex-1 truncate text-sm text-ink">
-                          {run.projectId ? (
-                            <Link
-                              href={`/pipeline/${run.projectId}`}
-                              className="font-medium hover:underline"
-                            >
-                              {run.title}
-                            </Link>
-                          ) : (
-                            run.title
-                          )}
-                        </span>
-                        <span
-                          className={`shrink-0 text-sm ${
-                            run.status === "failed"
-                              ? "font-semibold text-danger-ink"
-                              : run.status === "done"
-                                ? "text-ink-2"
-                                : "font-semibold text-accent-press"
-                          }`}
-                        >
-                          {run.status === "done"
-                            ? "Published"
-                            : run.status === "failed"
-                              ? `Stopped at ${STEP_LABELS[run.step].toLowerCase()}`
-                              : `Running — ${STEP_LABELS[run.step].toLowerCase()}`}
-                        </span>
-                      </div>
-                      <p className="mt-0.5 text-sm text-ink-3">
-                        {new Date(run.startedAt).toLocaleString()}
-                        {run.hubUrl && (
-                          <>
-                            {" · "}
-                            <a
-                              href={run.hubUrl}
-                              target="_blank"
-                              rel="noreferrer noopener"
-                              className="underline underline-offset-2 hover:text-ink"
-                            >
-                              On the Hub
-                            </a>
-                          </>
-                        )}
-                      </p>
-                      {run.error && (
-                        <p className="mt-1 text-sm leading-relaxed text-danger-ink">
-                          {humanise(run.error)}
-                        </p>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </>
-          )}
-        </div>
       )}
-    </li>
+    </section>
   );
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
+/** Run now, Edit, Delete — one target instead of three competing with the name. */
+function RoutineMenu({
+  name,
+  running,
+  anyRunning,
+  onRunNow,
+  onEdit,
+  onDelete,
+}: {
+  name: string;
+  running: boolean;
+  anyRunning: boolean;
+  onRunNow: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const item =
+    "flex min-h-11 w-full cursor-default select-none items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold outline-none transition-colors data-highlighted:bg-sunken data-disabled:pointer-events-none data-disabled:opacity-50";
+
   return (
-    <div className="flex gap-2">
-      <dt className="shrink-0 text-ink-3">{label}</dt>
-      <dd className="min-w-0 font-medium text-ink">{value}</dd>
-    </div>
+    <DropdownMenuPrimitive.Root modal={false}>
+      <DropdownMenuPrimitive.Trigger
+        aria-label={`More actions for ${name}`}
+        className="grid size-9 place-items-center rounded-lg text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] data-[state=open]:bg-sunken data-[state=open]:text-ink"
+      >
+        <MoreHorizontal aria-hidden className="size-5" />
+      </DropdownMenuPrimitive.Trigger>
+      <DropdownMenuPrimitive.Portal>
+        <DropdownMenuPrimitive.Content
+          align="end"
+          sideOffset={6}
+          collisionPadding={12}
+          className="z-(--z-dropdown) w-56 rounded-2xl border border-line bg-surface p-1.5 text-ink shadow-[var(--shadow-pop)] outline-none duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none"
+        >
+          <DropdownMenuPrimitive.Item
+            className={item}
+            disabled={anyRunning}
+            onSelect={() => onRunNow()}
+          >
+            <IconSpark width={16} height={16} className="text-ink-3" />
+            {running ? "Running…" : "Run now"}
+          </DropdownMenuPrimitive.Item>
+          <DropdownMenuPrimitive.Item className={item} onSelect={() => onEdit()}>
+            <IconEdit width={16} height={16} className="text-ink-3" />
+            Edit
+          </DropdownMenuPrimitive.Item>
+          <DropdownMenuPrimitive.Separator className="my-1 h-px bg-line" />
+          <DropdownMenuPrimitive.Item
+            className={`${item} text-danger-ink`}
+            onSelect={() => onDelete()}
+          >
+            <IconTrash width={16} height={16} />
+            Delete
+          </DropdownMenuPrimitive.Item>
+        </DropdownMenuPrimitive.Content>
+      </DropdownMenuPrimitive.Portal>
+    </DropdownMenuPrimitive.Root>
+  );
+}
+
+/**
+ * How the last run went, in one line.
+ *
+ * Not a history list. Which article came from which routine is the Library's
+ * question, and answering it twice meant a page of run rows nobody read. What a
+ * routine has to say for itself is whether it is working.
+ */
+function LastRun({ run }: { run: RunView }) {
+  const when = new Date(run.startedAt).toLocaleString(undefined, {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  if (run.status === "failed") {
+    return (
+      <p className="mt-3 text-sm leading-relaxed text-danger-ink">
+        <span className="font-semibold">Last run stopped</span> at{" "}
+        {STEP_LABELS[run.step].toLowerCase()}, {when}
+        {run.error ? ` — ${humanise(run.error)}` : "."}
+      </p>
+    );
+  }
+  return (
+    <p className="mt-3 text-sm text-ink-3">
+      {run.status === "done" ? "Last wrote" : "Started"} {run.title === "Untitled article" ? "an article" : `“${run.title}”`}, {when}
+      {run.projectId && (
+        <>
+          {" · "}
+          <Link href={`/pipeline/${run.projectId}`} className="underline underline-offset-2 hover:text-ink">
+            open it
+          </Link>
+        </>
+      )}
+    </p>
   );
 }
 

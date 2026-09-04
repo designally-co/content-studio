@@ -155,6 +155,13 @@
       "when": 1787463940704,
       "tag": "0021_routine_schedules",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1787464000704,
+      "tag": "0022_routine_description",
+      "breakpoints": true
     }
   ]
 }
