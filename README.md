@@ -110,11 +110,25 @@ used for usage logging.
    SUPABASE_STORAGE_BUCKET=content-studio-images
    ```
 
-3. **Apply the schema.** The app runs migrations automatically on boot, so
-   normally there is nothing to do. To apply manually instead, either:
+3. **Apply the schema.** On Vercel this happens for you: the `vercel-build`
+   script runs `next build` and then applies migrations, so a production deploy
+   always brings the database with it. **Production only** — preview builds skip
+   it, because a preview is built from an unmerged branch and usually points at
+   the same database. `DATABASE_URL` must be exposed to the Production
+   environment at *build* time, or the build fails rather than deploying code
+   that expects columns the database does not have.
+
+   Anywhere else — Docker, a plain Node server, a manual fix — apply them
+   yourself:
 
    - run `npm run db:migrate` against `DATABASE_URL`, or
-   - paste `drizzle/0000_init.sql` into the Supabase SQL editor and run it.
+   - paste the files in `drizzle/` into the Supabase SQL editor and run them.
+
+   Do not rely on the app applying them at boot. Deployed environments set
+   `SKIP_DB_MIGRATE=1` (see §10 of `INTEGRATION.md` for why), and with it set
+   nothing migrates on boot at all. `GET /api/health` reports `schema`, which
+   names any migration the database is missing and returns 503 while it is
+   behind — check it after a deploy that changed the schema.
 
 4. **(Optional) Image storage.** Create a **public** Storage bucket named
    `content-studio-images` (or your `SUPABASE_STORAGE_BUCKET`). Without Supabase

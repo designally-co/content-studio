@@ -356,6 +356,10 @@ npm run db:generate            # drizzle-kit generate, after editing src/db/sche
 npm run db:migrate             # apply against DATABASE_URL
 ```
 
+Production deploys apply migrations from the **`vercel-build`** script (`next build && scripts/migrate-deploy.ts`), which is what Vercel runs in preference to `build`. It is deliberately not in `build` itself — the Dockerfile runs that one, and a container image build should not touch a database. It refuses to run outside `VERCEL_ENV=production` unless `DB_MIGRATE_ON_BUILD=1` forces it, because preview builds come from unmerged branches and commonly share the production `DATABASE_URL`; and it fails the build rather than warning, because a deploy that could not migrate is a deploy whose code expects columns that do not exist.
+
+That step exists because this failed once in exactly that way: a release added five columns to `image_references`, nothing applied the migration, and every `/pipeline/[id]` answered 500 with `column "origin" does not exist` while `/api/health` reported the database healthy. `GET /api/health` now also reports `schema` — applied migrations against the number the build ships, the names of any that are missing, and `SKIP_DB_MIGRATE` — and returns 503 while the database is behind.
+
 On boot, `getDb()` runs the migrator and seeder automatically **unless `SKIP_DB_MIGRATE=1`**. In a serverless deployment you want it set: every cold start otherwise runs the full migrator (its first statement is `CREATE SCHEMA`), which is pure overhead once the schema is current and multiplies connections during bursts. Apply migrations from a trusted place instead. Migration/seed failures are caught and logged rather than thrown, so a hiccup cannot 500 every request.
 
 **Vercel** — push to `main`. Region `sin1`. Set every variable from §9.
