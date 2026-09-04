@@ -32,11 +32,13 @@ export function RoutineForm({
   directions,
   action,
   onCancel,
+  submitLabel,
 }: {
   routine?: RoutineView;
   directions: { id: string; name: string }[];
   action: (formData: FormData) => void;
   onCancel: () => void;
+  submitLabel: string;
 }) {
   const [kind, setKind] = useState<RoutineScheduleKind>(routine?.scheduleKind ?? "daily");
   const [runAt, setRunAt] = useState(routine?.runAt ?? "09:00");
@@ -47,7 +49,7 @@ export function RoutineForm({
   const next = nextRunAt(spec);
 
   return (
-    <form action={action} className="space-y-6 rounded-2xl border border-line bg-surface p-5 sm:p-6">
+    <form action={action} className="space-y-6">
       {routine && <input type="hidden" name="id" value={routine.id} />}
 
       <div className="grid gap-5 sm:grid-cols-2">
@@ -199,7 +201,7 @@ export function RoutineForm({
         </div>
       </div>
 
-      <label className="flex items-start gap-3 rounded-2xl bg-sunken p-4">
+      <label className="flex items-start gap-3 rounded-xl border border-line bg-surface p-4">
         <input
           type="checkbox"
           name="enabled"
@@ -215,7 +217,7 @@ export function RoutineForm({
         </span>
       </label>
 
-      <p className="rounded-2xl bg-accent-soft px-5 py-4 text-sm leading-relaxed text-ink-2">
+      <p className="rounded-xl bg-accent-soft px-4 py-3 text-sm leading-relaxed text-ink-2">
         <strong className="font-semibold text-ink">{describeSchedule(spec)}.</strong>{" "}
         {next
           ? `Next: ${next.toLocaleString(undefined, {
@@ -229,7 +231,7 @@ export function RoutineForm({
       </p>
 
       <div className="flex flex-wrap gap-2">
-        <Button type="submit">{routine ? "Save changes" : "Create routine"}</Button>
+        <Button type="submit">{submitLabel}</Button>
         <Button type="button" variant="ghost" onClick={onCancel}>
           Cancel
         </Button>

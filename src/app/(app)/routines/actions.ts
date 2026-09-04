@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { routines } from "@/db/schema";
 import { requireUser } from "@/lib/session";
-import { rescheduleRoutine, runRoutineNow, stepRun } from "@/lib/autopilot/runner";
+import { rescheduleRoutine, runRoutineNow, runningRuns, stepRun } from "@/lib/autopilot/runner";
 import { TIME_ZONES, type RoutineScheduleKind } from "@/lib/autopilot/schedule";
 
 /* NOTHING IS RE-EXPORTED FROM THIS FILE. Every export of a "use server" module
@@ -163,4 +163,31 @@ export async function stepRunAction(runId: string): Promise<StepReport> {
       message: cause instanceof Error ? cause.message : "The step failed.",
     };
   }
+}
+
+export type LiveRun = {
+  id: string;
+  routineId: string;
+  projectId: string | null;
+  step: string;
+  title: string;
+};
+
+/**
+ * What is running right now.
+ *
+ * Polled by the page while anything is in flight. Deliberately the cheapest
+ * query in this file — one indexed read and a join — because it runs every few
+ * seconds for as long as somebody is watching.
+ */
+export async function liveRunsAction(): Promise<LiveRun[]> {
+  await requireUser();
+  const rows = await runningRuns();
+  return rows.map((row) => ({
+    id: row.id,
+    routineId: row.routineId,
+    projectId: row.projectId,
+    step: row.step,
+    title: (row.title as { title?: string } | null)?.title ?? "Untitled article",
+  }));
 }

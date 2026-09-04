@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { IconTrash, IconEdit, IconSpark } from "@/components/icons";
+import { IconTrash, IconEdit, IconSpark, IconArrowRight } from "@/components/icons";
 import { describeSchedule } from "@/lib/autopilot/schedule";
 import {
   STEP_LABELS,
@@ -17,20 +17,19 @@ import type { RoutineStep } from "@/db/schema";
 import {
   createRoutineAction,
   deleteRoutineAction,
+  liveRunsAction,
   runRoutineNowAction,
   stepRunAction,
   toggleRoutineAction,
   updateRoutineAction,
+  type LiveRun,
 } from "./actions";
 import { RoutineForm } from "./routine-form";
 
-type Watch = {
-  routineId: string;
-  runId: string;
-  step: RoutineStep;
-  status: "running" | "done" | "failed";
-  message?: string;
-};
+/** How often the page asks the server what is still running. */
+const POLL_MS = 4000;
+
+type Live = LiveRun & { finished?: "done" | "failed"; message?: string };
 
 export function RoutinesBoard({
   routines,
@@ -39,6 +38,7 @@ export function RoutinesBoard({
   anthropicReady,
   hubReady,
   cronReady,
+  initialLive,
 }: {
   routines: RoutineView[];
   history: RunView[];
@@ -46,201 +46,298 @@ export function RoutinesBoard({
   anthropicReady: boolean;
   hubReady: boolean;
   cronReady: boolean;
+  initialLive: LiveRun[];
 }) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
+  const [open, setOpen] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
-  const [watch, setWatch] = useState<Watch | null>(null);
+  const [live, setLive] = useState<Live[]>(initialLive);
+  const [failures, setFailures] = useState<Record<string, string>>({});
   const [, startTransition] = useTransition();
 
-  /* One run at a time, and it stops when the page does. `stopped` is a ref
-     rather than state because the loop below reads it between awaits, where a
-     state value would still be the one captured when the loop started. */
-  const stopped = useRef(false);
+  /* One drive loop per tab, and it stops when the page does. A ref, not state:
+     the loop reads it between awaits, where a state value would still be the
+     one captured when the loop started. */
+  const driving = useRef<string | null>(null);
+  const gone = useRef(false);
   useEffect(() => () => {
-    stopped.current = true;
+    gone.current = true;
   }, []);
 
   /**
-   * Drive a run to the end, one step per request.
+   * Move a run along, one request per step, until it ends.
    *
-   * THE OPEN TAB IS THE TIMER. Each step is its own request with its own sixty
-   * seconds, which is the only way this work fits on a serverless host, and
-   * doing it from here means a run somebody started by hand finishes in a few
-   * minutes rather than waiting for the next scheduled tick.
+   * THIS TAB IS THE TIMER while it is open. The scheduler advances a run every
+   * five minutes; a page that is being watched can do it as fast as the steps
+   * complete, which is the difference between watching an article being written
+   * and coming back to it later.
    */
   const drive = useCallback(
-    async (routineId: string, runId: string) => {
-      // Seven steps, and each may be retried twice before the run gives up, so
-      // the ceiling is generous — but there IS one, so a bug cannot leave a tab
-      // calling the server forever.
-      for (let attempt = 0; attempt < 40 && !stopped.current; attempt++) {
-        const report = await stepRunAction(runId);
-        if (stopped.current) return;
+    async (runId: string) => {
+      if (driving.current) return;
+      driving.current = runId;
+      try {
+        // Seven steps, each retried twice at most — a generous ceiling, but a
+        // ceiling, so a bug cannot leave a tab calling the server forever.
+        for (let attempt = 0; attempt < 40 && !gone.current; attempt++) {
+          const report = await stepRunAction(runId);
+          if (gone.current) return;
 
-        if (report.busy) {
-          // The scheduler has it. Wait rather than fight for the claim.
-          await new Promise((resolve) => setTimeout(resolve, 3000));
-          continue;
+          if (report.busy) {
+            // A scheduler has it. Wait rather than fight over the claim.
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+            continue;
+          }
+
+          setLive((current) =>
+            current.map((run) =>
+              run.id === runId
+                ? {
+                    ...run,
+                    step: report.step,
+                    finished: report.status === "running" ? undefined : (report.status as "done" | "failed"),
+                    message: report.message,
+                  }
+                : run
+            )
+          );
+
+          if (report.status !== "running") {
+            if (report.message) setFailures((all) => ({ ...all, [runId]: report.message! }));
+            startTransition(() => router.refresh());
+            return;
+          }
         }
-
-        setWatch({
-          routineId,
-          runId,
-          step: (report.step as RoutineStep) ?? "topic",
-          status: report.status === "done" || report.status === "failed" ? report.status : "running",
-          message: report.message,
-        });
-
-        if (report.status !== "running") {
-          startTransition(() => router.refresh());
-          return;
-        }
+      } finally {
+        if (driving.current === runId) driving.current = null;
       }
     },
     [router]
   );
 
+  /* Pick up whatever is already running, including a run this tab did not
+     start. Without this, reloading the page during a run loses sight of it and
+     the article waits for the next tick — the run was never lost, but it looked
+     like it was, which is the same thing to whoever is watching. */
+  useEffect(() => {
+    let cancelled = false;
+    const first = live.find((run) => !run.finished);
+    if (first && !driving.current) void drive(first.id);
+
+    if (live.every((run) => run.finished)) return;
+    const timer = setInterval(async () => {
+      const rows = await liveRunsAction();
+      if (cancelled) return;
+      setLive((current) => {
+        // Keep a just-finished run on screen until the page data catches up.
+        const finished = current.filter(
+          (run) => run.finished && !rows.some((row) => row.id === run.id)
+        );
+        return [...rows, ...finished];
+      });
+      if (rows.length === 0) startTransition(() => router.refresh());
+    }, POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [live, drive, router]);
+
   const runNow = useCallback(
     async (routineId: string) => {
-      setWatch({ routineId, runId: "", step: "topic", status: "running" });
+      setFailures((all) => {
+        const next = { ...all };
+        delete next[routineId];
+        return next;
+      });
       const started = await runRoutineNowAction(routineId);
       if (!started.ok) {
-        setWatch({ routineId, runId: "", step: "topic", status: "failed", message: started.message });
+        setFailures((all) => ({ ...all, [routineId]: started.message }));
         return;
       }
-      setWatch({ routineId, runId: started.runId, step: "plan", status: "running" });
+      setLive((current) => [
+        ...current,
+        { id: started.runId, routineId, projectId: null, step: "plan", title: "Starting…" },
+      ]);
       startTransition(() => router.refresh());
-      await drive(routineId, started.runId);
+      void drive(started.runId);
     },
     [drive, router]
   );
 
+  // Derived from state, not from the drive loop's ref: a ref read during render
+  // is not a render input, and this one decides what the buttons look like.
+  const busy = live.some((run) => !run.finished);
+
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-6">
-      {!anthropicReady && (
-        <Notice tone="warn">
-          <strong className="font-semibold text-ink">The Anthropic key is not set.</strong> Nothing
-          can be written until it is, however these routines are configured.
-        </Notice>
-      )}
-      {!hubReady && (
-        <Notice tone="warn">
-          <strong className="font-semibold text-ink">The Hub is not configured.</strong> Articles
-          can still be written, but there is nowhere to send them.
-        </Notice>
-      )}
-      {!cronReady && (
-        <Notice tone="warn">
-          <strong className="font-semibold text-ink">CRON_SECRET is not set.</strong> Run now still
-          works, but nothing will start on a schedule.
-        </Notice>
-      )}
+    <div className="mx-auto w-full max-w-3xl space-y-5">
+      <Readiness anthropic={anthropicReady} hub={hubReady} cron={cronReady} />
 
-      {!creating && (
-        <div className="flex justify-end">
-          <Button type="button" onClick={() => { setCreating(true); setEditing(null); }}>
-            New routine
-          </Button>
+      <div className="overflow-hidden rounded-2xl border border-line bg-surface">
+        <div className="flex items-center justify-between gap-4 border-b border-line px-5 py-3.5">
+          <h2 className="text-sm font-semibold text-ink">
+            {routines.length} {routines.length === 1 ? "routine" : "routines"}
+          </h2>
+          {!creating && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                setCreating(true);
+                setEditing(null);
+                setOpen(null);
+              }}
+            >
+              New routine
+            </Button>
+          )}
         </div>
-      )}
 
-      {creating && (
-        <RoutineForm
-          directions={directions}
-          action={(formData) => {
-            setCreating(false);
-            startTransition(async () => {
-              await createRoutineAction(formData);
-              router.refresh();
-            });
-          }}
-          onCancel={() => setCreating(false)}
-        />
-      )}
+        {creating && (
+          <div className="border-b border-line px-5 py-5">
+            <RoutineForm
+              directions={directions}
+              submitLabel="Create routine"
+              action={(formData) => {
+                setCreating(false);
+                startTransition(async () => {
+                  await createRoutineAction(formData);
+                  router.refresh();
+                });
+              }}
+              onCancel={() => setCreating(false)}
+            />
+          </div>
+        )}
 
-      {routines.length === 0 && !creating && (
-        <p className="rounded-2xl border border-dashed border-line bg-surface px-5 py-10 text-center text-sm text-ink-2">
-          No routines yet. A routine is a saved recipe — a direction, a schedule, and what it does
-          with the finished article.
-        </p>
-      )}
-
-      {routines.map((routine) =>
-        editing === routine.id ? (
-          <RoutineForm
-            key={routine.id}
-            routine={routine}
-            directions={directions}
-            action={(formData) => {
-              setEditing(null);
-              startTransition(async () => {
-                await updateRoutineAction(formData);
-                router.refresh();
-              });
-            }}
-            onCancel={() => setEditing(null)}
-          />
+        {routines.length === 0 && !creating ? (
+          <Empty onCreate={() => setCreating(true)} />
         ) : (
-          <RoutineCard
-            key={routine.id}
-            routine={routine}
-            runs={history.filter((run) => run.routineId === routine.id).slice(0, 4)}
-            watch={watch?.routineId === routine.id ? watch : null}
-            busy={Boolean(watch && watch.status === "running")}
-            onEdit={() => { setEditing(routine.id); setCreating(false); }}
-            onRunNow={() => runNow(routine.id)}
-            onToggle={(enabled) =>
-              startTransition(async () => {
-                await toggleRoutineAction(routine.id, enabled);
-                router.refresh();
-              })
-            }
-            onDelete={() =>
-              startTransition(async () => {
-                await deleteRoutineAction(routine.id);
-                router.refresh();
-              })
-            }
-          />
-        )
-      )}
+          <ul className="divide-y divide-line">
+            {routines.map((routine) => (
+              <RoutineRow
+                key={routine.id}
+                routine={routine}
+                runs={history.filter((run) => run.routineId === routine.id)}
+                live={live.find((run) => run.routineId === routine.id) ?? null}
+                failure={failures[routine.id]}
+                anyRunning={busy}
+                expanded={open === routine.id}
+                editing={editing === routine.id}
+                directions={directions}
+                onToggleOpen={() =>
+                  setOpen((current) => (current === routine.id ? null : routine.id))
+                }
+                onEdit={() => {
+                  setEditing(routine.id);
+                  setOpen(routine.id);
+                  setCreating(false);
+                }}
+                onCancelEdit={() => setEditing(null)}
+                onSave={(formData) => {
+                  setEditing(null);
+                  startTransition(async () => {
+                    await updateRoutineAction(formData);
+                    router.refresh();
+                  });
+                }}
+                onRunNow={() => runNow(routine.id)}
+                onToggle={(enabled) =>
+                  startTransition(async () => {
+                    await toggleRoutineAction(routine.id, enabled);
+                    router.refresh();
+                  })
+                }
+                onDelete={() =>
+                  startTransition(async () => {
+                    await deleteRoutineAction(routine.id);
+                    router.refresh();
+                  })
+                }
+              />
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <p className="px-1 text-sm leading-relaxed text-ink-3">
+        A routine writes and sends an article with nobody reading it first. While this page is open
+        it moves runs along itself; closed, they advance on the schedule instead.
+      </p>
     </div>
   );
 }
 
-function Notice({ children, tone }: { children: React.ReactNode; tone: "warn" }) {
+/** Only says anything when something is actually missing. */
+function Readiness({ anthropic, hub, cron }: { anthropic: boolean; hub: boolean; cron: boolean }) {
+  const problems = [
+    !anthropic && "The Anthropic key is not set, so nothing can be written.",
+    !hub && "The Hub is not configured, so there is nowhere to send finished articles.",
+    !cron && "CRON_SECRET is not set, so nothing will start on a schedule. Run now still works.",
+  ].filter(Boolean) as string[];
+  if (problems.length === 0) return null;
   return (
-    <p
-      className={`rounded-2xl px-5 py-4 text-sm leading-relaxed text-ink-2 ${
-        tone === "warn" ? "bg-warn-soft" : "bg-sunken"
-      }`}
-    >
-      {children}
-    </p>
+    <div className="rounded-2xl bg-warn-soft px-5 py-4">
+      <ul className="space-y-1.5 text-sm leading-relaxed text-ink-2">
+        {problems.map((problem) => (
+          <li key={problem}>{problem}</li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
-function RoutineCard({
+function Empty({ onCreate }: { onCreate: () => void }) {
+  return (
+    <div className="px-5 py-14 text-center">
+      <p className="text-sm font-semibold text-ink">Nothing runs on its own yet</p>
+      <p className="mx-auto mt-1.5 max-w-[46ch] text-sm leading-relaxed text-ink-2">
+        A routine is a saved recipe: a content direction, when to run, and what to do with the
+        finished article. You can start one by hand at any time, whether or not it has a schedule.
+      </p>
+      <Button type="button" className="mt-5" onClick={onCreate}>
+        Create the first one
+      </Button>
+    </div>
+  );
+}
+
+function RoutineRow({
   routine,
   runs,
-  watch,
-  busy,
+  live,
+  failure,
+  anyRunning,
+  expanded,
+  editing,
+  directions,
+  onToggleOpen,
   onEdit,
+  onCancelEdit,
+  onSave,
   onRunNow,
   onToggle,
   onDelete,
 }: {
   routine: RoutineView;
   runs: RunView[];
-  watch: Watch | null;
-  busy: boolean;
+  live: Live | null;
+  failure?: string;
+  anyRunning: boolean;
+  expanded: boolean;
+  editing: boolean;
+  directions: { id: string; name: string }[];
+  onToggleOpen: () => void;
   onEdit: () => void;
+  onCancelEdit: () => void;
+  onSave: (formData: FormData) => void;
   onRunNow: () => void;
   onToggle: (enabled: boolean) => void;
   onDelete: () => void;
 }) {
   const [confirming, setConfirming] = useState(false);
+  const running = Boolean(live && !live.finished);
   const schedule = describeSchedule({
     kind: routine.scheduleKind,
     runAt: routine.runAt,
@@ -249,147 +346,196 @@ function RoutineCard({
   });
 
   return (
-    <section className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h2 className="font-heading text-lg font-bold text-ink">{routine.name}</h2>
-          <p className="mt-1 text-sm text-ink-2">{schedule}</p>
+    <li>
+      <div className="px-5 py-4">
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+              <h3 className="font-heading text-base font-bold text-ink">{routine.name}</h3>
+              {/* The state is a word first. Colour only reinforces it. */}
+              {running ? (
+                <span className="text-sm font-semibold text-accent-press">Running</span>
+              ) : routine.enabled && routine.nextRunAt ? (
+                <span className="text-sm text-ink-3">
+                  {`Next ${new Date(routine.nextRunAt).toLocaleString(undefined, {
+                    weekday: "short",
+                    day: "numeric",
+                    month: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}`}
+                </span>
+              ) : null}
+            </div>
+            <p className="mt-0.5 text-sm text-ink-2">
+              {schedule} · {routine.directionName ?? "All directions in turn"} ·{" "}
+              {routine.hubStatus === "published" ? "publishes live" : "sends a draft"}
+            </p>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 text-sm">
+              <input
+                type="checkbox"
+                checked={routine.enabled}
+                onChange={(event) => onToggle(event.target.checked)}
+                className="size-5 rounded-md border-line-strong accent-[var(--orange-500)]"
+                aria-label={`Run ${routine.name} on its schedule`}
+              />
+              <span className={routine.enabled ? "font-semibold text-ink" : "text-ink-2"}>
+                {routine.enabled ? "On" : "Off"}
+              </span>
+            </label>
+            <Button
+              type="button"
+              size="sm"
+              onClick={onRunNow}
+              disabled={anyRunning}
+              title={anyRunning && !running ? "Another run is in progress" : undefined}
+            >
+              <IconSpark width={15} height={15} data-icon="inline-start" />
+              {running ? "Running…" : "Run now"}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={onToggleOpen}
+              aria-expanded={expanded}
+            >
+              {expanded ? "Close" : "Details"}
+            </Button>
+          </div>
         </div>
 
-        {/* The switch says what it does in words as well as by position: a lone
-            toggle tells you its state only if you already know which side is on. */}
-        <label className="flex shrink-0 items-center gap-2.5 text-sm">
-          <input
-            type="checkbox"
-            checked={routine.enabled}
-            onChange={(event) => onToggle(event.target.checked)}
-            className="size-5 rounded-md border-line-strong accent-[var(--orange-500)]"
-          />
-          <span className={routine.enabled ? "font-semibold text-ink" : "text-ink-2"}>
-            {routine.enabled ? "On" : "Off"}
-          </span>
-        </label>
-      </div>
-
-      <dl className="mt-4 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-        <Fact label="Direction" value={routine.directionName ?? "Rotates through all of them"} />
-        <Fact
-          label="In the Hub"
-          value={routine.hubStatus === "published" ? "Published immediately" : "Created as a draft"}
-        />
-        <Fact
-          label="Images"
-          value={routine.imagesPerRun === 0 ? "No cover" : `${routine.imagesPerRun} per article`}
-        />
-        <Fact label="Limit" value={`${routine.maxPerDay} article${routine.maxPerDay === 1 ? "" : "s"} a day`} />
-        {routine.enabled && routine.nextRunAt && (
-          <Fact
-            label="Next run"
-            value={new Date(routine.nextRunAt).toLocaleString(undefined, {
-              weekday: "short",
-              day: "numeric",
-              month: "short",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          />
-        )}
-      </dl>
-
-      {watch && <Progress watch={watch} />}
-
-      <div className="mt-5 flex flex-wrap gap-2">
-        <Button type="button" onClick={onRunNow} disabled={busy}>
-          <IconSpark width={16} height={16} data-icon="inline-start" />
-          {busy && watch ? "Running…" : "Run now"}
-        </Button>
-        <Button type="button" variant="outline" onClick={onEdit} disabled={busy}>
-          <IconEdit width={16} height={16} data-icon="inline-start" />
-          Edit
-        </Button>
-        {confirming ? (
-          <>
-            <Button type="button" variant="destructive" onClick={onDelete}>
-              Delete for good
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setConfirming(false)}>
-              Keep it
-            </Button>
-          </>
-        ) : (
-          <Button type="button" variant="ghost" onClick={() => setConfirming(true)} disabled={busy}>
-            <IconTrash width={16} height={16} data-icon="inline-start" />
-            Delete
-          </Button>
+        {live && <Progress live={live} />}
+        {failure && !live && (
+          <p className="mt-3 text-sm leading-relaxed text-danger-ink">{humanise(failure)}</p>
         )}
       </div>
-      {confirming && (
-        <p className="mt-2 text-sm text-ink-2">
-          The articles it has written are kept — only the schedule and its history go.
-        </p>
-      )}
 
-      {runs.length > 0 && (
-        <div className="mt-5 border-t border-line pt-4">
-          <h3 className="text-xs font-semibold uppercase tracking-[var(--tracking-caps)] text-ink-3">
-            Recent runs
-          </h3>
-          <ul className="mt-2 space-y-2">
-            {runs.map((run) => (
-              <li key={run.id} className="rounded-xl bg-sunken px-4 py-3">
-                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
-                    {run.projectId ? (
-                      <Link href={`/pipeline/${run.projectId}`} className="hover:underline">
-                        {run.title}
-                      </Link>
-                    ) : (
-                      run.title
-                    )}
-                  </span>
-                  {/* Never colour alone: the word carries the state and the tone
-                      only reinforces it. */}
-                  <span
-                    className={`shrink-0 text-sm font-semibold ${
-                      run.status === "failed"
-                        ? "text-danger-ink"
-                        : run.status === "done"
-                          ? "text-ink-2"
-                          : "text-accent-press"
-                    }`}
-                  >
-                    {run.status === "done"
-                      ? "Published"
-                      : run.status === "failed"
-                        ? `Failed — ${STEP_LABELS[run.step].toLowerCase()}`
-                        : `Running — ${STEP_LABELS[run.step].toLowerCase()}`}
-                  </span>
-                </div>
-                <p className="mt-1 text-sm text-ink-3">
-                  {new Date(run.startedAt).toLocaleString()}
-                  {run.hubUrl && (
-                    <>
-                      {" · "}
-                      <a
-                        href={run.hubUrl}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                        className="underline underline-offset-2 hover:text-ink"
-                      >
-                        View on the Hub
-                      </a>
-                    </>
-                  )}
-                </p>
-                {run.error && (
-                  <p className="mt-2 text-sm leading-relaxed text-danger-ink">{run.error}</p>
+      {expanded && (
+        <div className="border-t border-line px-5 py-5">
+          {editing ? (
+            <RoutineForm
+              routine={routine}
+              directions={directions}
+              submitLabel="Save changes"
+              action={onSave}
+              onCancel={onCancelEdit}
+            />
+          ) : (
+            <>
+              <dl className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
+                <Fact label="Direction" value={routine.directionName ?? "Rotates through all of them"} />
+                <Fact
+                  label="In the Hub"
+                  value={routine.hubStatus === "published" ? "Published immediately" : "Created as a draft"}
+                />
+                <Fact
+                  label="Images"
+                  value={routine.imagesPerRun === 0 ? "No cover" : `${routine.imagesPerRun} per article`}
+                />
+                <Fact
+                  label="Scheduled limit"
+                  value={`${routine.maxPerDay} a day`}
+                />
+              </dl>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button type="button" size="sm" variant="outline" onClick={onEdit}>
+                  <IconEdit width={15} height={15} data-icon="inline-start" />
+                  Edit settings
+                </Button>
+                {confirming ? (
+                  <>
+                    <Button type="button" size="sm" variant="destructive" onClick={onDelete}>
+                      Delete for good
+                    </Button>
+                    <Button type="button" size="sm" variant="ghost" onClick={() => setConfirming(false)}>
+                      Keep it
+                    </Button>
+                    <p className="w-full text-sm text-ink-2">
+                      The articles it has written stay in the Library. Only the schedule and its run
+                      history go.
+                    </p>
+                  </>
+                ) : (
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setConfirming(true)}>
+                    <IconTrash width={15} height={15} data-icon="inline-start" />
+                    Delete
+                  </Button>
                 )}
-              </li>
-            ))}
-          </ul>
+              </div>
+
+              <h4 className="mt-6 text-xs font-semibold uppercase tracking-[var(--tracking-caps)] text-ink-3">
+                Runs
+              </h4>
+              {runs.length === 0 ? (
+                <p className="mt-2 text-sm text-ink-2">It has not run yet.</p>
+              ) : (
+                <ul className="mt-2 divide-y divide-line border-t border-line">
+                  {runs.slice(0, 6).map((run) => (
+                    <li key={run.id} className="py-2.5">
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
+                        <span className="min-w-0 flex-1 truncate text-sm text-ink">
+                          {run.projectId ? (
+                            <Link
+                              href={`/pipeline/${run.projectId}`}
+                              className="font-medium hover:underline"
+                            >
+                              {run.title}
+                            </Link>
+                          ) : (
+                            run.title
+                          )}
+                        </span>
+                        <span
+                          className={`shrink-0 text-sm ${
+                            run.status === "failed"
+                              ? "font-semibold text-danger-ink"
+                              : run.status === "done"
+                                ? "text-ink-2"
+                                : "font-semibold text-accent-press"
+                          }`}
+                        >
+                          {run.status === "done"
+                            ? "Published"
+                            : run.status === "failed"
+                              ? `Stopped at ${STEP_LABELS[run.step].toLowerCase()}`
+                              : `Running — ${STEP_LABELS[run.step].toLowerCase()}`}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-sm text-ink-3">
+                        {new Date(run.startedAt).toLocaleString()}
+                        {run.hubUrl && (
+                          <>
+                            {" · "}
+                            <a
+                              href={run.hubUrl}
+                              target="_blank"
+                              rel="noreferrer noopener"
+                              className="underline underline-offset-2 hover:text-ink"
+                            >
+                              On the Hub
+                            </a>
+                          </>
+                        )}
+                      </p>
+                      {run.error && (
+                        <p className="mt-1 text-sm leading-relaxed text-danger-ink">
+                          {humanise(run.error)}
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
         </div>
       )}
-    </section>
+    </li>
   );
 }
 
@@ -402,23 +548,27 @@ function Fact({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** What is happening, in words, while a run is being driven from this tab. */
-function Progress({ watch }: { watch: Watch }) {
-  const done = watch.status === "done";
-  const failed = watch.status === "failed";
-  const position = done ? STEP_ORDER.length : stepNumber(watch.step);
+/** The step, in words, with a rule that fills as the article is written. */
+function Progress({ live }: { live: Live }) {
+  const done = live.finished === "done";
+  const failed = live.finished === "failed";
+  const step = (live.step as RoutineStep) ?? "topic";
+  const position = done ? STEP_ORDER.length : stepNumber(step);
 
   return (
-    <div className="mt-4 rounded-2xl bg-sunken p-4" aria-live="polite">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-sm font-semibold text-ink">
-          {done ? "Finished" : failed ? "Stopped" : STEP_LABELS[watch.step]}
+    <div className="mt-3" aria-live="polite">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
+        <p className="text-sm font-medium text-ink">
+          {done ? "Finished" : failed ? "Stopped" : STEP_LABELS[step]}
+          {live.title && live.title !== "Untitled article" && !done && (
+            <span className="text-ink-2"> · {live.title}</span>
+          )}
         </p>
         <p className="text-sm text-ink-3">
-          {done ? "7 of 7" : `Step ${position} of ${STEP_ORDER.length}`}
+          {done ? "Done" : failed ? `at step ${position}` : `${position} of ${STEP_ORDER.length}`}
         </p>
       </div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-deep">
+      <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-deep">
         <div
           className={`h-full rounded-full transition-[width] duration-(--duration-base) ease-(--ease-out) ${
             failed ? "bg-destructive" : "bg-accent"
@@ -426,17 +576,47 @@ function Progress({ watch }: { watch: Watch }) {
           style={{ width: `${Math.round((position / STEP_ORDER.length) * 100)}%` }}
         />
       </div>
-      {!done && !failed && (
-        <p className="mt-2 text-sm leading-relaxed text-ink-2">
-          Keep this page open — it is what moves the run along. Closing it pauses the article until
-          the next scheduled run picks it up.
+      {done && live.projectId && (
+        <p className="mt-2 text-sm">
+          <Link
+            href={`/pipeline/${live.projectId}`}
+            className="inline-flex items-center gap-1.5 font-medium text-accent-ink underline-offset-4 hover:underline"
+          >
+            Read what it wrote
+            <IconArrowRight width={14} height={14} />
+          </Link>
         </p>
       )}
-      {watch.message && (
+      {live.message && (
         <p className={`mt-2 text-sm leading-relaxed ${failed ? "text-danger-ink" : "text-ink-2"}`}>
-          {watch.message}
+          {humanise(live.message)}
         </p>
       )}
     </div>
   );
+}
+
+/**
+ * Provider errors arrive as a status code and a wall of JSON. Say the thing,
+ * and keep the raw text only when it is not one we recognise — an unknown
+ * failure is worse to hide than to print badly.
+ */
+function humanise(message: string): string {
+  const text = message.trim();
+  if (/authentication_error|API key is invalid|401/.test(text)) {
+    return "The Anthropic key was rejected. Check ANTHROPIC_API_KEY in the deployment settings.";
+  }
+  if (/rate_limit|429/.test(text)) {
+    return "The provider is rate limiting us. It will try again on the next run.";
+  }
+  if (/took longer than|timed out|ETIMEDOUT/.test(text)) {
+    return text.replace(/\s+/g, " ");
+  }
+  if (/No active content direction/.test(text)) {
+    return "No content direction is active. Turn one on in Settings → Content.";
+  }
+  if (/HUB_BASE_URL|HUB_API_KEY/.test(text)) {
+    return "The Knowledge Hub is not configured, so the article could not be sent.";
+  }
+  return text.length > 300 ? `${text.slice(0, 300)}…` : text;
 }

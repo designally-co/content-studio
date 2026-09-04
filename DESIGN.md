@@ -292,7 +292,7 @@ The Create page's single input. One borderless Clean Sheet object on Draft Bed, 
 
 ### Navigation
 
-- The side navigation uses Clean Sheet, a right Rule Line, and compact 44px rows, ordered Create → Library → Settings. Create is the home route: the studio opens on the act it exists for, not on an inventory of past work. Active destinations use Markup Wash, Press Orange text, and an orange icon; inactive destinations remain neutral until hover.
+- The side navigation uses Clean Sheet, a right Rule Line, and compact 44px rows, ordered Create → Library → Routines → Settings. Routines is administrator-only and simply absent for everyone else — a destination that answers `notFound()` is worse than one that was never offered. Create is the home route: the studio opens on the act it exists for, not on an inventory of past work. Active destinations use Markup Wash, Press Orange text, and an orange icon; inactive destinations remain neutral until hover.
 - It is collapsible between `240px` and `80px`, animating width over 200ms. Collapsed, rows become square `44px` targets centred in the panel and keep their label available to assistive technology and as a tooltip — a full-width pill behind a lone centred icon reads as a mis-sized target rather than as a state. The brandmark holds one size and position across both states so collapsing reads as the panel narrowing, not as the logo jumping. Canvas surfaces open with the navigation collapsed so the working object holds the page.
 
 **The route sets the panel; navigation never moves it.** The collapsed state is decided once, from the route the visitor arrives on, and after that only the toggle changes it. Following a link must never reflow the panel: the width change costs more attention than the labels are worth, and it makes the link feel like it did something other than navigate.
@@ -323,6 +323,16 @@ The pipeline runs on its own visual rules: the shell every stage sits in, and th
 - **Nested trailing icon.** The primary action carries its glyph in its own disc, flush to the button's inner edge, and that disc holds the hover motion by itself rather than the whole button sliding.
 - **Quiet toolbar controls.** Controls over a reading surface carry no outline at rest and take a tonal fill only while holding a mode open. Outlining every one of them gives a destructive action the same weight as a view toggle.
 - **Still no eyebrows, no glass over content, no dark register.** `backdrop-blur` stays on the sticky action bar, where it is doing a job. The stage is an exception in structure and motion, not an invitation to redecorate.
+
+### Routines
+
+A working surface, and deliberately the plainest one in the product: one bordered Clean Sheet list on Draft Bed, routines as rows divided by Rule Lines, and a row's details opening inside that same container rather than beside it.
+
+- **Rows, not cards.** A stack of identical cards is what this page was first built as, and it read as five things competing rather than one list. Nested cards are prohibited anyway — the run history and the progress readout sit inside a routine, and as cards they were cards inside a card.
+- **An expanded row stays Clean Sheet.** The page is already Draft Bed, so a Draft Bed panel inside the white list reads as the card ending, not as a grouped region. A hairline rule does the separating.
+- **State is a word before it is a colour.** Off / On beside the switch, `Running` in the row, `Stopped at making the cover` in the history. The progress rule and its red or orange fill only reinforce what the words already say.
+- **The page is the timer while it is open.** A run advances one step per request, so the page that is being watched drives it — including a run that something else started, picked up on load. Anything else means a run somebody is watching moves slower than one nobody is.
+- **Provider errors are translated.** `401 {"type":"error"…}` becomes "The Anthropic key was rejected. Check ANTHROPIC_API_KEY in the deployment settings." An unrecognised failure still prints raw and truncated: hiding one is worse than printing it badly.
 
 ### Generation Workbench
 

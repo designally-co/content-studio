@@ -742,6 +742,33 @@ export async function stepRun(runId: string): Promise<StepOutcome> {
 }
 
 
+/**
+ * Runs that are still going, whoever started them.
+ *
+ * The Routines page asks for this every few seconds while anything is in
+ * flight, so a run advancing on the schedule animates on screen the same way a
+ * run somebody started by hand does. Kept to the columns the page draws.
+ */
+export async function runningRuns() {
+  const db = await getDb();
+  return db
+    .select({
+      id: routineRuns.id,
+      routineId: routineRuns.routineId,
+      projectId: routineRuns.projectId,
+      step: routineRuns.step,
+      status: routineRuns.status,
+      error: routineRuns.error,
+      startedAt: routineRuns.startedAt,
+      title: projects.selectedTopic,
+    })
+    .from(routineRuns)
+    .leftJoin(projects, eq(projects.id, routineRuns.projectId))
+    .where(eq(routineRuns.status, "running"))
+    .orderBy(asc(routineRuns.startedAt))
+    .limit(10);
+}
+
 /** The most recent runs — all of them, or one routine's. */
 export async function recentRuns(limit = 20, routineId?: string) {
   const db = await getDb();

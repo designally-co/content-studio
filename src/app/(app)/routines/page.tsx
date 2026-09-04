@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { categories } from "@/db/schema";
-import { listRoutines, recentRuns } from "@/lib/autopilot/runner";
+import { listRoutines, recentRuns, runningRuns } from "@/lib/autopilot/runner";
 import type { RoutineView, RunView } from "@/lib/autopilot/views";
 import { isHubConfigured } from "@/lib/hub";
 import { isAnthropicConfigured } from "@/lib/anthropic";
@@ -24,9 +24,10 @@ export default async function RoutinesPage() {
   if (user.role !== "admin") notFound();
 
   const db = await getDb();
-  const [rows, runs, directions, anthropicReady] = await Promise.all([
+  const [rows, runs, inFlight, directions, anthropicReady] = await Promise.all([
     listRoutines(),
     recentRuns(60),
+    runningRuns(),
     db.select().from(categories).where(eq(categories.active, true)).orderBy(asc(categories.name)),
     isAnthropicConfigured(),
   ]);
@@ -76,6 +77,16 @@ export default async function RoutinesPage() {
           anthropicReady={anthropicReady}
           hubReady={isHubConfigured()}
           cronReady={Boolean(process.env.CRON_SECRET)}
+          /* Handed over on the first render so a run already in flight is
+             visible immediately, and this page starts moving it along without
+             waiting a poll for permission to notice it. */
+          initialLive={inFlight.map((run) => ({
+            id: run.id,
+            routineId: run.routineId,
+            projectId: run.projectId,
+            step: run.step,
+            title: (run.title as { title?: string } | null)?.title ?? "Untitled article",
+          }))}
         />
       </div>
     </div>
