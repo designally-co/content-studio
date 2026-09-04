@@ -72,6 +72,56 @@ export async function uploadImageToHub(input: {
   return id;
 }
 
+/**
+ * Hand the Hub a URL and let it fetch the image itself.
+ *
+ * THE REASON THIS EXISTS RATHER THAN `uploadImageToHub`: Vercel refuses any
+ * request body over 4.5MB at the edge, with a 413, before the Hub's route or
+ * its auth ever run. Generated covers outgrew that ceiling and every publish
+ * quietly lost its image — and since a platform 413 carries no Payload error
+ * body, there was not even a message to report. Measured against production:
+ * 4MB reached Payload, 5MB did not.
+ *
+ * A signed URL is a few hundred bytes, so the limit stops applying. The Hub
+ * fetches from Supabase Storage server-side and returns Payload's own
+ * `{ doc: { id } }`, the same shape as a direct upload.
+ */
+export async function uploadImageToHubByUrl(input: {
+  url: string;
+  filename: string;
+  alt: string;
+}): Promise<number> {
+  if (!HUB_URL || !HUB_KEY) {
+    throw new Error("Knowledge Hub isn't configured (set HUB_BASE_URL and HUB_API_KEY).");
+  }
+
+  const res = await fetch(`${HUB_URL}/api/media/from-url`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `users API-Key ${HUB_KEY}`,
+    },
+    body: JSON.stringify({ url: input.url, alt: input.alt, filename: input.filename }),
+    cache: "no-store",
+  });
+
+  const json = (await res.json().catch(() => null)) as
+    | { doc?: { id: number } }
+    | { error?: string; errors?: { message: string }[] }
+    | null;
+
+  if (!res.ok) {
+    const message =
+      (json && "error" in json && json.error) ||
+      (json && "errors" in json && json.errors?.[0]?.message) ||
+      `Media upload responded ${res.status}.`;
+    throw new Error(message);
+  }
+  const id = (json as { doc?: { id: number } })?.doc?.id;
+  if (typeof id !== "number") throw new Error("Media upload returned no id.");
+  return id;
+}
+
 type HubResponse = { id: number | string; slug: string; url: string; status: string };
 
 export type HubPublishResult = {

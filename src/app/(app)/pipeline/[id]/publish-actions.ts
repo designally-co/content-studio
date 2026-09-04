@@ -7,8 +7,13 @@ import { requireUser } from "@/lib/session";
 import { loadProject } from "@/lib/projects";
 import { publishMetadata } from "@/lib/publish-meta";
 import { getModels, runText } from "@/lib/anthropic";
-import { isHubConfigured, publishArticleToHub, uploadImageToHub } from "@/lib/hub";
-import { resolveImage } from "@/lib/image/storage";
+import {
+  isHubConfigured,
+  publishArticleToHub,
+  uploadImageToHub,
+  uploadImageToHubByUrl,
+} from "@/lib/hub";
+import { createSignedImageUrls, resolveImage } from "@/lib/image/storage";
 import { stripTitleHeading } from "@/lib/markdown";
 import { splitSourcesSection } from "@/lib/outline";
 
@@ -28,8 +33,7 @@ export type PublishToHubResult = {
   coverWarning?: string;
 };
 export type PublishToHubOutcome =
-  | ({ ok: true } & PublishToHubResult)
-  | { ok: false; message: string };
+  ({ ok: true } & PublishToHubResult) | { ok: false; message: string };
 
 /**
  * Generate a one-sentence dek (subtitle) for an article. Best-effort — returns
@@ -64,7 +68,9 @@ async function generateDek(
  * real subtitle, and reused verbatim at publish time. Returns undefined when the
  * article can't be dek'd yet (no title/body) or generation fails.
  */
-export async function ensurePublishDekAction(projectId: string): Promise<string | undefined> {
+export async function ensurePublishDekAction(
+  projectId: string,
+): Promise<string | undefined> {
   await requireUser();
 
   const loaded = await loadProject(projectId);
@@ -74,16 +80,25 @@ export async function ensurePublishDekAction(projectId: string): Promise<string 
   if (cached) return cached;
 
   const title = loaded.project.selectedTopic?.title?.trim();
-  const draftMarkdown = (loaded.drafts.find((d) => d.isSelected) ?? loaded.drafts[0])?.contentMd?.trim();
+  const draftMarkdown = (
+    loaded.drafts.find((d) => d.isSelected) ?? loaded.drafts[0]
+  )?.contentMd?.trim();
   if (!title || !draftMarkdown) return undefined;
 
-  const dek = await generateDek(projectId, title, stripTitleHeading(draftMarkdown, title));
+  const dek = await generateDek(
+    projectId,
+    title,
+    stripTitleHeading(draftMarkdown, title),
+  );
   if (!dek) return undefined;
 
   const db = await getDb();
   await db
     .update(projects)
-    .set({ inputs: { ...loaded.project.inputs, publishDek: dek }, updatedAt: new Date() })
+    .set({
+      inputs: { ...loaded.project.inputs, publishDek: dek },
+      updatedAt: new Date(),
+    })
     .where(eq(projects.id, projectId));
   return dek;
 }
@@ -114,7 +129,10 @@ export async function publishToHubAction(
   } catch (cause) {
     return {
       ok: false,
-      message: cause instanceof Error ? cause.message : "Publishing to the Hub failed.",
+      message:
+        cause instanceof Error
+          ? cause.message
+          : "Publishing to the Hub failed.",
     };
   }
 }
@@ -135,13 +153,17 @@ async function publishToHub(
   if (!loaded) throw new Error("Project not found.");
 
   const title = loaded.project.selectedTopic?.title?.trim();
-  const draftMarkdown = (loaded.drafts.find((d) => d.isSelected) ?? loaded.drafts[0])?.contentMd?.trim();
+  const draftMarkdown = (
+    loaded.drafts.find((d) => d.isSelected) ?? loaded.drafts[0]
+  )?.contentMd?.trim();
   const { tags } = publishMetadata(loaded.category?.name);
 
   if (!title) throw new Error("This article has no title yet.");
   if (!draftMarkdown) throw new Error("There's no article draft to publish.");
   if (tags.length === 0) {
-    throw new Error("Set a content direction first — the Hub needs at least one tag.");
+    throw new Error(
+      "Set a content direction first — the Hub needs at least one tag.",
+    );
   }
 
   // The generator writes the title as a leading H1; the Hub renders the title
@@ -161,38 +183,66 @@ async function publishToHub(
   const firstImage = loaded.images[0];
 
   if (!firstImage?.storagePath) {
-    coverWarning = "No generated image on this project, so it was published without a cover.";
+    coverWarning =
+      "No generated image on this project, so it was published without a cover.";
   } else {
     try {
-      const resolved = await resolveImage(firstImage.storagePath);
-      if (!resolved) {
-        /* The single most useful thing this function can say. `resolveImage`
+      /* THE BYTES DO NOT TRAVEL IF THEY DO NOT HAVE TO. Vercel refuses a
+         request body over 4.5MB at the edge — a 413 before the Hub's route or
+         auth runs, with no error body to report — and generated covers now
+         exceed it, which is why ten days of articles published with no image.
+         A signed URL is a few hundred bytes, and the Hub fetches the file
+         itself, so size stops being a factor. `local:` paths have no URL to
+         sign and fall through to the upload below, which is fine: that is the
+         self-hosted case, where the 4.5MB ceiling does not exist either. */
+      const signed = firstImage.storagePath.startsWith("supabase:")
+        ? (await createSignedImageUrls([firstImage.storagePath], 600)).get(
+            firstImage.storagePath,
+          )
+        : undefined;
+
+      if (signed) {
+        const ext = signed.includes(".png")
+          ? "png"
+          : signed.includes(".webp")
+            ? "webp"
+            : "jpg";
+        coverImage = await uploadImageToHubByUrl({
+          url: signed,
+          filename: `${projectId}-cover.${ext}`,
+          alt: title,
+        });
+      } else {
+        const resolved = await resolveImage(firstImage.storagePath);
+        if (!resolved) {
+          /* The single most useful thing this function can say. `resolveImage`
            returns null when the bytes cannot be fetched — and the storage
            BACKEND is the usual reason: with SUPABASE_SERVICE_ROLE_KEY unset,
            images are written to the local filesystem, which on Vercel is
            per-invocation. The image is generated in one request and gone by
            the time this one looks for it, silently, in production only. */
-        const backend = firstImage.storagePath.startsWith("supabase:")
-          ? "Supabase Storage"
-          : "the local filesystem";
-        coverWarning =
-          `The cover image could not be read from ${backend} ` +
-          `(${firstImage.storagePath.slice(0, 60)}), so the article was published without it.` +
-          (firstImage.storagePath.startsWith("local:")
-            ? " Images are being stored on local disk, which does not persist on Vercel — set SUPABASE_SERVICE_ROLE_KEY."
-            : "");
-      } else {
-        const ext = resolved.mimeType.includes("png")
-          ? "png"
-          : resolved.mimeType.includes("webp")
-            ? "webp"
-            : "jpg";
-        coverImage = await uploadImageToHub({
-          data: resolved.data,
-          filename: `${projectId}-cover.${ext}`,
-          mimeType: resolved.mimeType,
-          alt: title,
-        });
+          const backend = firstImage.storagePath.startsWith("supabase:")
+            ? "Supabase Storage"
+            : "the local filesystem";
+          coverWarning =
+            `The cover image could not be read from ${backend} ` +
+            `(${firstImage.storagePath.slice(0, 60)}), so the article was published without it.` +
+            (firstImage.storagePath.startsWith("local:")
+              ? " Images are being stored on local disk, which does not persist on Vercel — set SUPABASE_SERVICE_ROLE_KEY."
+              : "");
+        } else {
+          const ext = resolved.mimeType.includes("png")
+            ? "png"
+            : resolved.mimeType.includes("webp")
+              ? "webp"
+              : "jpg";
+          coverImage = await uploadImageToHub({
+            data: resolved.data,
+            filename: `${projectId}-cover.${ext}`,
+            mimeType: resolved.mimeType,
+            alt: title,
+          });
+        }
       }
     } catch (cause) {
       /* Still never fatal — but now it says what happened. The Hub's own
@@ -209,7 +259,8 @@ async function publishToHub(
      data. Left in the body it would arrive as Lexical paragraphs — the same
      links, but unlistable and duplicated under a heading the Hub renders
      again. Inline links inside the prose are untouched. */
-  const { body: bodyWithoutSources, references } = splitSourcesSection(bodyMarkdown);
+  const { body: bodyWithoutSources, references } =
+    splitSourcesSection(bodyMarkdown);
 
   const result = await publishArticleToHub({
     title,
@@ -231,7 +282,10 @@ async function publishToHub(
     .set({
       publishedTo: { ...existing, knowledgeHub: result.absoluteUrl },
       ...(status === "published" ? { status: "published" as const } : {}),
-      inputs: { ...loaded.project.inputs, publishDek: summary ?? loaded.project.inputs.publishDek },
+      inputs: {
+        ...loaded.project.inputs,
+        publishDek: summary ?? loaded.project.inputs.publishDek,
+      },
       updatedAt: new Date(),
     })
     .where(eq(projects.id, projectId));
