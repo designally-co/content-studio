@@ -76,13 +76,15 @@ src/
     publish-meta.ts         direction → (pillar category, tags) derivation
     hub.ts                  the Knowledge Hub client  ← the integration boundary
     image/                  providers, storage, branding, visual brief
+    pipeline/               each pipeline step as a plain function, session-free
+    autopilot/runner.ts     the unattended state machine that calls those steps
     projects.ts             loadProject() + pipelineContext()
     cost.ts                 token/cost telemetry
   prompts/
     system.ts               system prompt, PROMPT_VERSION, mode rules
     layers.ts               brand / format / context prompt layers
     tasks.ts                per-stage task prompts
-drizzle/                    SQL migrations (0000 … 0017) + meta
+drizzle/                    SQL migrations (0000 … 0020) + meta
 scripts/migrate.ts          standalone migration runner
 ```
 
@@ -134,6 +136,10 @@ The first account created through the first-run flow is given `role: "admin"`.
 | `article.length` | `1,200–2,000 words` |
 | `model.research` | `claude-haiku-4-5` |
 | `model.drafting` | `claude-sonnet-5` |
+
+**`routines`** — the autopilot's single settings row: `enabled`, `category_id` (null rotates), `max_per_day`, `images_per_run`, `hub_status` (`draft` | `published`), `last_run_at`. Created on first use, so there is nothing to set up.
+
+**`routine_runs`** — one row per unattended article, and the autopilot's memory between requests: `project_id`, `step` (`topic` → `plan` → `draft` → `images` → `publish` → `done`), `status` (`running` | `done` | `failed`), `attempts`, `error`, `locked_until`. The step column is what makes a run resumable after a crash; `locked_until` is what stops two schedulers advancing the same run. Read by **Settings → Autopilot**.
 
 **`api_keys`** — user-saved image-provider keys, `encrypted_value` = AES-256-GCM `iv:authTag:ciphertext` (hex), keyed off `ENCRYPTION_KEY`. Only `fal` is a live provider. **Anthropic is environment-only and never stored here.**
 
@@ -191,7 +197,7 @@ Route handlers under `/api` call `getSessionUser()` directly and return a bare `
 
 ## 7. HTTP surface
 
-All routes are `runtime = "nodejs"`, `dynamic = "force-dynamic"`, and **all require the `cs_session` cookie**.
+All routes are `runtime = "nodejs"`, `dynamic = "force-dynamic"`, and require a signed-in session — **with one exception, `/api/cron/autopilot`, which is reached by a scheduler and authenticates with a shared secret instead.**
 
 | Method | Path | Body / Params | Response |
 |---|---|---|---|
@@ -202,6 +208,7 @@ All routes are `runtime = "nodejs"`, `dynamic = "force-dynamic"`, and **all requ
 | GET | `/api/image-references/{id}` | — | image bytes |
 | GET | `/api/brand-logo` | — | the brand logo bytes |
 | GET | `/api/brand-image/{brandId}` | — | legacy brand avatar bytes |
+| POST / GET | `/api/cron/autopilot` | `Authorization: Bearer $CRON_SECRET` | `{"ok":true,"started":0,"advanced":[…],"idle":false}` |
 
 ### NDJSON streaming protocol
 
@@ -218,6 +225,8 @@ Client helper: `src/lib/ndjson-client.ts`.
 
 Status codes on the generation routes: `401` no session, `404` project not found, `400` missing outline / empty message / no selected draft, `503` `ANTHROPIC_API_KEY` not configured. Note that a failure *during* streaming arrives as a `{"t":"error"}` line with HTTP 200 already sent — you must handle both.
 
+**`/api/cron/autopilot`** is the only unauthenticated-by-session route in the app, so it is worth being precise about it. No `CRON_SECRET` configured → `503` and it does nothing; wrong or missing bearer token → `401` (compared with `timingSafeEqual`); otherwise it advances whatever autopilot work is in flight and starts a run if one is due, and answers `200` with what it did. `500` means the runner itself could not run — a database that is down, a schema behind the code — never a step that failed, which is recorded on the run instead. It is idempotent: a poke with nothing to do costs one query and returns `idle`. Both methods do the same work; some schedulers only issue `GET`.
+
 ### Server actions
 
 Not HTTP endpoints you can call from another origin — Next.js server actions, invoked from this app's own React components with a per-request action id. Listed so you know what logic exists and where:
@@ -231,7 +240,7 @@ Not HTTP endpoints you can call from another origin — Next.js server actions, 
 | `pipeline/[id]/actions.ts` | `prepareSimpleArticleAction`, `goToFinalizeAction`, `generateImagePromptAction`, `reviewBrandAlignmentAction`, `saveDraftContentAction` |
 | `pipeline/[id]/image-actions.ts` | `uploadImageReferenceAction`, `generateImagesAction`, `setImageBrandingAction`, `setCoverImageAction`, `deleteGeneratedImageAction` |
 | `pipeline/[id]/publish-actions.ts` | `ensurePublishDekAction`, `publishToHubAction` |
-| `settings/actions.ts` | `manageTeamMemberAction`*, `toggleCategoryAction`, `saveArticleTemplateAction`, `saveModelSettingsAction`*, `saveApiKeyAction`*, `deleteApiKeyAction`*, `saveBrandAction` |
+| `settings/actions.ts` | `manageTeamMemberAction`*, `toggleCategoryAction`, `saveArticleTemplateAction`, `saveModelSettingsAction`*, `saveApiKeyAction`*, `deleteApiKeyAction`*, `saveBrandAction`, `saveRoutineAction`* |
 
 \* admin-only.
 
@@ -330,6 +339,7 @@ There is no webhook or outbound event system beyond the Hub publish. `publishToH
 | `SUPABASE_URL` | optional | Enables Supabase Storage for generated images. |
 | `SUPABASE_SERVICE_ROLE_KEY` | optional | Paired with the above. |
 | `SUPABASE_STORAGE_BUCKET` | optional | Defaults to `content-studio-images`. Bucket should be public, or adapt `/api/images`. |
+| `CRON_SECRET` | for the autopilot | Shared secret for `/api/cron/autopilot`. `openssl rand -hex 32`. Unset → the endpoint answers `503` and the autopilot cannot run at all. Setting it starts nothing on its own; the switch is in Settings → Autopilot. |
 | `SKIP_DB_MIGRATE` | recommended in prod | `1` stops every cold start running the migrator. See §10. |
 | `DB_FORCE_TRANSACTION_POOLER` | rarely | `1` rewrites a Supabase pooler URL `:5432` → `:6543`. **Off by default deliberately — see §11.** |
 
@@ -364,6 +374,8 @@ On boot, `getDb()` runs the migrator and seeder automatically **unless `SKIP_DB_
 
 **Vercel** — push to `main`. Region `sin1`. Set every variable from §9.
 
+**The autopilot's scheduler.** Nothing in Vercel drives it usefully: Hobby cron fires roughly once a day and one article takes five steps, so a run would take most of a week. `.github/workflows/autopilot.yml` pokes the endpoint every ten minutes instead — free, and no plan change. It needs two **repository secrets**: `AUTOPILOT_URL` (`https://<your-app>/api/cron/autopilot`) and `AUTOPILOT_SECRET` (the same value as `CRON_SECRET`). With either missing the workflow exits 0 without calling anything, so a fork or a clone does not fail CI over a feature it has not configured. `vercel.json` keeps a daily cron as a backstop. Anything that can make an HTTPS request on a timer works equally well.
+
 **Docker** — multi-stage build to `.next/standalone`, runs as non-root `nextjs` (uid 1001), exposes 3000, mounts `/app/data` for PGlite/local images/secrets:
 
 ```bash
@@ -390,6 +402,8 @@ Things that will cost you time if you do not know them.
 
 **Cost telemetry is recorded but not surfaced.** `api_usage_log` and `pricing` are populated; there is no spend dashboard.
 
+**The autopilot publishes without review.** While it is on, articles reach the Hub with nobody having read them. The brakes are a per-day ceiling (five, whatever is typed), two retries per step before a run stops, and a limit of five failed starts a day. Leaving its Hub setting on **draft** keeps one human gate at the far end and costs nothing else. Every run, including failures and their error text, is listed in Settings → Autopilot; there is no alerting beyond that page.
+
 **Thai.** `language: "both"` doubles `maxTokens`. Separately, the Hub auto-translates on publish. These are two different mechanisms — do not assume one implies the other.
 
 ---
@@ -407,6 +421,7 @@ Things that will cost you time if you do not know them.
 | Publish destination or payload | `lib/hub.ts` + `pipeline/[id]/publish-actions.ts` |
 | Image providers | `lib/image/fal.ts`, registered in `lib/image/registry.ts` |
 | Adding an inbound API | See §8.2 Option A |
+| What the autopilot does, or how often | Settings → Autopilot; the machine itself is `lib/autopilot/runner.ts`, its schedule `.github/workflows/autopilot.yml` |
 
 ---
 

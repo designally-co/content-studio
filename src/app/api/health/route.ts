@@ -142,6 +142,8 @@ export async function GET() {
     // Without it, grounded images have no photograph of a working scene to be
     // matched against, and fall back to a channel that rarely has one.
     UNSPLASH_ACCESS_KEY: Boolean(process.env.UNSPLASH_ACCESS_KEY),
+    // Without it the autopilot endpoint answers 503 and nothing is scheduled.
+    CRON_SECRET: Boolean(process.env.CRON_SECRET),
     HUB_BASE_URL: Boolean(process.env.HUB_BASE_URL),
     HUB_API_KEY: Boolean(process.env.HUB_API_KEY),
     SUPABASE_URL: Boolean(process.env.SUPABASE_URL),
