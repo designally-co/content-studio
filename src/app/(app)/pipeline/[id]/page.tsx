@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { loadProject } from "@/lib/projects";
+import { coverImage, loadProject } from "@/lib/projects";
 import { publishMetadata } from "@/lib/publish-meta";
 import { isAnthropicConfigured } from "@/lib/anthropic";
 import { isHubConfigured } from "@/lib/hub";
@@ -52,25 +52,30 @@ export default async function PipelinePage({
 
   const reached = loaded.project.stage;
   const requested = stageParam ? parseInt(stageParam, 10) : reached;
-  const current = Math.min(Math.max(Number.isNaN(requested) ? reached : requested, 1), reached);
+  const current = Math.min(
+    Math.max(Number.isNaN(requested) ? reached : requested, 1),
+    reached,
+  );
 
   const anthropicReady = await isAnthropicConfigured();
   const imageOptions = await imageGenerationOptions();
   const title = loaded.project.selectedTopic?.title;
   const published = loaded.project.status === "published";
-  // Only one image reaches the Hub. The editor's choice wins; without one, the
-  // most recent image stands in, which is what this stage did implicitly before
-  // choosing was possible. A deleted choice falls back the same way.
+  // Only one image reaches the Hub, and `coverImage` is the single answer to
+  // which one — shared with publishing, which used to decide separately and
+  // disagree.
   const chosenCoverId = loaded.project.inputs.coverImageId;
-  const cover =
-    loaded.images.find((image) => image.id === chosenCoverId) ?? loaded.images[0];
+  const cover = coverImage(loaded);
   // Cover aspect ratio (width / height) — drives the preview hero's 50% overflow.
   const coverAspectRatio = parseAspectRatio(
     cover?.aspectRatio ?? loaded.project.inputs.imageAspectRatio,
   );
-  const finalizeView: "images" | "complete" = viewParam === "images" || viewParam === "complete"
-    ? viewParam
-    : published ? "complete" : "images";
+  const finalizeView: "images" | "complete" =
+    viewParam === "images" || viewParam === "complete"
+      ? viewParam
+      : published
+        ? "complete"
+        : "images";
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -94,7 +99,13 @@ export default async function PipelinePage({
           className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-28 bg-linear-to-b from-bg from-65% to-transparent"
         />
         <header className="cs-island max-w-full overflow-x-auto rounded-full px-2 py-2">
-          <Stepper projectId={id} current={current} reached={reached} published={published} finalizeView={finalizeView} />
+          <Stepper
+            projectId={id}
+            current={current}
+            reached={reached}
+            published={published}
+            finalizeView={finalizeView}
+          />
         </header>
       </div>
 
@@ -129,10 +140,14 @@ export default async function PipelinePage({
             projectId={id}
             title={title ?? "Untitled project"}
             publish={publishMetadata(loaded.category?.name)}
-            draftId={(loaded.drafts.find((d) => d.isSelected) ?? loaded.drafts[0])?.id ?? ""}
+            draftId={
+              (loaded.drafts.find((d) => d.isSelected) ?? loaded.drafts[0])
+                ?.id ?? ""
+            }
             longForm={loaded.articleRules.longForm}
             draftMd={
-              (loaded.drafts.find((d) => d.isSelected) ?? loaded.drafts[0])?.contentMd ?? ""
+              (loaded.drafts.find((d) => d.isSelected) ?? loaded.drafts[0])
+                ?.contentMd ?? ""
             }
             coverImageUrl={cover ? `/api/images/${cover.id}` : null}
             coverAspectRatio={coverAspectRatio}
@@ -170,7 +185,8 @@ export default async function PipelinePage({
             anthropicReady={anthropicReady}
             hubConfigured={isHubConfigured()}
             publishedHubUrl={
-              (loaded.project.publishedTo as Record<string, string> | null)?.knowledgeHub
+              (loaded.project.publishedTo as Record<string, string> | null)
+                ?.knowledgeHub
             }
           />
         )}

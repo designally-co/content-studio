@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { projects } from "@/db/schema";
 import { requireUser } from "@/lib/session";
-import { loadProject } from "@/lib/projects";
+import { coverImage, loadProject } from "@/lib/projects";
 import { publishMetadata } from "@/lib/publish-meta";
 import { getModels, runText } from "@/lib/anthropic";
 import {
@@ -178,11 +178,14 @@ async function publishToHub(
 
   // Upload the first generated image into the Hub's media library as the cover.
   // Optional: a failed/absent image never blocks publishing.
-  let coverImage: number | undefined;
+  let coverMediaId: number | undefined;
   let coverWarning: string | undefined;
-  const firstImage = loaded.images[0];
+  /* The one the editor chose — NOT `images[0]`, which is merely the newest.
+     Picking the second variation and watching the Hub publish the third is
+     what that mistake looked like from the outside. */
+  const chosen = coverImage(loaded);
 
-  if (!firstImage?.storagePath) {
+  if (!chosen?.storagePath) {
     coverWarning =
       "No generated image on this project, so it was published without a cover.";
   } else {
@@ -195,9 +198,9 @@ async function publishToHub(
          itself, so size stops being a factor. `local:` paths have no URL to
          sign and fall through to the upload below, which is fine: that is the
          self-hosted case, where the 4.5MB ceiling does not exist either. */
-      const signed = firstImage.storagePath.startsWith("supabase:")
-        ? (await createSignedImageUrls([firstImage.storagePath], 600)).get(
-            firstImage.storagePath,
+      const signed = chosen.storagePath.startsWith("supabase:")
+        ? (await createSignedImageUrls([chosen.storagePath], 600)).get(
+            chosen.storagePath,
           )
         : undefined;
 
@@ -207,13 +210,13 @@ async function publishToHub(
           : signed.includes(".webp")
             ? "webp"
             : "jpg";
-        coverImage = await uploadImageToHubByUrl({
+        coverMediaId = await uploadImageToHubByUrl({
           url: signed,
           filename: `${projectId}-cover.${ext}`,
           alt: title,
         });
       } else {
-        const resolved = await resolveImage(firstImage.storagePath);
+        const resolved = await resolveImage(chosen.storagePath);
         if (!resolved) {
           /* The single most useful thing this function can say. `resolveImage`
            returns null when the bytes cannot be fetched — and the storage
@@ -221,13 +224,13 @@ async function publishToHub(
            images are written to the local filesystem, which on Vercel is
            per-invocation. The image is generated in one request and gone by
            the time this one looks for it, silently, in production only. */
-          const backend = firstImage.storagePath.startsWith("supabase:")
+          const backend = chosen.storagePath.startsWith("supabase:")
             ? "Supabase Storage"
             : "the local filesystem";
           coverWarning =
             `The cover image could not be read from ${backend} ` +
-            `(${firstImage.storagePath.slice(0, 60)}), so the article was published without it.` +
-            (firstImage.storagePath.startsWith("local:")
+            `(${chosen.storagePath.slice(0, 60)}), so the article was published without it.` +
+            (chosen.storagePath.startsWith("local:")
               ? " Images are being stored on local disk, which does not persist on Vercel — set SUPABASE_SERVICE_ROLE_KEY."
               : "");
         } else {
@@ -236,7 +239,7 @@ async function publishToHub(
             : resolved.mimeType.includes("webp")
               ? "webp"
               : "jpg";
-          coverImage = await uploadImageToHub({
+          coverMediaId = await uploadImageToHub({
             data: resolved.data,
             filename: `${projectId}-cover.${ext}`,
             mimeType: resolved.mimeType,
@@ -250,7 +253,7 @@ async function publishToHub(
       coverWarning =
         `The cover image failed to upload to the Hub, so the article was published without it. ` +
         (cause instanceof Error ? cause.message : String(cause)).slice(0, 200);
-      coverImage = undefined;
+      coverMediaId = undefined;
     }
   }
 
@@ -268,7 +271,7 @@ async function publishToHub(
     summary,
     bodyMarkdown: bodyWithoutSources,
     status,
-    coverImage,
+    coverImage: coverMediaId,
     ...(references.length ? { references } : {}),
   });
 
