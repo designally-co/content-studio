@@ -148,7 +148,25 @@ export async function GET() {
     // Not a secret, and the single most useful thing to know when the schema
     // is behind: it says whether this deployment applies migrations at all.
     SKIP_DB_MIGRATE: process.env.SKIP_DB_MIGRATE === "1",
+    /* THE ONE THAT DECIDES WHERE IMAGES LIVE, and the reason this line exists.
+       `saveImage` uses Supabase Storage only when BOTH the URL and this key are
+       set; with either missing it silently writes to `data/images/` on the
+       local filesystem. That is fine when self-hosted and fatal on Vercel,
+       where the filesystem is per-invocation: an image generated in one request
+       is gone by the time publishing looks for it. Ten days of articles reached
+       the Hub with no cover and nothing anywhere said why — this endpoint
+       listed SUPABASE_URL and not this, so it looked configured. */
+    SUPABASE_SERVICE_ROLE_KEY: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
   };
+
+  /* Not an env boolean but the conclusion drawn from two of them, because
+     "which of these is missing" is a worse question than "where do images
+     actually go". `local` on a serverless host means covers cannot survive
+     between generating and publishing. */
+  const imageStorage =
+    process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? `supabase:${process.env.SUPABASE_STORAGE_BUCKET || "content-studio-images"}`
+      : "local (ephemeral on Vercel — covers will not reach the Hub)";
 
   const [anthropic, hub] = await Promise.all([checkAnthropic(), checkHub()]);
 
@@ -199,6 +217,7 @@ export async function GET() {
     hub,
     env,
     missing,
+    imageStorage,
     tookMs: Date.now() - started,
   };
 

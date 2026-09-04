@@ -12,7 +12,21 @@ import { resolveImage } from "@/lib/image/storage";
 import { stripTitleHeading } from "@/lib/markdown";
 import { splitSourcesSection } from "@/lib/outline";
 
-export type PublishToHubResult = { url: string; slug: string; status: string };
+export type PublishToHubResult = {
+  url: string;
+  slug: string;
+  status: string;
+  /**
+   * Why the article went up without its cover, when it did.
+   *
+   * The cover is deliberately optional — a bad image must never stop an article
+   * being published. But "optional" was implemented as an empty `catch`, so a
+   * cover that failed for TEN DAYS looked exactly like a cover nobody asked
+   * for: articles arriving at the Hub with no image and no complaint. The
+   * decision to carry on is right; throwing the reason away was not.
+   */
+  coverWarning?: string;
+};
 export type PublishToHubOutcome =
   | ({ ok: true } & PublishToHubResult)
   | { ok: false; message: string };
@@ -143,11 +157,31 @@ async function publishToHub(
   // Upload the first generated image into the Hub's media library as the cover.
   // Optional: a failed/absent image never blocks publishing.
   let coverImage: number | undefined;
+  let coverWarning: string | undefined;
   const firstImage = loaded.images[0];
-  if (firstImage?.storagePath) {
+
+  if (!firstImage?.storagePath) {
+    coverWarning = "No generated image on this project, so it was published without a cover.";
+  } else {
     try {
       const resolved = await resolveImage(firstImage.storagePath);
-      if (resolved) {
+      if (!resolved) {
+        /* The single most useful thing this function can say. `resolveImage`
+           returns null when the bytes cannot be fetched — and the storage
+           BACKEND is the usual reason: with SUPABASE_SERVICE_ROLE_KEY unset,
+           images are written to the local filesystem, which on Vercel is
+           per-invocation. The image is generated in one request and gone by
+           the time this one looks for it, silently, in production only. */
+        const backend = firstImage.storagePath.startsWith("supabase:")
+          ? "Supabase Storage"
+          : "the local filesystem";
+        coverWarning =
+          `The cover image could not be read from ${backend} ` +
+          `(${firstImage.storagePath.slice(0, 60)}), so the article was published without it.` +
+          (firstImage.storagePath.startsWith("local:")
+            ? " Images are being stored on local disk, which does not persist on Vercel — set SUPABASE_SERVICE_ROLE_KEY."
+            : "");
+      } else {
         const ext = resolved.mimeType.includes("png")
           ? "png"
           : resolved.mimeType.includes("webp")
@@ -160,7 +194,12 @@ async function publishToHub(
           alt: title,
         });
       }
-    } catch {
+    } catch (cause) {
+      /* Still never fatal — but now it says what happened. The Hub's own
+         message comes through here when it is the one refusing. */
+      coverWarning =
+        `The cover image failed to upload to the Hub, so the article was published without it. ` +
+        (cause instanceof Error ? cause.message : String(cause)).slice(0, 200);
       coverImage = undefined;
     }
   }
@@ -211,5 +250,10 @@ async function publishToHub(
    * after the body returns. So the caller refreshes instead, in its own
    * request with its own budget.
    */
-  return { url: result.absoluteUrl, slug: result.slug, status: result.status };
+  return {
+    url: result.absoluteUrl,
+    slug: result.slug,
+    status: result.status,
+    ...(coverWarning ? { coverWarning } : {}),
+  };
 }

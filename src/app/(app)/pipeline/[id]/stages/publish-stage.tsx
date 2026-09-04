@@ -1390,6 +1390,7 @@ function PublishRail({
   const router = useRouter();
   const [busy, setBusy] = useState<"draft" | "published" | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [coverWarning, setCoverWarning] = useState<string | null>(null);
   const [result, setResult] = useState<{ url: string; status: string } | undefined>(
     publishedHubUrl ? { url: publishedHubUrl, status: published ? "published" : "draft" } : undefined,
   );
@@ -1404,6 +1405,7 @@ function PublishRail({
 
   async function send(status: "draft" | "published") {
     setError(null);
+    setCoverWarning(null);
     setConfirming(false);
     setBusy(status);
     try {
@@ -1415,6 +1417,9 @@ function PublishRail({
         return;
       }
       setResult({ url: r.url, status: r.status });
+      /* The article went up; the cover may not have. Not an error — the publish
+         succeeded — so it is said beside the result rather than in place of it. */
+      setCoverWarning(r.coverWarning ?? null);
       // The action no longer revalidates — doing so re-rendered the route
       // inside its own response and reported a failure for a publish that had
       // already succeeded. This refresh is a separate request with its own
@@ -1539,6 +1544,16 @@ function PublishRail({
             </p>
           )}
           {error && <p className="text-sm text-danger" role="alert">{error}</p>}
+          {/* PUBLISHED, BUT WITHOUT ITS PICTURE. Caution rather than danger: the
+              article is live and the link above works. This exists because the
+              cover failed silently for ten days — articles arrived at the Hub
+              with no image and nothing said so, and a missing cover is
+              indistinguishable from one nobody asked for. */}
+          {coverWarning && !error && (
+            <p className="text-sm text-warn" role="status">
+              {coverWarning}
+            </p>
+          )}
           </div>
         </div>
       </section>
