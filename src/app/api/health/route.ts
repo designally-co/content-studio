@@ -1,5 +1,6 @@
 import { getDb } from "@/db";
 import { sql } from "drizzle-orm";
+import { checkSchema, expectedMigrationCount, type SchemaCheck } from "@/lib/schema-status";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -141,16 +142,23 @@ export async function GET() {
     HUB_BASE_URL: Boolean(process.env.HUB_BASE_URL),
     HUB_API_KEY: Boolean(process.env.HUB_API_KEY),
     SUPABASE_URL: Boolean(process.env.SUPABASE_URL),
+    // Not a secret, and the single most useful thing to know when the schema
+    // is behind: it says whether this deployment applies migrations at all.
+    SKIP_DB_MIGRATE: process.env.SKIP_DB_MIGRATE === "1",
   };
 
   const [anthropic, hub] = await Promise.all([checkAnthropic(), checkHub()]);
 
   let database: { ok: boolean; ms?: number; error?: string };
+  let schema: SchemaCheck = { ok: null, expected: expectedMigrationCount, note: "not checked" };
   try {
     const t0 = Date.now();
     const db = await getDb();
     await db.execute(sql`select 1`);
     database = { ok: true, ms: Date.now() - t0 };
+    // Only worth asking once the connection is known good — otherwise it would
+    // report a schema problem for what is really an unreachable database.
+    schema = await checkSchema(db);
   } catch (error) {
     // The message, not the stack, and not the connection string it came from.
     database = { ok: false, error: error instanceof Error ? error.message.slice(0, 200) : "unknown" };
@@ -166,8 +174,11 @@ export async function GET() {
     // it was configured.
     // `anthropic.ok === null` means the check could not be made, which is not
     // the same as the key being bad and must not be reported as unhealthy.
+    // `schema.ok === null` means the check could not be made, which is not the
+    // same as the schema being wrong and must not be reported as it.
     ok:
       database.ok &&
+      schema.ok !== false &&
       env.AUTH_GOOGLE_ID &&
       env.AUTH_SECRET &&
       anthropic.ok !== false,
@@ -176,6 +187,7 @@ export async function GET() {
     environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? null,
     region: process.env.VERCEL_REGION ?? null,
     database,
+    schema,
     anthropic,
     // Deliberately NOT part of `ok`. A Hub that is down or a key that has gone
     // stale stops publishing; it does not stop researching, drafting, or
