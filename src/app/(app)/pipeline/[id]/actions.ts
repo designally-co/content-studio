@@ -199,7 +199,11 @@ export async function goToFinalizeAction(formData: FormData) {
 // ---- Stage 6: image prompt + finalize ----
 export async function generateImagePromptAction(
   projectId: string,
-  imageContext?: { variationCount?: number }
+  imageContext?: {
+    variationCount?: number;
+    /** Which attached photograph to match. Defaults to the first. */
+    referenceId?: string;
+  }
 ): Promise<DraftedImagePrompt> {
   const loaded = await ctxFor(projectId);
   const { drafting } = await getModels();
@@ -223,7 +227,11 @@ export async function generateImagePromptAction(
    * model. One image on this call is enough — the brief records what it sees in
    * `referenceScene`, and every prompt call reads that.
    */
-  const reference = loaded.imageReferences[0];
+  // The one the editor chose, not simply the first — otherwise the brief would
+  // describe one photograph while generation matched another.
+  const reference =
+    loaded.imageReferences.find((row) => row.id === imageContext?.referenceId) ??
+    loaded.imageReferences[0];
   const referenceImage = await (async () => {
     if (!reference) return undefined;
     const stored = await loadStoredImage(reference.storagePath);

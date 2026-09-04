@@ -394,6 +394,14 @@ function ImagePanel({
   const [references, setReferences] = useState<UploadedReferenceView[]>(initialReferences);
   const [uploading, setUploading] = useState(false);
   const [finding, setFinding] = useState(false);
+  /*
+   * Which photograph the generation matches.
+   *
+   * Null means "the first", so the set works before anybody chooses and keeps
+   * working when the chosen one is removed. Storing an id rather than an index
+   * survives removal without silently pointing at a different picture.
+   */
+  const [chosenReferenceId, setChosenReferenceId] = useState<string | null>(null);
   const [findNote, setFindNote] = useState<string | null>(null);
   const [imgs, setImgs] = useState<GeneratedImageView[]>(existing);
   const [busy, setBusy] = useState<"prompt" | "gen" | null>(null);
@@ -427,12 +435,17 @@ function ImagePanel({
    * single clear example is the entire instruction. The rest of the set stays
    * attached and visible; it is simply not sent, and the dock says so.
    */
-  const usableReferences = useMemo(
-    () => (selectedOption?.capabilities.referenceImages ? references.slice(0, 1) : []),
-    [references, selectedOption]
+  const chosenReference = useMemo(
+    () => references.find((item) => item.id === chosenReferenceId) ?? references[0] ?? null,
+    [references, chosenReferenceId]
   );
-  /** The one photograph actually sent — what the caption credits. */
-  const activeReference = usableReferences[0] ?? references[0] ?? null;
+  const usableReferences = useMemo(
+    () =>
+      selectedOption?.capabilities.referenceImages && chosenReference ? [chosenReference] : [],
+    [chosenReference, selectedOption]
+  );
+  /** The chosen photograph — credited whether or not this model can send it. */
+  const activeReference = chosenReference;
   /** The editing entry in the same model line, which is the one that takes references. */
   const referenceCapableSibling = useMemo(
     () =>
@@ -543,6 +556,8 @@ function ImagePanel({
   async function removeReference(id: string) {
     const previous = references;
     setReferences((current) => current.filter((item) => item.id !== id));
+    // Back to "the first" rather than to a photograph that no longer exists.
+    if (chosenReferenceId === id) setChosenReferenceId(null);
     try {
       await deleteImageReferenceAction(id);
     } catch (e) {
@@ -555,7 +570,10 @@ function ImagePanel({
     setBusy("prompt");
     setError(null);
     try {
-      const result = await generateImagePromptAction(projectId, { variationCount: count });
+      const result = await generateImagePromptAction(projectId, {
+        variationCount: count,
+        referenceId: chosenReference?.id,
+      });
       setPrompt(result.prompt);
       setDraftedPrompt(result.prompt);
       setVariants(result.variants);
@@ -825,50 +843,73 @@ function ImagePanel({
                inside it. */
             className="mb-3 ps-[22px] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-200"
           >
-            <ul className="flex flex-wrap items-center gap-2">
-              {references.map((item, index) => {
-                // Only the first is sent to an editing model — they composite,
-                // so a second photograph dilutes rather than reinforces. The
-                // rest stay attached and visible, dimmed rather than hidden:
-                // removing the first promotes the next, and that is only
-                // obvious if the next one is on screen.
-                const inUse = index < usableReferences.length;
-                const credit = item.sourceName
-                  ? `${item.sourceName}${item.license ? ` — ${item.license}` : ""}`
-                  : "Uploaded";
-                return (
-                  <li key={item.id} className="group relative">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={item.url}
-                      alt={item.name}
-                      width={64}
-                      height={64}
-                      decoding="async"
-                      title={`${credit}${inUse ? "" : " · not sent"}`}
-                      className={`size-16 rounded-xl border object-cover transition-opacity duration-(--duration-fast) ease-(--ease-out) motion-reduce:transition-none ${
-                        inUse ? "border-line-strong opacity-100" : "border-line opacity-45"
-                      }`}
-                    />
-                    {!inUse && <span className="sr-only">Not sent to the model.</span>}
-                    <button
-                      type="button"
-                      onClick={() => void removeReference(item.id)}
-                      aria-label={`Remove reference photograph: ${item.name}`}
-                      /* 24px meets the WCAG 2.2 AA minimum target size. Held
-                         back until the thumbnail is hovered or something inside
-                         it takes focus, so four photographs do not read as four
-                         delete buttons — but always present where hover does not
-                         exist, since there is nothing to reveal it on a touch
-                         screen. */
-                      className="absolute -right-1.5 -top-1.5 grid size-6 place-items-center rounded-full border border-line bg-surface text-ink-3 opacity-0 shadow-[var(--shadow-card)] transition-[opacity,color,background-color] duration-(--duration-fast) ease-(--ease-out) group-hover:opacity-100 hover:bg-sunken hover:text-ink focus-visible:opacity-100 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] motion-reduce:transition-none [@media(hover:none)]:opacity-100"
-                    >
-                      <X aria-hidden className="size-3" />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+            {/*
+              Real radios, hidden but present.
+
+              This is a choose-one-of-N, which is what a radio group is, so the
+              native control does the work: arrow keys move between photographs,
+              the group is one tab stop, and assistive technology announces the
+              selection without a line of ARIA. A div with a click handler and
+              `aria-pressed` would be re-implementing all of that, worse.
+            */}
+            <fieldset className="border-0 p-0">
+              <legend className="sr-only">Which photograph the image should match</legend>
+              <ul className="flex flex-wrap items-center gap-2">
+                {references.map((item) => {
+                  const chosen = item.id === chosenReference?.id;
+                  const credit = item.sourceName
+                    ? `${item.sourceName}${item.license ? ` — ${item.license}` : ""}`
+                    : "Uploaded";
+                  return (
+                    <li key={item.id} className="group relative">
+                      <label className="block cursor-pointer">
+                        <input
+                          type="radio"
+                          name="reference-choice"
+                          className="peer sr-only"
+                          checked={chosen}
+                          onChange={() => setChosenReferenceId(item.id)}
+                          aria-label={`Match this photograph: ${item.name}. ${credit}`}
+                        />
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={item.url}
+                          alt={item.name}
+                          width={64}
+                          height={64}
+                          decoding="async"
+                          title={credit}
+                          /* The unchosen sit back rather than disappear: the
+                             whole point of showing them is that swapping is one
+                             click, and a picture you cannot see is not a choice.
+                             They come most of the way up on hover, which is the
+                             affordance doing its own explaining. */
+                          className={`size-16 rounded-xl border object-cover transition-[opacity,border-color,box-shadow] duration-(--duration-fast) ease-(--ease-out) peer-focus-visible:shadow-[var(--shadow-focus)] motion-reduce:transition-none ${
+                            chosen
+                              ? "border-line-strong opacity-100"
+                              : "border-line opacity-45 hover:opacity-80"
+                          }`}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => void removeReference(item.id)}
+                        aria-label={`Remove reference photograph: ${item.name}`}
+                        /* 24px meets the WCAG 2.2 AA minimum target size. Held
+                           back until the thumbnail is hovered or something inside
+                           it takes focus, so three photographs do not read as
+                           three delete buttons — but always present where hover
+                           does not exist, since there is nothing to reveal it on
+                           a touch screen. */
+                        className="absolute -right-1.5 -top-1.5 grid size-6 place-items-center rounded-full border border-line bg-surface text-ink-3 opacity-0 shadow-[var(--shadow-card)] transition-[opacity,color,background-color] duration-(--duration-fast) ease-(--ease-out) group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-sunken hover:text-ink focus-visible:opacity-100 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] motion-reduce:transition-none [@media(hover:none)]:opacity-100"
+                      >
+                        <X aria-hidden className="size-3" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </fieldset>
             {/*
               One line doing two jobs that were previously two paragraphs and a
               badge: which photograph is actually in play, and who took it.
@@ -892,7 +933,7 @@ function ImagePanel({
                 // which is a property of the dropdown, not of the photographs.
                 <>Not used — {selectedOption?.label ?? "this model"} makes images from text alone. </>
               ) : (
-                references.length > usableReferences.length && <>Using the first of {references.length}. </>
+                references.length > 1 && <>Matching this one of {references.length}. </>
               )}
               {activeReference?.sourceName ? (
                 <>
