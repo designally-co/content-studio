@@ -29,15 +29,18 @@ function readForm(formData: FormData) {
     return Number.isFinite(parsed) ? Math.min(Math.max(Math.floor(parsed), min), max) : fallback;
   };
   const kindRaw = String(formData.get("scheduleKind") ?? "manual") as RoutineScheduleKind;
+  const kind = SCHEDULE_KINDS.has(kindRaw) ? kindRaw : ("manual" as RoutineScheduleKind);
   const zone = String(formData.get("timeZone") ?? "");
   const runAt = String(formData.get("runAt") ?? "09:00").trim();
 
   return {
     name: String(formData.get("name") ?? "").trim().slice(0, 80) || "Routine",
-    enabled: String(formData.get("enabled") ?? "") === "on",
+    /* A manual routine is never "on": there is no schedule for it to be on for,
+       and a row reading On with no next run is a promise the page cannot keep. */
+    enabled: kind !== "manual" && String(formData.get("enabled") ?? "") === "on",
     categoryId: String(formData.get("categoryId") ?? "").trim() || null,
     hubStatus: String(formData.get("hubStatus") ?? "") === "published" ? "published" as const : "draft" as const,
-    scheduleKind: SCHEDULE_KINDS.has(kindRaw) ? kindRaw : ("manual" as RoutineScheduleKind),
+    scheduleKind: kind,
     // Anything that is not HH:MM becomes 09:00 rather than a stored value the
     // scheduler would have to guess about later.
     runAt: /^\d{1,2}:\d{2}$/.test(runAt) ? runAt : "09:00",

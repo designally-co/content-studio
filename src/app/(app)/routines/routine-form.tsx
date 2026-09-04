@@ -201,21 +201,28 @@ export function RoutineForm({
         </div>
       </div>
 
-      <label className="flex items-start gap-3 rounded-xl border border-line bg-surface p-4">
-        <input
-          type="checkbox"
-          name="enabled"
-          defaultChecked={routine?.enabled ?? false}
-          className="mt-0.5 size-5 shrink-0 rounded-md border-line-strong accent-[var(--orange-500)]"
-        />
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold text-ink">Run on this schedule</span>
-          <span className="mt-1 block text-sm leading-relaxed text-ink-2">
-            While this is on, articles are written and sent without anyone approving them. Off, the
-            routine still runs when you press Run now.
+      {kind === "manual" ? (
+        <p className="rounded-xl border border-line bg-surface p-4 text-sm leading-relaxed text-ink-2">
+          <strong className="font-semibold text-ink">Nothing runs on its own.</strong> This routine
+          waits for you to press Run now, so there is no switch to turn on.
+        </p>
+      ) : (
+        <label className="flex items-start gap-3 rounded-xl border border-line bg-surface p-4">
+          <input
+            type="checkbox"
+            name="enabled"
+            defaultChecked={routine?.enabled ?? false}
+            className="mt-0.5 size-5 shrink-0 rounded-md border-line-strong accent-[var(--orange-500)]"
+          />
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold text-ink">Run on this schedule</span>
+            <span className="mt-1 block text-sm leading-relaxed text-ink-2">
+              While this is on, articles are written and sent without anyone approving them. Off,
+              the routine still runs when you press Run now.
+            </span>
           </span>
-        </span>
-      </label>
+        </label>
+      )}
 
       <p className="rounded-xl bg-accent-soft px-4 py-3 text-sm leading-relaxed text-ink-2">
         <strong className="font-semibold text-ink">{describeSchedule(spec)}.</strong>{" "}

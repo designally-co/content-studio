@@ -374,6 +374,9 @@ function RoutineRow({
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
+            {routine.scheduleKind === "manual" ? (
+              <span className="px-1.5 py-1 text-sm text-ink-2">By hand</span>
+            ) : (
             <label className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 text-sm">
               <input
                 type="checkbox"
@@ -386,6 +389,7 @@ function RoutineRow({
                 {routine.enabled ? "On" : "Off"}
               </span>
             </label>
+            )}
             <Button
               type="button"
               size="sm"
