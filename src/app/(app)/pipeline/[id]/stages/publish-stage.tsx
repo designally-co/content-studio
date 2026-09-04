@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ExternalLink, ImagePlus, LoaderCircle, Maximize2, Minimize2, Send, X } from "lucide-react";
+import { ExternalLink, ImagePlus, LoaderCircle, Maximize2, Minimize2, Send, Sparkles, X } from "lucide-react";
 import { Markdown } from "@/components/markdown";
 import { CopyButton } from "@/components/copy-button";
 import { StageShell } from "./stage-shell";
@@ -19,6 +19,8 @@ import { HubArticlePreview, HubPreviewFrame } from "./hub-article-preview";
 import {
   generateImagesAction,
   deleteGeneratedImageAction,
+  deleteImageReferenceAction,
+  findReferenceImagesAction,
   setCoverImageAction,
   uploadImageReferenceAction,
   type GeneratedImageView,
@@ -29,6 +31,7 @@ import { MenuSelect } from "@/components/ui/menu-select";
 import { ChipSelect } from "@/components/ui/chip-select";
 import { AccentOrb } from "@/components/accent-orb";
 import type { ImageAspectRatio } from "@/lib/image/providers";
+import { MAX_FOUND_REFERENCES } from "@/lib/image/reference-policy";
 import type { BrandReviewResult } from "@/lib/brand-review";
 import {
   IMAGE_DIRECTIONS,
@@ -42,6 +45,8 @@ type ImageModelOption = {
   label: string;
   provider: string;
   model: string;
+  /** Pairs a text-to-image entry with the editing entry in the same line. */
+  family: string;
   strengths: string;
   capabilities: {
     aspectRatios: readonly ImageAspectRatio[];
@@ -86,6 +91,7 @@ export function PublishStage({
   initialDek,
   published,
   images,
+  imageReferences,
   imageConfig,
   options,
   initialView,
@@ -112,6 +118,8 @@ export function PublishStage({
   /** Whether the article is live on the Knowledge Hub. */
   published: boolean;
   images: GeneratedImageView[];
+  /** References already attached to this article, from an earlier visit. */
+  imageReferences: UploadedReferenceView[];
   imageConfig: { optionId: string; count: number; aspectRatio: string };
   options: ImageModelOption[];
   initialView: "images" | "complete";
@@ -160,6 +168,7 @@ export function PublishStage({
           longForm={longForm}
           draftMd={draftMd}
           images={images}
+          imageReferences={imageReferences}
           defaultOptionId={imageConfig.optionId}
           defaultCount={imageConfig.count}
           defaultAspectRatio={imageConfig.aspectRatio}
@@ -181,6 +190,7 @@ function ArticlePanel({
   longForm,
   draftMd,
   images,
+  imageReferences,
   defaultOptionId,
   defaultCount,
   defaultAspectRatio,
@@ -196,6 +206,7 @@ function ArticlePanel({
   longForm: boolean;
   draftMd: string;
   images: GeneratedImageView[];
+  imageReferences: UploadedReferenceView[];
   defaultOptionId: string;
   defaultCount: number;
   defaultAspectRatio: string;
@@ -233,6 +244,7 @@ function ArticlePanel({
         projectId={projectId}
         title={title}
         existing={images}
+        initialReferences={imageReferences}
         defaultOptionId={defaultOptionId}
         defaultCount={defaultCount}
         defaultAspectRatio={defaultAspectRatio}
@@ -329,6 +341,7 @@ function ImagePanel({
   projectId,
   title,
   existing,
+  initialReferences,
   defaultOptionId,
   defaultCount,
   defaultAspectRatio,
@@ -340,6 +353,7 @@ function ImagePanel({
   projectId: string;
   title: string;
   existing: GeneratedImageView[];
+  initialReferences: UploadedReferenceView[];
   defaultOptionId: string;
   defaultCount: number;
   defaultAspectRatio: string;
@@ -375,8 +389,19 @@ function ImagePanel({
     Math.min(Math.max(defaultCount, 1), initialOption?.capabilities.maxVariations ?? 1)
   );
   const [aspectRatio, setAspectRatio] = useState<ImageAspectRatio>(initialRatio);
-  const [reference, setReference] = useState<UploadedReferenceView | null>(null);
+  /*
+   * A set, not one image.
+   *
+   * The edit models accept ten and fourteen; this stage offered one, which was
+   * the whole of what an editor could ground a generation in. Now that
+   * references can also be FOUND — from the sources the article cites, and
+   * from an open-licence pool — a set is the natural unit, and each member has
+   * to be individually removable because nobody chose them by hand.
+   */
+  const [references, setReferences] = useState<UploadedReferenceView[]>(initialReferences);
   const [uploading, setUploading] = useState(false);
+  const [finding, setFinding] = useState(false);
+  const [findNote, setFindNote] = useState<string | null>(null);
   const [imgs, setImgs] = useState<GeneratedImageView[]>(existing);
   const [busy, setBusy] = useState<"prompt" | "gen" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -391,6 +416,30 @@ function ImagePanel({
   const selectedOption = useMemo(
     () => options.find((option) => option.optionId === optionId) ?? options[0],
     [optionId, options]
+  );
+  /*
+   * What this model will actually accept.
+   *
+   * The set belongs to the article; how much of it can be sent belongs to the
+   * model. A text-to-image entry takes none of it, and the editing entries cap
+   * at ten and fourteen. Slicing here rather than at the server keeps what the
+   * editor is told and what is sent as the same number.
+   */
+  const usableReferences = useMemo(
+    () =>
+      selectedOption?.capabilities.referenceImages
+        ? references.slice(0, selectedOption.capabilities.maxReferenceImages)
+        : [],
+    [references, selectedOption]
+  );
+  /** The editing entry in the same model line, which is the one that takes references. */
+  const referenceCapableSibling = useMemo(
+    () =>
+      options.find(
+        (option) =>
+          option.family === selectedOption?.family && option.capabilities.referenceImages
+      ) ?? options.find((option) => option.capabilities.referenceImages),
+    [options, selectedOption]
   );
   // Untouched since Auto-draft wrote it, so the other concepts still apply.
   const usingDraftedSet = variants.length > 1 && prompt === draftedPrompt;
@@ -423,7 +472,11 @@ function ImagePanel({
     if (!next.capabilities.aspectRatios.includes(aspectRatio)) {
       setAspectRatio(next.capabilities.aspectRatios[0] ?? "1:1");
     }
-    if (!next.capabilities.referenceImages) setReference(null);
+    // The references are not deleted — they stay on the article, and picking a
+    // model that can use them again brings them straight back. Silently
+    // discarding found material because of a dropdown would be the wrong
+    // trade.
+    if (!next.capabilities.referenceImages) setFindNote(null);
     setCount((current) => Math.min(current, next.capabilities.maxVariations));
   }
 
@@ -433,12 +486,63 @@ function ImagePanel({
     try {
       const formData = new FormData();
       formData.set("file", file);
-      setReference(await uploadImageReferenceAction(projectId, formData));
+      const uploaded = await uploadImageReferenceAction(projectId, formData);
+      setReferences((current) => [...current, uploaded]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Reference upload failed.");
       if (fileInputRef.current) fileInputRef.current.value = "";
     } finally {
       setUploading(false);
+    }
+  }
+
+  /**
+   * Attach references drawn from the article's own cited sources, and from an
+   * open-licence pool where those come up short.
+   *
+   * Switching the model afterwards is deliberate. Only the editing endpoints
+   * accept a reference, so finding four images and leaving a text-to-image
+   * model selected would present the editor with material the next click
+   * silently ignores. The swap is announced rather than hidden.
+   */
+  async function findReferences() {
+    setFinding(true);
+    setError(null);
+    setFindNote(null);
+    try {
+      const result = await findReferenceImagesAction(projectId, {
+        query: visualBrief
+          ? [visualBrief.mainSubject, ...visualBrief.namedSubjects].filter(Boolean).join(" ")
+          : undefined,
+      });
+      setReferences(result.references);
+      const notes: string[] = [];
+      if (result.note) notes.push(result.note);
+      if (
+        result.references.length > 0 &&
+        !selectedOption?.capabilities.referenceImages &&
+        referenceCapableSibling
+      ) {
+        setOptionId(referenceCapableSibling.optionId);
+        setCount((current) => Math.min(current, referenceCapableSibling.capabilities.maxVariations));
+        notes.push(`Switched to ${referenceCapableSibling.label}, which is the model that reads references.`);
+      }
+      setFindNote(notes.join(" ") || null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not look for reference images.");
+    } finally {
+      setFinding(false);
+    }
+  }
+
+  async function removeReference(id: string) {
+    const previous = references;
+    setReferences((current) => current.filter((item) => item.id !== id));
+    try {
+      await deleteImageReferenceAction(id);
+    } catch (e) {
+      setReferences(previous);
+      setError(e instanceof Error ? e.message : "Could not remove that reference.");
     }
   }
 
@@ -449,7 +553,8 @@ function ImagePanel({
       const result = await generateImagePromptAction(projectId, {
         model: selectedOption?.model,
         aspectRatio,
-        hasReferenceImage: Boolean(reference),
+        hasReferenceImage: usableReferences.length > 0,
+        referenceCount: usableReferences.length,
         direction,
         variationCount: count,
       });
@@ -474,7 +579,7 @@ function ImagePanel({
         optionId,
         aspectRatio,
         variationCount: count,
-        referenceIds: reference ? [reference.id] : [],
+        referenceIds: usableReferences.map((item) => item.id),
         variantPrompts: usingDraftedSet ? variants.map((variant) => variant.prompt) : undefined,
       });
       setImgs((prev) => [...result.images, ...prev]);
@@ -511,7 +616,9 @@ function ImagePanel({
     });
   }
 
-  const referenceMissing = Boolean(selectedOption?.capabilities.referenceImagesRequired && !reference);
+  const referenceMissing = Boolean(
+    selectedOption?.capabilities.referenceImagesRequired && usableReferences.length === 0
+  );
   const hasPrompt = prompt.trim().length > 0;
   // Blocked for a reason the editor cannot fix by typing — as opposed to simply
   // not having written a prompt yet, which is a resting state, not a fault.
@@ -614,6 +721,15 @@ function ImagePanel({
         )}
         {variants.length > 0 && !usingDraftedSet && count > 1 && (
           <p className="text-sm text-ink-2">Your edited prompt will be used for all {count} images.</p>
+        )}
+        {findNote && <p className="text-sm text-ink-2">{findNote}</p>}
+        {/* Said once, plainly, wherever a not-licensed reference is in the set.
+            The chip carries the badge; this carries the consequence. */}
+        {references.some((item) => item.origin === "article_source") && (
+          <p className="text-sm text-ink-2">
+            Some references are the source publishers&rsquo; own images and are not licensed for
+            reuse. They steer material and detail; check the result before publishing.
+          </p>
         )}
         {error && <p className="text-sm text-danger" role="alert">{error}</p>}
       </div>
@@ -781,46 +897,87 @@ function ImagePanel({
               ).map((value) => ({ value: String(value), label: `${value} image${value > 1 ? "s" : ""}` }))}
             />
 
-            {selectedOption?.capabilities.referenceImages ? (
-              reference ? (
-                <span className="inline-flex h-9 items-center gap-2 rounded-full bg-sunken py-1 pl-1 pr-1 text-sm">
+            {/* Each reference is its own chip, because each one is now its own
+                decision: an editor did not necessarily choose it, and the row
+                behind it knows where it came from and whether anyone has
+                cleared it. A licence badge on an open-licence image, and
+                nothing on one taken from a publisher — the absence is the
+                information. */}
+            {references.map((item, index) => {
+              const beyondModel = index >= (selectedOption?.capabilities.maxReferenceImages ?? 0);
+              const detail = [
+                item.origin === "article_source" ? `From ${item.sourceName ?? "a cited source"} — not licensed` :
+                item.origin === "open_license" ? `${item.sourceName ?? "Unknown"} — ${item.license ?? "licence unknown"}` :
+                "Uploaded",
+                beyondModel ? "Beyond this model's reference limit — not sent" : null,
+              ].filter(Boolean).join(". ");
+              return (
+                <span
+                  key={item.id}
+                  title={detail}
+                  className={`inline-flex h-9 items-center gap-2 rounded-full py-1 pl-1 pr-1 text-sm ${
+                    beyondModel ? "bg-sunken opacity-50" : "bg-sunken"
+                  }`}
+                >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={reference.url} alt="" width={28} height={28} decoding="async" className="size-7 rounded-full object-cover" />
-                  <span className="max-w-32 truncate font-medium text-ink-2">{reference.name}</span>
+                  <img src={item.url} alt="" width={28} height={28} decoding="async" className="size-7 rounded-full object-cover" />
+                  <span className="max-w-28 truncate font-medium text-ink-2">{item.name}</span>
+                  {item.origin === "article_source" && (
+                    <span className="rounded-full bg-warn-soft px-1.5 text-[11px] font-semibold text-ink-2">
+                      not licensed
+                    </span>
+                  )}
+                  {item.origin === "open_license" && item.license && (
+                    <span className="rounded-full bg-sunken px-1.5 text-[11px] font-semibold text-ink-3">
+                      {item.license}
+                    </span>
+                  )}
                   <button
                     type="button"
-                    onClick={() => {
-                      setReference(null);
-                      if (fileInputRef.current) fileInputRef.current.value = "";
-                    }}
+                    onClick={() => void removeReference(item.id)}
                     className="grid size-7 place-items-center rounded-full text-ink-3 transition-colors hover:bg-deep hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
-                    aria-label={`Remove reference image ${reference.name}`}
+                    aria-label={`Remove reference image ${item.name}`}
                   >
                     <X aria-hidden className="size-3.5" />
                   </button>
                 </span>
-              ) : (
-                <label
-                  className={`cs-tool cursor-pointer ${referenceMissing ? "text-danger-ink" : ""}`}
-                  id="reference-image-label"
-                >
-                  <ImagePlus aria-hidden className="size-4" strokeWidth={1.6} />
-                  {uploading ? "Uploading…" : referenceMissing ? "Reference required" : "Reference"}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    disabled={uploading}
-                    aria-labelledby="reference-image-label"
-                    className="sr-only"
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      if (file) void uploadReference(file);
-                    }}
-                  />
-                </label>
-              )
-            ) : null}
+              );
+            })}
+
+            {/* Finding references is offered whatever model is selected: it is
+                an act on the article, and it switches the model itself if the
+                one in the dock cannot read what it found. */}
+            {references.length < MAX_FOUND_REFERENCES && (
+              <button
+                type="button"
+                onClick={() => void findReferences()}
+                disabled={finding || busy !== null}
+                className="cs-tool shrink-0"
+              >
+                <Sparkles aria-hidden className="size-4" strokeWidth={1.6} />
+                {finding ? "Looking…" : "Find references"}
+              </button>
+            )}
+
+            <label
+              className={`cs-tool cursor-pointer ${referenceMissing ? "text-danger-ink" : ""}`}
+              id="reference-image-label"
+            >
+              <ImagePlus aria-hidden className="size-4" strokeWidth={1.6} />
+              {uploading ? "Uploading…" : referenceMissing ? "Reference required" : "Upload"}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                disabled={uploading}
+                aria-labelledby="reference-image-label"
+                className="sr-only"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void uploadReference(file);
+                }}
+              />
+            </label>
 
             {/* The same pair as the home composer, carrying the same handoff:
                 with nothing written, asking the system to write it is the live

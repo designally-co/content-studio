@@ -204,6 +204,8 @@ export async function generateImagePromptAction(
     model?: string;
     aspectRatio?: string;
     hasReferenceImage?: boolean;
+    /** How many references are attached — they are described to the prompt differently in number. */
+    referenceCount?: number;
     direction?: ImageDirection;
     /** How many images the editor intends to generate — one prompt is written per image. */
     variationCount?: number;
@@ -222,6 +224,10 @@ export async function generateImagePromptAction(
     ? requestedDirection as ImageDirection
     : "auto";
   const hasReferenceImage = Boolean(imageContext?.hasReferenceImage);
+  const referenceCount = Math.max(
+    0,
+    Math.min(Number(imageContext?.referenceCount ?? (hasReferenceImage ? 1 : 0)) || 0, 16)
+  );
   const requestedVariants = Number(imageContext?.variationCount ?? 1);
   const variantCount = Number.isFinite(requestedVariants)
     ? Math.min(Math.max(Math.floor(requestedVariants), 1), MAX_PROMPT_VARIANTS)
@@ -302,6 +308,7 @@ export async function generateImagePromptAction(
       model: imageContext?.model?.slice(0, 100),
       aspectRatio: imageContext?.aspectRatio?.slice(0, 10),
       hasReferenceImage,
+      referenceCount,
     });
     const run = (extra?: string) =>
       runText({

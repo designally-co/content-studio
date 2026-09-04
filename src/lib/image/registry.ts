@@ -20,6 +20,8 @@ export type ImageGenerationOption = {
   label: string;
   provider: string;
   model: string;
+  /** Pairs a text-to-image entry with the editing entry in the same line. */
+  family: string;
   strengths: string;
   capabilities: ImageProvider["capabilities"];
   indicativePricePerImage: number;
@@ -43,6 +45,7 @@ export async function imageGenerationOptions(): Promise<ImageGenerationOption[]>
         label: keyOptions.length > 1 ? `${p.label} — ${k.label}` : p.label,
         provider: p.provider,
         model: p.model,
+        family: p.family,
         strengths: p.strengths,
         capabilities: p.capabilities,
         indicativePricePerImage: p.indicativePricePerImage,

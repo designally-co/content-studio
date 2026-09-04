@@ -4,11 +4,15 @@ import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { imageReferences, images, projects } from "@/db/schema";
+import type { ReferenceOrigin } from "@/db/schema";
 import { requireUser } from "@/lib/session";
 import { loadProject } from "@/lib/projects";
 import { getImageProvider } from "@/lib/image/registry";
 import { deleteStoredImage, loadStoredImage, saveImage } from "@/lib/image/storage";
 import { imageSize } from "@/lib/image/dimensions";
+import { findReferenceCandidates } from "@/lib/image/reference-sources";
+import { MAX_FOUND_REFERENCES } from "@/lib/image/reference-policy";
+import { extractOutlineSources } from "@/lib/outline";
 import type { ImageAspectRatio, ReferenceImageInput } from "@/lib/image/providers";
 import { IMAGE_ASPECT_RATIOS } from "@/lib/image/providers";
 
@@ -43,7 +47,25 @@ export type UploadedReferenceView = {
   name: string;
   width: number;
   height: number;
+  origin: ReferenceOrigin;
+  /** The page it came from, for a reference that was found rather than chosen. */
+  sourceUrl: string | null;
+  sourceName: string | null;
+  /** Null means nobody has cleared this image — shown, not hidden. */
+  license: string | null;
 };
+
+const referenceView = (row: typeof imageReferences.$inferSelect): UploadedReferenceView => ({
+  id: row.id,
+  url: `/api/image-references/${row.id}`,
+  name: row.originalName,
+  width: row.width,
+  height: row.height,
+  origin: row.origin,
+  sourceUrl: row.sourceUrl,
+  sourceName: row.sourceName,
+  license: row.license,
+});
 
 const MAX_REFERENCE_BYTES = 2 * 1024 * 1024;
 const REFERENCE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
@@ -111,16 +133,156 @@ export async function uploadImageReferenceAction(
       originalName: file.name.slice(0, 180) || "reference.png",
       width: metadata.width,
       height: metadata.height,
+      origin: "upload",
     })
     .returning();
 
+  return referenceView(row);
+}
+
+/**
+ * Find reference images for this article, from the sources it already cites
+ * and from an open-licence pool.
+ *
+ * Nothing is generated here and nothing is published. This attaches material
+ * to the project that the editor can look at, remove, and then generate from —
+ * which is the point: a cover drawn from words alone reads as generic because
+ * the model was never shown a real surface, a real specimen, or the actual
+ * thing the article is about.
+ *
+ * The article's own sources lead, because they are the material genuinely
+ * related to the piece. An image taken from one of them carries NO licence,
+ * and the row says so rather than implying otherwise — `license` stays null,
+ * `sourceUrl` records the page, and the stage shows both. That is a decision
+ * put in front of the editor, not one made for them.
+ *
+ * Pressing this twice does not collect the same pages twice: whatever the
+ * project already holds is excluded before fetching.
+ */
+export async function findReferenceImagesAction(
+  projectId: string,
+  options?: { query?: string; useArticleSources?: boolean; useOpenLicense?: boolean }
+): Promise<{ references: UploadedReferenceView[]; searched: number; note?: string }> {
+  await requireUser();
+  const loaded = await loadProject(projectId);
+  if (!loaded) throw new Error("Project not found.");
+
+  const useArticleSources = options?.useArticleSources !== false;
+  const useOpenLicense = options?.useOpenLicense !== false;
+  if (!useArticleSources && !useOpenLicense) {
+    throw new Error("Choose at least one place to look for references.");
+  }
+
+  const db = await getDb();
+  const existing = await db
+    .select()
+    .from(imageReferences)
+    .where(eq(imageReferences.projectId, projectId));
+  const room = MAX_FOUND_REFERENCES - existing.length;
+  if (room <= 0) {
+    return {
+      references: existing.map(referenceView),
+      searched: 0,
+      note: `This article already has ${existing.length} references. Remove one to look for more.`,
+    };
+  }
+
+  // The outline is where research sources live; its only links are those
+  // sources. The finished article repeats them under its own Sources heading,
+  // so it is a serviceable fallback for a project whose outline predates them.
+  const outlineMarkdown = loaded.project.outline?.markdown ?? "";
+  const selected = loaded.drafts.find((draft) => draft.isSelected) ?? loaded.drafts[0];
+  const sources = [
+    ...extractOutlineSources(outlineMarkdown),
+    ...extractOutlineSources(selected?.contentMd ?? ""),
+  ];
+  const alreadyTaken = new Set(existing.map((row) => row.sourceUrl).filter(Boolean) as string[]);
+  const unseen = sources.filter((source) => !alreadyTaken.has(source.url));
+
+  const query =
+    (typeof options?.query === "string" ? options.query.trim().slice(0, 120) : "") ||
+    loaded.project.selectedTopic?.title ||
+    "";
+
+  if (unseen.length === 0 && (!useOpenLicense || !query)) {
+    return {
+      references: existing.map(referenceView),
+      searched: 0,
+      note: "This article has no cited sources left to take an image from.",
+    };
+  }
+
+  const candidates = await findReferenceCandidates({
+    sources: unseen,
+    query,
+    limit: room,
+    useArticleSources,
+    useOpenLicense,
+  });
+
+  const saved: UploadedReferenceView[] = [];
+  for (const candidate of candidates) {
+    // Normalised the same way an upload is, and for the same reason: the
+    // providers get one predictable, metadata-free format. If sharp cannot
+    // load, the original bytes are still a valid image.
+    let data = candidate.data;
+    let mimeType = candidate.mimeType;
+    let ext = candidate.ext;
+    try {
+      const sharp = await loadSharp();
+      data = await sharp(candidate.data).rotate().png().toBuffer();
+      mimeType = "image/png";
+      ext = "png";
+    } catch {
+      // sharp is unavailable on this runtime.
+    }
+    const { storagePath } = await saveImage({ data, mimeType, ext });
+    const [row] = await db
+      .insert(imageReferences)
+      .values({
+        projectId,
+        storagePath,
+        mimeType,
+        originalName: candidate.originalName,
+        width: candidate.width,
+        height: candidate.height,
+        origin: candidate.origin,
+        sourceUrl: candidate.sourceUrl,
+        sourceName: candidate.sourceName,
+        license: candidate.license,
+        attribution: candidate.attribution,
+      })
+      .returning();
+    saved.push(referenceView(row));
+  }
+
+  revalidatePath(`/pipeline/${projectId}`);
   return {
-    id: row.id,
-    url: `/api/image-references/${row.id}`,
-    name: row.originalName,
-    width: row.width,
-    height: row.height,
+    references: [...existing.map(referenceView), ...saved],
+    searched: unseen.length,
+    note:
+      saved.length === 0
+        ? unseen.length > 0
+          ? "None of the cited sources published a usable lead image, and the open-licence search returned nothing for this subject."
+          : "The open-licence search returned nothing for this subject."
+        : undefined,
   };
+}
+
+/** Detach a reference from the article and delete its bytes. */
+export async function deleteImageReferenceAction(referenceId: string): Promise<void> {
+  await requireUser();
+  const db = await getDb();
+  const [row] = await db
+    .select({ id: imageReferences.id, projectId: imageReferences.projectId, storagePath: imageReferences.storagePath })
+    .from(imageReferences)
+    .where(eq(imageReferences.id, referenceId))
+    .limit(1);
+  if (!row) return;
+
+  await deleteStoredImage(row.storagePath);
+  await db.delete(imageReferences).where(eq(imageReferences.id, referenceId));
+  revalidatePath(`/pipeline/${row.projectId}`);
 }
 
 export async function generateImagesAction(

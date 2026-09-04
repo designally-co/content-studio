@@ -6,7 +6,7 @@ import {
 } from "@/lib/image/visual-brief";
 
 /** Task layer — stage-specific instructions. Versioned per template. */
-export const TASKS_VERSION = "tasks@1.6.0";
+export const TASKS_VERSION = "tasks@1.7.0";
 
 /** How far back a news-driven idea may sit and still count as current. */
 const RECENCY_DAYS = 90;
@@ -196,6 +196,8 @@ export function imagePromptTask(params: {
   model?: string;
   aspectRatio?: string;
   hasReferenceImage?: boolean;
+  /** How many real photographs are attached, and therefore how to speak about them. */
+  referenceCount?: number;
 }): string {
   return `## Task: turn an article visual brief into an image-generation prompt
 Write one model-ready prompt for a single image.
@@ -230,7 +232,17 @@ ${
 Visual brief (context — take the constraints from it, but take the concept from above): ${JSON.stringify(params.visualBrief)}
 Model: ${params.model ?? "Not specified"}
 Aspect ratio: ${params.aspectRatio ?? "1:1"}
-Reference image: ${params.hasReferenceImage ? "Attached; preserve its important subject, product, and visual identity details" : "None"}
+Reference images: ${
+    (params.referenceCount ?? 0) > 0
+      ? `${params.referenceCount} attached. They are REAL photographs — the lead images of the sources this article cites, or openly licensed work matched to its subject.
+
+How to use them, which is not how it sounds:
+- Take MATERIAL from them: surface, texture, weight, wear, how light falls on the actual thing. That is what a generated image lacks and why it reads as synthetic.
+- Take ACCURACY from them where the article names a real specimen, product, or interface — the proportions and details a description would only approximate.
+- Do NOT take the composition. These are somebody else's photographs, and the frame you are specifying is a new one that carries the concept above. If the prompt could be satisfied by reproducing a reference, it is the wrong prompt.
+- Say in the prompt which qualities are drawn from the references, so the model reads them as material rather than as a picture to repeat.`
+      : "None. Nothing is attached, so do not claim exact fidelity to any real typeface, product, or interface — interpret instead."
+  }
 
 Respond with the image prompt only — one paragraph, no quotes, no preamble.`;
 }

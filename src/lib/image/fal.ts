@@ -63,6 +63,7 @@ function createFalProvider(config: FalModelConfig): ImageProvider {
     id: `fal:${config.endpoint}`,
     provider: "fal",
     model: config.endpoint,
+    family: config.family,
     label: config.label,
     strengths: config.strengths,
     indicativePricePerImage: config.indicativePricePerImage,

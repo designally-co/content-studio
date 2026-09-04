@@ -45,6 +45,13 @@ export interface ImageProvider {
   id: string;
   provider: string;
   model: string;
+  /**
+   * Which model line this is, so a text-to-image entry can be paired with the
+   * editing entry beside it. Attaching a reference makes that swap necessary —
+   * only the editing endpoints accept one — and the stage should make it
+   * rather than refusing to generate.
+   */
+  family: string;
   label: string;
   strengths: string;
   /** default indicative price per image; the live price comes from the pricing table */

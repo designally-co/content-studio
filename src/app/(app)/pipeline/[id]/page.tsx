@@ -147,6 +147,17 @@ export default async function PipelinePage({
               aspectRatio: img.aspectRatio,
               variationNo: img.variationNo,
             }))}
+            imageReferences={loaded.imageReferences.map((ref) => ({
+              id: ref.id,
+              url: `/api/image-references/${ref.id}`,
+              name: ref.originalName,
+              width: ref.width,
+              height: ref.height,
+              origin: ref.origin,
+              sourceUrl: ref.sourceUrl,
+              sourceName: ref.sourceName,
+              license: ref.license,
+            }))}
             imageConfig={{
               optionId: loaded.project.inputs.imageProvider
                 ? `${loaded.project.inputs.imageProvider}::${loaded.project.inputs.imageApiKeyId ?? ""}`

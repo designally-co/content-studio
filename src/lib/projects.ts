@@ -7,6 +7,7 @@ import {
   drafts,
   refinements,
   images,
+  imageReferences,
 } from "@/db/schema";
 import { getBrand } from "./brand";
 import { getArticleRules } from "./article-template";
@@ -32,7 +33,7 @@ export async function loadProject(id: string) {
       )[0] ?? null
     : null;
 
-  const [draftRows, refinementRows, imageRows] = await Promise.all([
+  const [draftRows, refinementRows, imageRows, referenceRows] = await Promise.all([
     db.select().from(drafts).where(eq(drafts.projectId, id)).orderBy(asc(drafts.variationNo)),
     db
       .select()
@@ -40,6 +41,14 @@ export async function loadProject(id: string) {
       .where(eq(refinements.projectId, id))
       .orderBy(asc(refinements.createdAt)),
     db.select().from(images).where(eq(images.projectId, id)).orderBy(desc(images.createdAt)),
+    // References survive a reload now that they can be found automatically as
+    // well as chosen. A set the editor did not assemble by hand is one they
+    // have to be able to come back to, look at, and remove from.
+    db
+      .select()
+      .from(imageReferences)
+      .where(eq(imageReferences.projectId, id))
+      .orderBy(asc(imageReferences.createdAt)),
   ]);
 
   return {
@@ -50,6 +59,7 @@ export async function loadProject(id: string) {
     drafts: draftRows,
     refinements: refinementRows,
     images: imageRows,
+    imageReferences: referenceRows,
   };
 }
 

@@ -261,7 +261,18 @@ export const images = pgTable("images", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** User-uploaded source images that may guide one or more image generations. */
+/**
+ * Where a reference image came from.
+ *
+ * `article_source` is the lead image of a page the article already cites, and
+ * carries no licence — it is the publisher's own work, shown to the editor as
+ * something to decide about rather than something cleared.
+ * `open_license` came from an open-licence pool and carries its licence and
+ * attribution with it.
+ */
+export type ReferenceOrigin = "upload" | "article_source" | "open_license";
+
+/** Source images that may guide one or more image generations. */
 export const imageReferences = pgTable("image_references", {
   id: uuid("id").primaryKey().defaultRandom(),
   projectId: uuid("project_id")
@@ -272,6 +283,19 @@ export const imageReferences = pgTable("image_references", {
   originalName: text("original_name").notNull(),
   width: integer("width").notNull(),
   height: integer("height").notNull(),
+  /** How this reference arrived. See migration 0019. */
+  origin: text("origin").$type<ReferenceOrigin>().notNull().default("upload"),
+  /** The page it was taken from — never the image file, so a person can check it. */
+  sourceUrl: text("source_url"),
+  /** Publisher, or the creator the licence names. */
+  sourceName: text("source_name"),
+  /**
+   * Null means nobody has cleared this image. That is the honest state for a
+   * publisher's own photograph, and it is deliberately visible rather than
+   * assumed away.
+   */
+  license: text("license"),
+  attribution: text("attribution"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
