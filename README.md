@@ -200,8 +200,13 @@ the ones nobody demonstrates.
 *Making one.* Routines → New routine → name it, choose when it runs, choose a
 direction (or let it rotate), choose whether it saves a draft or publishes live
 → Create. The sentence under the form says what the schedule means and when the
-first run lands, before it is saved. A routine set to "only when I press Run
-now" has no switch at all: there is no schedule for it to be on for.
+first run lands, before it is saved.
+
+**Choosing a schedule is switching it on.** There is no second confirmation on
+the form: a routine created with a time on it runs from that moment. Pausing is
+the switch on its row, later, which is also the only place it lives — editing
+settings never quietly pauses or resumes a routine. A routine set to "only when
+I press Run now" has no switch at all: there is nothing for it to be on for.
 
 *Running one by hand.* Run now, on the row. The article starts immediately and
 the page drives it — seven steps, one request each, about three minutes, with

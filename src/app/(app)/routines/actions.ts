@@ -5,7 +5,13 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { routines } from "@/db/schema";
 import { requireUser } from "@/lib/session";
-import { rescheduleRoutine, runRoutineNow, runningRuns, stepRun } from "@/lib/autopilot/runner";
+import {
+  getRoutineById,
+  rescheduleRoutine,
+  runRoutineNow,
+  runningRuns,
+  stepRun,
+} from "@/lib/autopilot/runner";
 import { TIME_ZONES, type RoutineScheduleKind } from "@/lib/autopilot/schedule";
 
 /* NOTHING IS RE-EXPORTED FROM THIS FILE. Every export of a "use server" module
@@ -35,9 +41,6 @@ function readForm(formData: FormData) {
 
   return {
     name: String(formData.get("name") ?? "").trim().slice(0, 80) || "Routine",
-    /* A manual routine is never "on": there is no schedule for it to be on for,
-       and a row reading On with no next run is a promise the page cannot keep. */
-    enabled: kind !== "manual" && String(formData.get("enabled") ?? "") === "on",
     categoryId: String(formData.get("categoryId") ?? "").trim() || null,
     hubStatus: String(formData.get("hubStatus") ?? "") === "published" ? "published" as const : "draft" as const,
     scheduleKind: kind,
@@ -62,7 +65,16 @@ export async function createRoutineAction(formData: FormData) {
   const values = readForm(formData);
   const [created] = await db
     .insert(routines)
-    .values({ ...values, createdBy: user.id })
+    .values({
+      ...values,
+      /* Setting a schedule is the act of switching it on. Asking again on the
+         same form was one question too many AND defaulted to off, so a routine
+         could be created with a time on it and never run, with nothing on
+         screen to say why. Pausing is the row's switch, later. A routine with
+         no schedule is never "on": there is nothing for it to be on for. */
+      enabled: values.scheduleKind !== "manual",
+      createdBy: user.id,
+    })
     .returning();
   await rescheduleRoutine(created);
   revalidatePath("/routines");
@@ -74,9 +86,17 @@ export async function updateRoutineAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) throw new Error("Which routine?");
   const values = readForm(formData);
+  const before = await getRoutineById(id);
   const [updated] = await db
     .update(routines)
-    .set({ ...values, updatedAt: new Date() })
+    .set({
+      ...values,
+      /* Editing settings must not silently pause or resume a routine — that is
+         the row's switch. Only losing the schedule can turn one off, because a
+         manual routine has nothing to be on for. */
+      enabled: values.scheduleKind === "manual" ? false : (before?.enabled ?? true),
+      updatedAt: new Date(),
+    })
     .where(eq(routines.id, id))
     .returning();
   if (updated) await rescheduleRoutine(updated);

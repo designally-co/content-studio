@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { IconTrash, IconEdit, IconSpark, IconArrowRight } from "@/components/icons";
 import { describeSchedule } from "@/lib/autopilot/schedule";
@@ -243,12 +243,10 @@ export function RoutinesBoard({
                   });
                 }}
                 onRunNow={() => runNow(routine.id)}
-                onToggle={(enabled) =>
-                  startTransition(async () => {
-                    await toggleRoutineAction(routine.id, enabled);
-                    router.refresh();
-                  })
-                }
+                onToggle={async (enabled) => {
+                  await toggleRoutineAction(routine.id, enabled);
+                  router.refresh();
+                }}
                 onDelete={() =>
                   startTransition(async () => {
                     await deleteRoutineAction(routine.id);
@@ -333,10 +331,16 @@ function RoutineRow({
   onCancelEdit: () => void;
   onSave: (formData: FormData) => void;
   onRunNow: () => void;
-  onToggle: (enabled: boolean) => void;
+  onToggle: (enabled: boolean) => Promise<void>;
   onDelete: () => void;
 }) {
   const [confirming, setConfirming] = useState(false);
+  /* THE SWITCH MOVES WHEN IT IS CLICKED, not when the server agrees. Bound
+     straight to the row's data it snapped back for as long as the round trip
+     took — half a second of looking broken, on the one control whose whole job
+     is to say what state the routine is in. */
+  const [, startToggle] = useTransition();
+  const [enabled, setEnabled] = useOptimistic(routine.enabled);
   const running = Boolean(live && !live.finished);
   const schedule = describeSchedule({
     kind: routine.scheduleKind,
@@ -355,7 +359,7 @@ function RoutineRow({
               {/* The state is a word first. Colour only reinforces it. */}
               {running ? (
                 <span className="text-sm font-semibold text-accent-press">Running</span>
-              ) : routine.enabled && routine.nextRunAt ? (
+              ) : enabled && routine.nextRunAt ? (
                 <span className="text-sm text-ink-3">
                   {`Next ${new Date(routine.nextRunAt).toLocaleString(undefined, {
                     weekday: "short",
@@ -380,13 +384,19 @@ function RoutineRow({
             <label className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 text-sm">
               <input
                 type="checkbox"
-                checked={routine.enabled}
-                onChange={(event) => onToggle(event.target.checked)}
+                checked={enabled}
+                onChange={(event) => {
+                  const next = event.target.checked;
+                  startToggle(async () => {
+                    setEnabled(next);
+                    await onToggle(next);
+                  });
+                }}
                 className="size-5 rounded-md border-line-strong accent-[var(--orange-500)]"
                 aria-label={`Run ${routine.name} on its schedule`}
               />
-              <span className={routine.enabled ? "font-semibold text-ink" : "text-ink-2"}>
-                {routine.enabled ? "On" : "Off"}
+              <span className={enabled ? "font-semibold text-ink" : "text-ink-2"}>
+                {enabled ? "On" : "Off"}
               </span>
             </label>
             )}
