@@ -4,30 +4,21 @@ import type { ReferenceOrigin } from "@/db/schema";
 import { imageSize } from "./dimensions";
 
 /**
- * Finding reference images instead of waiting for someone to upload one.
+ * Finding the photograph the generated image is matched against.
  *
- * Generated covers read as generic because the model is given words and
- * nothing else — no material, no real surface, no actual specimen of the thing
- * the article is about. A reference image is the cheapest correction to that,
- * and this app already knows where to look: every article stores the sources
- * its research was built from, so "an image related to this article" is a list
- * the database is already holding.
+ * A cover made from words alone reads as synthetic: the model was given a
+ * description and never a surface. The correction is a real photograph of the
+ * situation the article describes — a designer at a desk, a typographer at a
+ * press — which the finished image is then made to resemble in kind.
  *
- * Two channels, and they are not interchangeable:
+ * Unsplash is where those come from, because it is a library of photographs of
+ * people doing things and its licence permits commercial use and modification.
+ * Openverse is the fallback where no Unsplash key is set: no key required, but
+ * it leans towards archive and museum material and rarely has a picture of
+ * somebody working.
  *
- * `article_source` takes the lead image of a page the article cites. It is the
- * most closely related material available and it carries NO licence — it is
- * the publisher's own photograph. Nothing here clears it for use; the row
- * records where it came from so a person can decide, and `license` stays null
- * to say plainly that nobody has.
- *
- * `open_license` searches Openverse, which aggregates CC-licensed and public
- * domain work and states the licence per result. Those rows carry their
- * licence and attribution.
- *
- * Neither channel publishes anything by itself. What it produces is an input
- * to a generation the editor still runs, from a set they can see and delete
- * from.
+ * Nothing here publishes anything. It attaches material to the article that the
+ * editor can see, remove, and then generate from.
  */
 
 export type ReferenceCandidate = {
@@ -57,10 +48,8 @@ const MIN_EDGE_PX = 320;
 
 /*
  * Timeouts sized against the 60s `maxDuration` the pipeline page gives every
- * action on it. Pages and images are fetched in parallel, so the ceiling is
- * roughly one page fetch plus one download, not the sum of them.
+ * action on it: one search, then a download per photograph kept.
  */
-const PAGE_TIMEOUT_MS = 8_000;
 const IMAGE_TIMEOUT_MS = 10_000;
 const SEARCH_TIMEOUT_MS = 8_000;
 
@@ -159,95 +148,6 @@ async function downloadImage(rawUrl: string): Promise<{
   if (Math.min(size.width, size.height) < MIN_EDGE_PX) return null;
 
   return { data, mimeType: declared === "image/jpg" ? "image/jpeg" : declared, ext, ...size };
-}
-
-/** Decode the handful of entities that appear inside a meta tag's content. */
-function decodeEntities(value: string): string {
-  return value
-    .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;/g, "'")
-    .replace(/&apos;/g, "'")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">");
-}
-
-/** Read one `<meta>` value by property or name, in either attribute order. */
-function metaContent(html: string, key: string): string | null {
-  const patterns = [
-    new RegExp(`<meta[^>]+(?:property|name)=["']${key}["'][^>]*?content=["']([^"']+)["']`, "i"),
-    new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]*?(?:property|name)=["']${key}["']`, "i"),
-  ];
-  for (const pattern of patterns) {
-    const match = pattern.exec(html);
-    if (match?.[1]) return decodeEntities(match[1].trim());
-  }
-  return null;
-}
-
-/**
- * The lead image a page declares for itself.
- *
- * Open Graph first, then Twitter's equivalent. Deliberately nothing else: the
- * first `<img>` in the document is usually a logo or a sprite, and a page that
- * declares no social image is a page with no lead image worth taking.
- */
-export async function leadImageFromPage(
-  pageUrl: string,
-  fallbackName: string
-): Promise<ReferenceCandidate | null> {
-  const page = isPublicHttpsUrl(pageUrl);
-  if (!page) return null;
-
-  let html: string;
-  try {
-    const response = await fetch(page, {
-      headers: { "user-agent": USER_AGENT, accept: "text/html,application/xhtml+xml" },
-      redirect: "follow",
-      signal: AbortSignal.timeout(PAGE_TIMEOUT_MS),
-      cache: "no-store",
-    });
-    if (!response.ok) return null;
-    const type = (response.headers.get("content-type") ?? "").toLowerCase();
-    if (!type.includes("html")) return null;
-    html = (await response.text()).slice(0, 400_000);
-  } catch {
-    return null;
-  }
-
-  const declared =
-    metaContent(html, "og:image:secure_url") ??
-    metaContent(html, "og:image") ??
-    metaContent(html, "twitter:image") ??
-    metaContent(html, "twitter:image:src");
-  if (!declared) return null;
-
-  // og:image is allowed to be relative, and often is.
-  const absolute = (() => {
-    try {
-      return new URL(declared, page).toString();
-    } catch {
-      return null;
-    }
-  })();
-  if (!absolute) return null;
-
-  const image = await downloadImage(absolute);
-  if (!image) return null;
-
-  const siteName = metaContent(html, "og:site_name") ?? page.hostname.replace(/^www\./, "");
-  return {
-    ...image,
-    originalName: `${siteName}${image.ext === "png" ? ".png" : ".jpg"}`.slice(0, 180),
-    origin: "article_source",
-    // The page, not the image file: this is what a person opens to check.
-    sourceUrl: page.toString(),
-    sourceName: (fallbackName || siteName).slice(0, 180),
-    // Deliberately null. Nobody has cleared a publisher's own photograph, and
-    // recording a licence here would be inventing one.
-    license: null,
-    attribution: null,
-  };
 }
 
 type UnsplashResult = {
@@ -410,60 +310,29 @@ export async function openLicenseImages(
 }
 
 /**
- * Both channels, in parallel, capped at `limit` in total.
+ * Photographs of the scene: Unsplash, with Openverse where no key is set.
  *
- * The article's own sources lead. They are the material actually related to
- * the piece, and an open-licence result is a generic stand-in by comparison —
- * so the open-licence search only fills what the sources could not.
+ * There used to be a third channel that took the lead image of each page the
+ * article cites. It is gone, and its removal is the point: a publisher's
+ * `og:image` is as often a logo, a banner or a screenshot as a photograph, so
+ * it answered "a picture about this topic" when the only question that matters
+ * here is "a photograph of this situation". It also carried no licence, which
+ * meant a badge, a warning line, a provenance column and a decision for the
+ * editor — all of it in service of material that was usually unusable.
  */
 export async function findReferenceCandidates(params: {
-  sources: { name: string; url: string }[];
   query: string;
   limit: number;
-  useArticleSources: boolean;
-  useOpenLicense: boolean;
-  /**
-   * Search the stock libraries first and let the article's own sources fill
-   * what is left, rather than the other way round.
-   *
-   * Which order is right depends entirely on what the image is for. A grounded
-   * cover has to be matched against a photograph of a SITUATION — a designer at
-   * a desk — and a cited source's lead image is as often a logo, a banner or a
-   * screenshot as it is a photograph. A conceptual cover wants the material
-   * actually connected to the piece, so there the sources lead.
-   */
-  stockFirst?: boolean;
 }): Promise<ReferenceCandidate[]> {
   const { limit } = params;
   if (limit <= 0) return [];
 
-  const fromSources = async (room: number) =>
-    params.useArticleSources && room > 0
-      ? (
-          await Promise.all(
-            // More pages than slots: most will have no usable lead image.
-            params.sources.slice(0, room * 2).map((source) => leadImageFromPage(source.url, source.name))
-          )
-        ).filter((candidate): candidate is ReferenceCandidate => candidate !== null)
-      : [];
-
-  /** Unsplash where a key allows it, Openverse otherwise. */
-  const fromStock = async (room: number) => {
-    if (!params.useOpenLicense || room <= 0) return [];
-    const unsplash = await unsplashImages(params.query, room);
-    if (unsplash.length >= room) return unsplash;
-    const openverse = await openLicenseImages(params.query, room - unsplash.length);
-    return [...unsplash, ...openverse];
-  };
-
-  const lead = params.stockFirst ? await fromStock(limit) : await fromSources(limit);
-  const kept = dedupe(lead).slice(0, limit);
+  const unsplash = await unsplashImages(params.query, limit);
+  const kept = dedupe(unsplash).slice(0, limit);
   if (kept.length >= limit) return kept;
 
-  const filler = params.stockFirst
-    ? await fromSources(limit - kept.length)
-    : await fromStock(limit - kept.length);
-  return dedupe([...kept, ...filler]).slice(0, limit);
+  const openverse = await openLicenseImages(params.query, limit - kept.length);
+  return dedupe([...kept, ...openverse]).slice(0, limit);
 }
 
 /**

@@ -12,8 +12,6 @@ import { deleteStoredImage, loadStoredImage, saveImage } from "@/lib/image/stora
 import { imageSize } from "@/lib/image/dimensions";
 import { findReferenceCandidates } from "@/lib/image/reference-sources";
 import { MAX_FOUND_REFERENCES } from "@/lib/image/reference-policy";
-import { DEFAULT_IMAGE_MODE, IMAGE_MODES, type ImageMode } from "@/lib/image/visual-brief";
-import { extractOutlineSources } from "@/lib/outline";
 import type { ImageAspectRatio, ReferenceImageInput } from "@/lib/image/providers";
 import { IMAGE_ASPECT_RATIOS } from "@/lib/image/providers";
 
@@ -142,46 +140,27 @@ export async function uploadImageReferenceAction(
 }
 
 /**
- * Find reference images for this article, from the sources it already cites
- * and from an open-licence pool.
+ * Find photographs of the scene this article's image should show.
  *
  * Nothing is generated here and nothing is published. This attaches material
- * to the project that the editor can look at, remove, and then generate from —
- * which is the point: a cover drawn from words alone reads as generic because
- * the model was never shown a real surface, a real specimen, or the actual
- * thing the article is about.
+ * the editor can look at, remove, and then generate from — which is the point:
+ * a cover drawn from words alone reads as synthetic because the model was never
+ * shown a real surface or a real moment.
  *
- * The article's own sources lead, because they are the material genuinely
- * related to the piece. An image taken from one of them carries NO licence,
- * and the row says so rather than implying otherwise — `license` stays null,
- * `sourceUrl` records the page, and the stage shows both. That is a decision
- * put in front of the editor, not one made for them.
- *
- * Pressing this twice does not collect the same pages twice: whatever the
- * project already holds is excluded before fetching.
+ * The query is the brief's `photoQuery` — the situation, in the words a
+ * photographer would file it under. Searching the article's subject returned
+ * pictures OF the topic; searching "designer working at desk laptop" returns a
+ * photograph of somebody working, which is the thing the finished image is
+ * matched against. So draft the prompt first; without a brief this falls back
+ * to the topic title and finds much less.
  */
 export async function findReferenceImagesAction(
   projectId: string,
-  options?: {
-    query?: string;
-    useArticleSources?: boolean;
-    useOpenLicense?: boolean;
-    /** Grounded searches the stock libraries first; see findReferenceCandidates. */
-    mode?: ImageMode;
-  }
-): Promise<{ references: UploadedReferenceView[]; searched: number; note?: string }> {
+  options?: { query?: string }
+): Promise<{ references: UploadedReferenceView[]; note?: string }> {
   await requireUser();
   const loaded = await loadProject(projectId);
   if (!loaded) throw new Error("Project not found.");
-
-  const mode: ImageMode = IMAGE_MODES.some((option) => option.value === options?.mode)
-    ? (options!.mode as ImageMode)
-    : DEFAULT_IMAGE_MODE;
-  const useArticleSources = options?.useArticleSources !== false;
-  const useOpenLicense = options?.useOpenLicense !== false;
-  if (!useArticleSources && !useOpenLicense) {
-    throw new Error("Choose at least one place to look for references.");
-  }
 
   const db = await getDb();
   const existing = await db
@@ -192,44 +171,22 @@ export async function findReferenceImagesAction(
   if (room <= 0) {
     return {
       references: existing.map(referenceView),
-      searched: 0,
       note: `This article already has ${existing.length} references. Remove one to look for more.`,
     };
   }
-
-  // The outline is where research sources live; its only links are those
-  // sources. The finished article repeats them under its own Sources heading,
-  // so it is a serviceable fallback for a project whose outline predates them.
-  const outlineMarkdown = loaded.project.outline?.markdown ?? "";
-  const selected = loaded.drafts.find((draft) => draft.isSelected) ?? loaded.drafts[0];
-  const sources = [
-    ...extractOutlineSources(outlineMarkdown),
-    ...extractOutlineSources(selected?.contentMd ?? ""),
-  ];
-  const alreadyTaken = new Set(existing.map((row) => row.sourceUrl).filter(Boolean) as string[]);
-  const unseen = sources.filter((source) => !alreadyTaken.has(source.url));
 
   const query =
     (typeof options?.query === "string" ? options.query.trim().slice(0, 120) : "") ||
     loaded.project.selectedTopic?.title ||
     "";
-
-  if (unseen.length === 0 && (!useOpenLicense || !query)) {
+  if (!query) {
     return {
       references: existing.map(referenceView),
-      searched: 0,
-      note: "This article has no cited sources left to take an image from.",
+      note: "Draft the prompt first — the search needs the scene the brief describes.",
     };
   }
 
-  const candidates = await findReferenceCandidates({
-    sources: unseen,
-    query,
-    limit: room,
-    useArticleSources,
-    useOpenLicense,
-    stockFirst: mode === "grounded",
-  });
+  const candidates = await findReferenceCandidates({ query, limit: room });
 
   const saved: UploadedReferenceView[] = [];
   for (const candidate of candidates) {
@@ -270,15 +227,12 @@ export async function findReferenceImagesAction(
   revalidatePath(`/pipeline/${projectId}`);
   return {
     references: [...existing.map(referenceView), ...saved],
-    searched: unseen.length,
     note:
-      saved.length === 0
-        ? mode === "grounded" && !process.env.UNSPLASH_ACCESS_KEY
-          ? "No photographs were found. UNSPLASH_ACCESS_KEY is not set, so only the article's own sources and Openverse were searched — neither reliably has a photograph of a working scene."
-          : unseen.length > 0
-            ? "No usable photograph came back — the stock search found nothing for this scene, and none of the cited sources published a usable lead image."
-            : "The stock search found nothing for this scene. Try Auto-draft first, so the search uses the scene the brief describes."
-        : undefined,
+      saved.length > 0
+        ? undefined
+        : process.env.UNSPLASH_ACCESS_KEY
+          ? `No photographs came back for "${query}". Try a plainer scene in the prompt field, then draft again.`
+          : "UNSPLASH_ACCESS_KEY is not set, so only Openverse was searched — it rarely has a photograph of somebody working.",
   };
 }
 

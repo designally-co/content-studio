@@ -1,12 +1,17 @@
 import type { Language } from "@/db/schema";
 import { EDITORIAL_SCOPE_TEXT } from "@/lib/designally-strategy";
-import {
-  visualDirectionBlock,
-  IMAGE_CRITERIA,
-} from "@/lib/image/visual-brief";
+import { IMAGE_DIRECTION, IMAGE_RULES } from "@/lib/image/visual-brief";
+
+/** The direction, stated identically wherever it is needed. */
+const visualDirectionBlock = (): string =>
+  [
+    `Visual direction: ${IMAGE_DIRECTION.name} — ${IMAGE_DIRECTION.summary}`,
+    "",
+    ...IMAGE_RULES.map((rule) => `- ${rule}`),
+  ].join("\n");
 
 /** Task layer — stage-specific instructions. Versioned per template. */
-export const TASKS_VERSION = "tasks@2.1.0";
+export const TASKS_VERSION = "tasks@3.0.0";
 
 /** How far back a news-driven idea may sit and still count as current. */
 const RECENCY_DAYS = 90;
@@ -186,165 +191,81 @@ Output the finished draft as clean Markdown only — no preamble, no explanation
 export function imagePromptTask(params: {
   title: string;
   visualBrief: import("@/lib/image/visual-brief").ArticleVisualBrief;
-  direction: import("@/lib/image/visual-brief").ImageDirection;
-  /** The concept THIS prompt realises — the brief's lead concept, or one of its alternates. */
-  concept: string;
-  /** Where this prompt sits in the set, so it can be told what it must not repeat. */
+  /** The scene THIS prompt shows — the brief's lead scene, or one of its alternates. */
+  scene: string;
+  /** Where this prompt sits in the set, so it can be told what not to repeat. */
   variantNo: number;
   variantCount: number;
-  siblingConcepts: string[];
-  model?: string;
-  aspectRatio?: string;
-  hasReferenceImage?: boolean;
-  /** How many real photographs are attached, and therefore how to speak about them. */
-  referenceCount?: number;
-  /** What the attached photograph shows — the brief looked at it. */
-  referenceScene?: string;
-  mode: import("@/lib/image/visual-brief").ImageMode;
+  siblingScenes: string[];
+  hasReferenceImage: boolean;
 }): string {
-  const conceptual = params.mode === "conceptual";
-  return `## Task: turn an article visual brief into an image-generation prompt
-Write one model-ready prompt for a single image.
+  return `## Task: write an image prompt for one photograph
 
-${visualDirectionBlock(params.mode)}
+${visualDirectionBlock()}
 
-It is judged against these criteria:
-${IMAGE_CRITERIA.map((c) => `- ${c.id} ${c.name} — ${c.principle}`).join("\n")}
-
-How to apply them here:
-${
-  conceptual
-    ? `- Lead with THE CONCEPT ASSIGNED BELOW, not the subject, and not the brief's other concepts. The image should make someone think, not caption the article. A piece about type licensing is not a picture of a font; it is a metaphor for permission, ownership, or constraint.
-- Give the concept one deliberate surreal move — an impossible juxtaposition, a shifted scale, an object where it does not belong — and let the rest of the frame stay disciplined around it. One strange thing, composed calmly, beats five strange things.
-- Be specific about composition: where the subject sits, what is left empty, what the eye reaches first.
-- Be specific about styling: setting, materials, surface, light direction and quality, colour relationships. Commit to a palette that belongs to THIS article rather than a house look.
-- Aim at the register of a creative magazine or fashion editorial. Not advertising, not stock, not a product shot.`
-    : `- Describe THE SCENE ASSIGNED BELOW as a photograph: who is in it, what they are doing with their hands, where they are, what is on the surfaces around them. An article about designers working with AI is a designer at a desk with a laptop — write that, not a symbol for it.
-- MATCH THE REFERENCE PHOTOGRAPH IN KIND. It shows the sort of picture this should be: the same kind of subject, the same sort of setting and activity, the same framing and light. Describe a scene a viewer would file alongside it. Not the same person, not the same room, not the same moment — the same kind of picture.
-- Write it the way a photographer would be briefed: lens feel and distance, where the light comes from and how hard it is, what is sharp and what falls away, the time of day the room suggests.
-- Keep the details ordinary and specific — a cooling coffee, a cable half-coiled, a second monitor turned away, papers that have been moved. Specific ordinary detail is what makes a photograph read as real.
-- Colours the room would really have. No neon, no gradient backdrop, no teal-and-orange grade, no lens flare.
-- Do not describe it as art, as conceptual, as surreal, or as a metaphor. It is a photograph of something that happened.`
-}
-
-Hard limits:
-- No readable text, letterforms as words, invented logos, or counterfeit interfaces. Without a reference image, never claim exact fidelity to a real typeface, product, or UI — interpret instead.
-${
-  conceptual
-    ? `- Nothing disturbing. "Slightly uncanny" means intriguing, not unsettling.
-- No agency offices, handshakes, lightbulbs, rockets, growth arrows, glowing blue grids, or robots.`
-    : `- Nothing surreal, impossible, floating, or symbolic. If a detail could not exist in the room, it does not belong in the prompt.
-- No handshakes, no lightbulbs, no rockets, no growth arrows, no glowing blue grids, no robots, no holograms.
-- Hands, screens and faces must be plausible. Say so in the prompt: natural hands, an ordinary screen, no rendered perfection.`
-}
+Write it the way a photographer would be briefed:
+- Describe the scene assigned below as a photograph: who is in it, what their hands are doing, where they are, what is on the surfaces around them.
+- Lens feel and distance, where the light comes from and how hard it is, what is sharp and what falls away, the time of day the room suggests.
+- Specific ordinary detail — a cooling coffee, a cable half-coiled, a second monitor turned away, papers that have been moved. That is what makes a photograph read as real.
+- Do not call it art, conceptual, surreal, editorial, or a metaphor. It is a photograph of something that happened.
 
 Title: ${params.title}
-Requested framing: ${params.direction}
 
-${conceptual ? "THE CONCEPT THIS IMAGE MUST CARRY" : "THE SCENE THIS IMAGE MUST SHOW"} (image ${params.variantNo} of ${params.variantCount}):
-${params.concept}
+THE SCENE THIS PHOTOGRAPH SHOWS (image ${params.variantNo} of ${params.variantCount}):
+${params.scene}
 ${
-  params.siblingConcepts.length > 0
-    ? `\nThe other images in this set take these${conceptual ? " concepts" : " scenes"}. Yours must be a different picture from each of them — a different moment, a different vantage, a different part of the work — while staying the same kind of scene as the reference. An editor is choosing between them, so overlap wastes a slot:\n${params.siblingConcepts.map((c) => `- ${c}`).join("\n")}\n`
+  params.hasReferenceImage && params.visualBrief.referenceScene
+    ? `
+THE REFERENCE PHOTOGRAPH SHOWS: ${params.visualBrief.referenceScene}
+
+Yours must be the same kind of picture as that — same sort of subject, setting, activity, framing and light. A different person in a different room on a different day.
+`
+    : ""
+}${
+  params.siblingScenes.length > 0
+    ? `
+The other images in this set show these scenes. Yours must be a different picture from each — a different moment, a different vantage, a different part of the work — while staying the same kind of scene as the reference:
+${params.siblingScenes.map((scene) => `- ${scene}`).join("\n")}
+`
     : ""
 }
-Visual brief (context — take the constraints from it, but take the concept from above): ${JSON.stringify(params.visualBrief)}
-Model: ${params.model ?? "Not specified"}
-Aspect ratio: ${params.aspectRatio ?? "1:1"}
-Reference images: ${
-    (params.referenceCount ?? 0) > 0
-      ? `${params.referenceCount} attached. They are REAL photographs — openly licensed work matched to this article's subject, or the lead images of the sources it cites.${
-          params.referenceScene ? `\n\nWHAT THE REFERENCE SHOWS: ${params.referenceScene}\n\nYour scene must be the same kind of picture as that. Same sort of subject, setting, activity, framing and light — a different person in a different room on a different day.` : ""
-        }
-
-How to use them, which is not how it sounds:
-- Take MATERIAL from them: surface, texture, weight, wear, how light falls on the actual thing. That is what a generated image lacks and why it reads as synthetic.
-- Take ACCURACY from them where the article names a real specimen, product, or interface — the proportions and details a description would only approximate.
-- Do NOT take the composition. These are somebody else's photographs, and the frame you are specifying is a new one that carries the concept above. If the prompt could be satisfied by reproducing a reference, it is the wrong prompt.
-- Say in the prompt which qualities are drawn from the references, so the model reads them as material rather than as a picture to repeat.`
-      : "None. Nothing is attached, so do not claim exact fidelity to any real typeface, product, or interface — interpret instead."
-  }
-
 Respond with the image prompt only — one paragraph, no quotes, no preamble.`;
 }
 
 export function articleVisualBriefTask(params: {
   title: string;
   article: string;
-  direction: import("@/lib/image/visual-brief").ImageDirection;
   hasReferenceImage: boolean;
-  mode: import("@/lib/image/visual-brief").ImageMode;
+  variantCount: number;
 }): string {
-  const conceptual = params.mode === "conceptual";
-  return `## Task: extract a visual brief from a finished article
-${
-  conceptual
-    ? "Read the article and decide what its image should MEAN, then what it should show. Both come from the article; neither is a summary of it."
-    : "Read the article and decide what REAL SCENE its image should show — the world the article is about, as a photograph taken in it."
-}
+  return `## Task: decide what photograph this article should carry
 
-${visualDirectionBlock(params.mode)}
-
-${
-  conceptual
-    ? `The most important field is \`concept\`: the metaphor, contrast, or unexpected relationship the image turns on. Write it as an idea, not a scene — "permission granted and withdrawn", "a structure holding something that does not need holding", "precision that arrives at the wrong answer". Then let \`mainSubject\`, \`composition\` and \`mood\` realise it.
-
-What that rules out: a picture of the thing the article is about. An article on colour contrast is not swatches; an article on design systems is not a component grid. If the brief could be satisfied by stock photography of the subject, the concept is not doing its job.`
-    : `The most important field is \`concept\`, and here it holds A SCENE, not a metaphor: one sentence describing a real moment a photographer could have walked in on. "A designer at a desk, laptop open, sketching over a printout while a generated layout sits on the second screen." Name the person, what their hands are doing, where they are, and what is around them.
-
-What that rules out: symbols and abstractions. An article about designers using AI is not a glowing brain, a robot hand, or a floating interface — it is a designer working. An article about type licensing is not a metaphor for permission; it is somebody at a screen with a foundry's licence page open, or a drawer of metal type in a workshop. If a reader could not say what is happening in the picture, the scene is not doing its job.
-
-Two things the scene must be: about the article's real subject, and ordinary enough to be believable. A slightly untidy desk beats a styled one.`
-}
-
-${
-  conceptual
-    ? "Then write \`alternateConcepts\`: two or three OTHER ideas the same article could turn on, written the same way. They are not variations of the lead concept and not restatements of it — each must work by a different mechanism, so that images made from them look nothing alike. If the lead concept is a contrast, an alternate should be a substitution or an absence rather than another contrast. An editor will choose between the finished images, so two concepts that would produce similar frames are one wasted choice."
-    : "Then write \`alternateConcepts\`: two or three OTHER real scenes from the same world, written the same way. Not the same moment from another angle — a different moment: a different part of the work, a different room, a different pair of hands, a different time of day. An editor is choosing between the finished photographs, so two scenes that would produce the same picture are one wasted choice."
-}
+${visualDirectionBlock()}
 
 ${
   params.hasReferenceImage
-    ? `A REFERENCE PHOTOGRAPH IS ATTACHED TO THIS MESSAGE. Look at it. Write \`referenceScene\`: one sentence describing what it actually shows — the subject, what they are doing, the setting, the framing, the light. Describe the photograph in front of you, not what you expect it to be.
+    ? `A REFERENCE PHOTOGRAPH IS ATTACHED TO THIS MESSAGE. Look at it.
 
-Then make \`concept\` a scene OF THE SAME KIND: a different person, a different room, a different moment, recognisably the same sort of picture, and about this article's subject. That correspondence is the whole job — an editor asked for an image like the reference, not an image inspired by it.`
-    : "Set `referenceScene` to an empty string — no reference photograph is attached."
+Write \`referenceScene\`: one sentence describing what it actually shows — the subject, what they are doing, the setting, the framing, the light. Describe the photograph in front of you, not what you expect it to be.
+
+Then write \`scene\`: a picture OF THE SAME KIND, about this article's subject. A different person, a different room, a different moment, recognisably the same sort of photograph. That correspondence is the whole job — an image LIKE the reference, not one merely inspired by it.`
+    : `Set \`referenceScene\` to an empty string — no photograph is attached.
+
+Write \`scene\`: one sentence describing a real moment a photographer could have walked in on. Name the person, what their hands are doing, where they are, and what is around them.`
 }
 
-Write \`photoQuery\`: three to six words to search a stock photo library with, describing the SCENE and nothing else — "designer working at desk laptop", "typographer inspecting metal type", "team reviewing wireframes on wall". No brand names, no abstract nouns, no adjectives about mood. This phrase is used to find the reference photograph the finished image will be matched against, so it must describe a situation a photographer would actually have shot.
+An article about designers using AI is a designer working — not a glowing brain, a robot hand, or a floating interface. An article about type licensing is somebody at a screen with a foundry's licence page open, or a drawer of metal type in a workshop. If a reader could not say what is happening in the picture, the scene is not doing its job. Ordinary and slightly untidy beats styled.
 
-Keep the article's real named subjects in \`namedSubjects\` even when the image is metaphorical — they constrain what the metaphor may claim, and they matter if a reference image is attached later.
+Write \`alternateScenes\`: ${Math.max(params.variantCount - 1, 0)} other real scenes from the same world. Not the same moment from another angle — a different moment: a different part of the work, a different room, a different pair of hands, a different time of day. An editor is choosing between the finished photographs, so two scenes that would produce the same picture are one wasted choice.
 
-${
-  conceptual
-    ? "In \`mood\` and \`visualCharacteristics\`, commit to a specific palette, material and light for THIS article. Controlled, not muted by default; a strong point of view is one of the criteria. Do not reach for a uniform beige studio look, and do not carry a palette over from other articles."
-    : "In \`mood\` and \`visualCharacteristics\`, describe the real conditions of the scene: the light the room would have at that hour, the materials actually on the desk, the colours the setting would really be. Not a palette chosen for effect — the one that is there."
-}
+Write \`photoQuery\`: three to six words to search a stock photo library with, describing the SITUATION and nothing else — "designer working at desk laptop", "typographer inspecting metal type", "team reviewing wireframes on wall". No brand names, no abstract nouns, no adjectives about mood. This finds the reference photograph the finished image is matched against, so it must describe something a photographer would actually have shot.
 
-Requested framing: ${params.direction}
-Reference image available: ${params.hasReferenceImage ? "yes" : "no"}
 Finished title: ${params.title}
 
 Finished article:
 ---
 ${params.article}
----
-
-Framing rules — these govern the composition, never the literalness:
-- auto: choose the framing that carries the concept best.
-- editorial_cover: one conceptual hero image.
-- subject_collage: several objects placed in a deliberate relationship to each other.
-- conceptual_illustration: the central idea as metaphor, most abstract of the set.
-- realistic_scene: a staged, art-directed scene — composed for the camera, never documentary.
-- minimal_graphic: one idea, heavy negative space.
-
-Return articleStructure as one of roundup, resources, releases, comparison, explainer, profile, or trend. ${
-  conceptual
-    ? "Return \`concept\` and one sentence in \`conceptReason\` explaining what it lets the image say that a literal picture could not."
-    : "Return \`concept\` and one sentence in \`conceptReason\` explaining what a reader learns about the article from seeing this scene."
-} Return \`alternateConcepts\`, \`photoQuery\` and \`referenceScene\` as described above.
-
-For typography, UI, websites, branding, or products, note in \`referenceGuidance\` when a real specimen or screenshot would be needed for accuracy. In \`mustAvoid\`, exclude readable generated text, invented logos, counterfeit interfaces, generic offices, charts, rockets, lightbulbs, handshakes, robots, and glowing-grid technology imagery.`;
+---`;
 }
 
 export function brandReviewTask(article: string): string {

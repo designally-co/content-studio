@@ -27,21 +27,12 @@ import {
   type UploadedReferenceView,
 } from "../image-actions";
 import { IconSpark, IconDownload, IconCheck, IconTrash } from "@/components/icons";
-import { MenuSelect } from "@/components/ui/menu-select";
 import { ChipSelect } from "@/components/ui/chip-select";
 import { AccentOrb } from "@/components/accent-orb";
 import type { ImageAspectRatio } from "@/lib/image/providers";
 import { MAX_FOUND_REFERENCES } from "@/lib/image/reference-policy";
 import type { BrandReviewResult } from "@/lib/brand-review";
-import {
-  DEFAULT_IMAGE_MODE,
-  IMAGE_DIRECTIONS,
-  IMAGE_MODES,
-  type ArticleVisualBrief,
-  type ImageMode,
-  type ImagePromptVariant,
-  type ImageDirection,
-} from "@/lib/image/visual-brief";
+import { type ArticleVisualBrief, type ImagePromptVariant } from "@/lib/image/visual-brief";
 
 type ImageModelOption = {
   optionId: string;
@@ -384,16 +375,6 @@ function ImagePanel({
    */
   const [variants, setVariants] = useState<ImagePromptVariant[]>([]);
   const [draftedPrompt, setDraftedPrompt] = useState("");
-  const [direction, setDirection] = useState<ImageDirection>("auto");
-  /*
-   * Whether the image is a real scene or a metaphor.
-   *
-   * Grounded by default. The conceptual direction produced covers that were
-   * surreal without being about anything a reader could name, and an image that
-   * means nothing is worse than a plain one. Conceptual stays available for the
-   * piece whose subject has no scene to photograph.
-   */
-  const [mode, setMode] = useState<ImageMode>(DEFAULT_IMAGE_MODE);
   // Designally house style is the official default; users can override it below.
   const [visualBrief, setVisualBrief] = useState<ArticleVisualBrief | null>(null);
   const [optionId, setOptionId] = useState(initialOptionId);
@@ -419,7 +400,7 @@ function ImagePanel({
   const [error, setError] = useState<string | null>(null);
   const [promptExpanded, setPromptExpanded] = useState(false);
   const [promptNeedsExpansion, setPromptNeedsExpansion] = useState(false);
-  const [openPanel, setOpenPanel] = useState<"style" | "brief" | null>(null);
+  const [openPanel, setOpenPanel] = useState<"brief" | null>(null);
   // Optimistic: the route resolves the cover on reload, but the choice has to
   // register the instant it is clicked or the control feels broken.
   const [chosenCoverId, setChosenCoverId] = useState<string | null>(coverImageId);
@@ -437,21 +418,19 @@ function ImagePanel({
    * at ten and fourteen. Slicing here rather than at the server keeps what the
    * editor is told and what is sent as the same number.
    */
-  const usableReferences = useMemo(() => {
-    if (!selectedOption?.capabilities.referenceImages) return [];
-    /*
-     * ONE photograph in grounded mode, not four.
-     *
-     * The editing endpoints accept ten and fourteen because they are built to
-     * COMPOSITE — hand them four unrelated photographs and they blend the
-     * subjects. That is the opposite of what "make a picture like this one"
-     * needs, where a single clear example is the entire instruction. The rest
-     * of the set stays attached to the article and visible; it is simply not
-     * sent, and the dock says so.
-     */
-    const room = mode === "grounded" ? 1 : selectedOption.capabilities.maxReferenceImages;
-    return references.slice(0, room);
-  }, [references, selectedOption, mode]);
+  /*
+   * ONE photograph, never four.
+   *
+   * The editing endpoints accept ten and fourteen because they are built to
+   * COMPOSITE — hand them four unrelated photographs and they blend the
+   * subjects. That is the opposite of "make a picture like this one", where a
+   * single clear example is the entire instruction. The rest of the set stays
+   * attached and visible; it is simply not sent, and the dock says so.
+   */
+  const usableReferences = useMemo(
+    () => (selectedOption?.capabilities.referenceImages ? references.slice(0, 1) : []),
+    [references, selectedOption]
+  );
   /** The editing entry in the same model line, which is the one that takes references. */
   const referenceCapableSibling = useMemo(
     () =>
@@ -537,11 +516,7 @@ function ImagePanel({
         // screenshot, a product page. Falls back to them only when no brief has
         // been drafted yet.
         query:
-          visualBrief?.photoQuery?.trim() ||
-          (visualBrief
-            ? [visualBrief.mainSubject, ...visualBrief.namedSubjects].filter(Boolean).join(" ")
-            : undefined),
-        mode,
+          visualBrief?.photoQuery?.trim() || undefined,
       });
       setReferences(result.references);
       const notes: string[] = [];
@@ -578,15 +553,7 @@ function ImagePanel({
     setBusy("prompt");
     setError(null);
     try {
-      const result = await generateImagePromptAction(projectId, {
-        model: selectedOption?.model,
-        aspectRatio,
-        hasReferenceImage: usableReferences.length > 0,
-        referenceCount: usableReferences.length,
-        direction,
-        mode,
-        variationCount: count,
-      });
+      const result = await generateImagePromptAction(projectId, { variationCount: count });
       setPrompt(result.prompt);
       setDraftedPrompt(result.prompt);
       setVariants(result.variants);
@@ -739,12 +706,12 @@ function ImagePanel({
             changes the outcome. */}
         {usingDraftedSet && !conceptsBehindCount && (
           <p className="text-sm text-ink-2">
-            {count} images, {count} different concepts — drafted from the article.
+            {count} images, {count} different scenes — drafted from the article.
           </p>
         )}
         {conceptsBehindCount && (
           <p className="text-sm text-ink-2">
-            {variants.length} of the {count} images will carry different concepts. Auto-draft again
+            {variants.length} of the {count} images will show different scenes. Auto-draft again
             for {count}.
           </p>
         )}
@@ -752,7 +719,7 @@ function ImagePanel({
           <p className="text-sm text-ink-2">Your edited prompt will be used for all {count} images.</p>
         )}
         {findNote && <p className="text-sm text-ink-2">{findNote}</p>}
-        {mode === "grounded" && references.length > 1 && usableReferences.length === 1 && (
+        {references.length > 1 && usableReferences.length === 1 && (
           <p className="text-sm text-ink-2">
             Only the first reference is sent. Editing models blend several photographs together,
             which is the opposite of matching one. Remove it to use the next.
@@ -789,79 +756,36 @@ function ImagePanel({
       <div className="sticky bottom-16 z-20 mt-auto mb-16 pt-6">
         {/* Panels open above their chips, because the dock is at the foot of the
             page and there is nowhere below to open into. */}
-        {openPanel === "style" && (
-          <div className="mb-2 rounded-2xl border border-line bg-surface p-4 shadow-[var(--shadow-pop)] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-200">
-            <div className="grid gap-4 sm:grid-cols-2">
-              {/* First, because it decides what the other control even means:
-                  a composition choice reads differently for a photograph than
-                  for a metaphor. */}
-              <div className="space-y-2">
-                <label htmlFor="image-mode" className="text-sm font-semibold text-ink">Kind of image</label>
-                <MenuSelect
-                  id="image-mode"
-                  ariaLabel="Kind of image"
-                  className="w-full text-sm"
-                  value={mode}
-                  onChange={(value) => {
-                    setMode(value as ImageMode);
-                    // A brief written as a metaphor cannot be reused as a
-                    // scene, and the prompts under it even less so.
-                    setVisualBrief(null);
-                    setPrompt("");
-                    setVariants([]);
-                    setDraftedPrompt("");
-                  }}
-                  options={IMAGE_MODES.map((item) => ({ value: item.value, label: item.label, description: item.description }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="image-direction" className="text-sm font-semibold text-ink">Composition</label>
-                <MenuSelect
-                  id="image-direction"
-                  ariaLabel="Composition override"
-                  className="w-full text-sm"
-                  value={direction}
-                  onChange={(value) => {
-                    setDirection(value as ImageDirection);
-                    setVisualBrief(null);
-                    setPrompt("");
-                    // The concepts were drawn for the old composition.
-                    setVariants([]);
-                    setDraftedPrompt("");
-                  }}
-                  options={IMAGE_DIRECTIONS.map((item) => ({ value: item.value, label: item.label, description: item.description }))}
-                />
-              </div>
-            </div>
-          </div>
-        )}
         {openPanel === "brief" && visualBrief && (
           <dl className="mb-2 grid gap-x-6 gap-y-4 rounded-2xl border border-line bg-surface p-4 text-sm shadow-[var(--shadow-pop)] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-200 sm:grid-cols-2">
-            <div><dt className="font-semibold text-ink">Main subject</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.mainSubject}</dd></div>
-            <div><dt className="font-semibold text-ink">Concept</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.concept}</dd></div>
-            <div className="sm:col-span-2"><dt className="font-semibold text-ink">Why this concept</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.conceptReason}</dd></div>
-            <div><dt className="font-semibold text-ink">Image role</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.imageRole}</dd></div>
-            <div><dt className="font-semibold text-ink">Composition</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.composition}</dd></div>
-            <div><dt className="font-semibold text-ink">Reference guidance</dt><dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.referenceGuidance}</dd></div>
+            <div className="sm:col-span-2">
+              <dt className="font-semibold text-ink">Scene</dt>
+              <dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.scene}</dd>
+            </div>
+            {visualBrief.referenceScene && (
+              <div className="sm:col-span-2">
+                <dt className="font-semibold text-ink">The reference photograph shows</dt>
+                <dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.referenceScene}</dd>
+              </div>
+            )}
+            <div>
+              <dt className="font-semibold text-ink">Photo search</dt>
+              <dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.photoQuery}</dd>
+            </div>
+            {visualBrief.alternateScenes.length > 0 && (
+              <div>
+                <dt className="font-semibold text-ink">Other scenes</dt>
+                <dd className="mt-1 leading-relaxed text-ink-2">
+                  {visualBrief.alternateScenes.join(" · ")}
+                </dd>
+              </div>
+            )}
           </dl>
         )}
 
         {/* Chips sit on the dock's own edge rather than up the page: they are
             settings on the prompt, so they belong with it. */}
         <div className="mb-2 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setOpenPanel((current) => (current === "style" ? null : "style"))}
-            aria-expanded={openPanel === "style"}
-            className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-sm font-semibold transition-colors duration-(--duration-fast) ease-(--ease-spring) focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] ${
-              openPanel === "style" ? "border-line-strong bg-sunken text-ink" : "border-line bg-surface text-ink-2 hover:border-line-strong hover:text-ink"
-            }`}
-          >
-            {IMAGE_MODES.find((item) => item.value === mode)?.label ?? "Style overrides"}
-            {direction !== "auto" && (
-              <span aria-hidden className="size-1.5 rounded-full bg-accent" />
-            )}
-          </button>
           {visualBrief && (
             <button
               type="button"

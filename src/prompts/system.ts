@@ -11,7 +11,7 @@ export const SYSTEM_VERSION = "system@1.3.0";
  * Persisted with every generation-telemetry row so prompt changes can be
  * correlated against first-draft approval rate. See src/lib/cost.ts.
  */
-export const PROMPT_VERSION = "prompts@2.1.0";
+export const PROMPT_VERSION = "prompts@3.0.0";
 
 /**
  * Research-stage rules (Haiku). Paired with BUSINESS_PROFILE only — the full

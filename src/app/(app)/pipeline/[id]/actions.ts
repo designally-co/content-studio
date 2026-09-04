@@ -29,15 +29,10 @@ import { pillarForDirection } from "@/lib/content-pillars";
 import type { BrandReviewResult } from "@/lib/brand-review";
 import { IMAGE_SYSTEM_PROMPT } from "@/prompts/system";
 import {
-  DEFAULT_IMAGE_MODE,
-  IMAGE_DIRECTIONS,
-  IMAGE_MODES,
   MAX_PROMPT_VARIANTS,
   finishImagePrompt,
   type ArticleVisualBrief,
   type DraftedImagePrompt,
-  type ImageDirection,
-  type ImageMode,
   type ImagePromptVariant,
 } from "@/lib/image/visual-brief";
 
@@ -204,62 +199,38 @@ export async function goToFinalizeAction(formData: FormData) {
 // ---- Stage 6: image prompt + finalize ----
 export async function generateImagePromptAction(
   projectId: string,
-  imageContext?: {
-    model?: string;
-    aspectRatio?: string;
-    hasReferenceImage?: boolean;
-    /** How many references are attached — they are described to the prompt differently in number. */
-    referenceCount?: number;
-    direction?: ImageDirection;
-    /** Grounded (a real scene) or conceptual (a metaphor). See visual-brief.ts. */
-    mode?: ImageMode;
-    /** How many images the editor intends to generate — one prompt is written per image. */
-    variationCount?: number;
-  }
+  imageContext?: { variationCount?: number }
 ): Promise<DraftedImagePrompt> {
   const loaded = await ctxFor(projectId);
-  const ctx = pipelineContext(loaded);
   const { drafting } = await getModels();
   const selected = loaded.drafts.find((d) => d.isSelected) ?? loaded.drafts[0];
   const article = selected?.contentMd.trim() ?? "";
   if (!article) throw new Error("No finished article is available for image planning.");
   const articleTitle = article.match(/^#\s+(.+)$/m)?.[1]?.trim();
   const title = articleTitle || loaded.project.selectedTopic?.title || "Untitled";
-  const requestedDirection = imageContext?.direction;
-  const direction = IMAGE_DIRECTIONS.some((option) => option.value === requestedDirection)
-    ? requestedDirection as ImageDirection
-    : "auto";
-  const mode: ImageMode = IMAGE_MODES.some((option) => option.value === imageContext?.mode)
-    ? (imageContext!.mode as ImageMode)
-    : DEFAULT_IMAGE_MODE;
-  const hasReferenceImage = Boolean(imageContext?.hasReferenceImage);
-  const referenceCount = Math.max(
-    0,
-    Math.min(Number(imageContext?.referenceCount ?? (hasReferenceImage ? 1 : 0)) || 0, 16)
-  );
-  /*
-   * Show the prompt writer the photograph it is being asked to match.
-   *
-   * Without this, "match the reference" was an instruction with nothing behind
-   * it: the writer knew only how many references existed, never what was in
-   * them, so it invented a scene from the article and the attached photograph
-   * only ever reached the image model. One image on the brief call — not on
-   * each of the four prompt calls — is enough, because the brief records what
-   * it sees in `referenceScene` and all four prompts read that.
-   */
-  const referenceImage = await (async () => {
-    if (!hasReferenceImage) return undefined;
-    const first = loaded.imageReferences[0];
-    if (!first) return undefined;
-    const stored = await loadStoredImage(first.storagePath);
-    if (!stored) return undefined;
-    return [{ base64: stored.data.toString("base64"), mediaType: stored.mimeType }];
-  })();
 
   const requestedVariants = Number(imageContext?.variationCount ?? 1);
   const variantCount = Number.isFinite(requestedVariants)
     ? Math.min(Math.max(Math.floor(requestedVariants), 1), MAX_PROMPT_VARIANTS)
     : 1;
+
+  /*
+   * Show the prompt writer the photograph it is being asked to match.
+   *
+   * Without this, "match the reference" was an instruction with nothing behind
+   * it: the writer knew a photograph existed but never what was in it, so it
+   * invented a scene from the article and the reference reached only the image
+   * model. One image on this call is enough — the brief records what it sees in
+   * `referenceScene`, and every prompt call reads that.
+   */
+  const reference = loaded.imageReferences[0];
+  const referenceImage = await (async () => {
+    if (!reference) return undefined;
+    const stored = await loadStoredImage(reference.storagePath);
+    if (!stored) return undefined;
+    return [{ base64: stored.data.toString("base64"), mediaType: stored.mimeType }];
+  })();
+  const hasReferenceImage = Boolean(referenceImage);
 
   const { data: brief } = await runJson<ArticleVisualBrief>({
     model: drafting,
@@ -270,79 +241,53 @@ export async function generateImagePromptAction(
     task: articleVisualBriefTask({
       title,
       article: article.slice(0, 24000),
-      direction,
       hasReferenceImage,
-      mode,
+      variantCount,
     }),
     images: referenceImage,
     schema: {
       type: "object",
       properties: {
-        articleType: { type: "string", enum: ["typography", "ux_ui", "tools", "design_principles", "branding", "websites", "trend", "other"] },
-        articleStructure: { type: "string", enum: ["roundup", "resources", "releases", "comparison", "explainer", "profile", "trend"] },
-        concept: { type: "string" },
-        conceptReason: { type: "string" },
-        alternateConcepts: { type: "array", items: { type: "string" } },
-        photoQuery: { type: "string" },
         referenceScene: { type: "string" },
-        imageRole: { type: "string" },
-        mainSubject: { type: "string" },
-        namedSubjects: { type: "array", items: { type: "string" } },
-        visualCharacteristics: { type: "array", items: { type: "string" } },
-        composition: { type: "string" },
-        mood: { type: "string" },
-        mustInclude: { type: "array", items: { type: "string" } },
-        mustAvoid: { type: "array", items: { type: "string" } },
-        referenceGuidance: { type: "string" },
+        scene: { type: "string" },
+        alternateScenes: { type: "array", items: { type: "string" } },
+        photoQuery: { type: "string" },
       },
-      required: ["articleType", "articleStructure", "concept", "conceptReason", "alternateConcepts", "photoQuery", "referenceScene", "imageRole", "mainSubject", "namedSubjects", "visualCharacteristics", "composition", "mood", "mustInclude", "mustAvoid", "referenceGuidance"],
+      required: ["referenceScene", "scene", "alternateScenes", "photoQuery"],
       additionalProperties: false,
     },
-    // Room for the alternate concepts the brief now carries as well.
-    maxTokens: 2200,
+    maxTokens: 1200,
     projectId,
     stage: "image_visual_brief",
   });
 
   /*
-   * One prompt per image, each carrying a different concept.
+   * One prompt per image, each showing a different moment.
    *
-   * This used to write a single prompt and `generateImagesAction` sent it N
-   * times, so four images were four samples of one idea — the same metaphor,
-   * setting and palette, differing only where the sampler wandered. An editor
-   * choosing a cover was choosing between renders, not between ideas.
-   *
-   * The calls run in parallel rather than as one larger call. Wall time then
-   * stays that of a single prompt, which matters: this whole action lives
-   * inside the page's 60s `maxDuration`, and a sequential set of four would
-   * not fit. Only the count the editor actually asked for is written, so the
-   * common single-image case costs exactly what it did before.
+   * A single prompt sent N times gave N samples of one picture, differing only
+   * where the sampler wandered — no choice at all for an editor picking a
+   * cover. The calls run in parallel, so wall time stays that of one: this
+   * action lives inside the page's 60s `maxDuration` and four in sequence would
+   * not fit. Only the count actually asked for is written.
    */
-  const concepts = [brief.concept, ...(brief.alternateConcepts ?? [])]
-    .map((concept) => concept.trim())
-    .filter((concept) => concept.length > 0)
+  const scenes = [brief.scene, ...(brief.alternateScenes ?? [])]
+    .map((scene) => scene.trim())
+    .filter((scene) => scene.length > 0)
     .slice(0, variantCount);
-  // A brief that returned no usable alternates still owes one prompt.
-  if (concepts.length === 0) concepts.push(brief.concept);
+  if (scenes.length === 0) scenes.push(brief.scene);
 
   // Image prompts must be English — the Fal models are English-trained.
   // Enforced in the prompt AND here: if Thai leaks in, retry once with an
   // explicit instruction, then reject rather than send a non-English prompt.
-  const writeVariant = async (concept: string, index: number): Promise<ImagePromptVariant> => {
+  const writeVariant = async (scene: string, index: number): Promise<ImagePromptVariant> => {
     const taskText = imagePromptTask({
       title,
       visualBrief: brief,
-      direction,
-      concept,
+      scene,
       variantNo: index + 1,
-      variantCount: concepts.length,
-      siblingConcepts: concepts.filter((_, other) => other !== index),
-      model: imageContext?.model?.slice(0, 100),
-      aspectRatio: imageContext?.aspectRatio?.slice(0, 10),
+      variantCount: scenes.length,
+      siblingScenes: scenes.filter((_, other) => other !== index),
       hasReferenceImage,
-      referenceCount,
-      referenceScene: brief.referenceScene,
-      mode,
     });
     const run = (extra?: string) =>
       runText({
@@ -363,10 +308,10 @@ export async function generateImagePromptAction(
         throw new SchemaValidationError("image_prompt", "image prompt must be English (Thai characters found)");
       }
     }
-    return { concept, prompt: finishImagePrompt(written, brief, concept, mode) };
+    return { scene, prompt: finishImagePrompt(written) };
   };
 
-  const settled = await Promise.allSettled(concepts.map(writeVariant));
+  const settled = await Promise.allSettled(scenes.map(writeVariant));
   const variants = settled
     .filter((result): result is PromiseFulfilledResult<ImagePromptVariant> => result.status === "fulfilled")
     .map((result) => result.value);
