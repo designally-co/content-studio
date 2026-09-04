@@ -431,6 +431,8 @@ function ImagePanel({
     () => (selectedOption?.capabilities.referenceImages ? references.slice(0, 1) : []),
     [references, selectedOption]
   );
+  /** The one photograph actually sent — what the caption credits. */
+  const activeReference = usableReferences[0] ?? references[0] ?? null;
   /** The editing entry in the same model line, which is the one that takes references. */
   const referenceCapableSibling = useMemo(
     () =>
@@ -719,20 +721,6 @@ function ImagePanel({
           <p className="text-sm text-ink-2">Your edited prompt will be used for all {count} images.</p>
         )}
         {findNote && <p className="text-sm text-ink-2">{findNote}</p>}
-        {references.length > 1 && usableReferences.length === 1 && (
-          <p className="text-sm text-ink-2">
-            Only the first reference is sent. Editing models blend several photographs together,
-            which is the opposite of matching one. Remove it to use the next.
-          </p>
-        )}
-        {/* Said once, plainly, wherever a not-licensed reference is in the set.
-            The chip carries the badge; this carries the consequence. */}
-        {references.some((item) => item.origin === "article_source") && (
-          <p className="text-sm text-ink-2">
-            Some references are the source publishers&rsquo; own images and are not licensed for
-            reuse. They steer material and detail; check the result before publishing.
-          </p>
-        )}
         {error && <p className="text-sm text-danger" role="alert">{error}</p>}
       </div>
 
@@ -807,6 +795,129 @@ function ImagePanel({
           // through underneath it.
           className="pointer-events-none absolute inset-x-0 -bottom-16 -z-10 h-[calc(100%+8rem)] bg-linear-to-t from-bg from-72% to-transparent"
         />
+        {/*
+          The reference photographs, shown as photographs.
+
+          They were chips: a 28px circular crop beside a filename, in the same
+          row as the model and ratio settings. That is the wrong shape twice
+          over. A round 28px crop of a wide photograph shows almost none of it,
+          and the one thing an editor needs to judge here is whether this is the
+          picture the generation should look like — which is a question only the
+          image can answer. And a photograph is not a setting on the prompt; it
+          is material the prompt is written against, so it does not belong in
+          the row where the count and the aspect ratio live.
+
+          Square, 64px, above the dock. Squares because the crop is honest about
+          being a crop — a circle implies an avatar — and above because that is
+          the reading order: here is the picture, now here is what you are
+          asking for. It sits on the page ground with no lift of its own: the
+          Single-Object Rule gives the dock the only elevation above the fold,
+          and a raised tray of thumbnails would compete with the thing it feeds.
+        */}
+        {references.length > 0 && (
+          <section
+            aria-label="Reference photographs"
+            /* Indented onto the prompt's own text line, not the dock's outer
+               edge: 6px of bezel plus the field's 16px gutter. The photograph
+               and the sentence written against it are one column, and 22px of
+               stagger between them reads as a mistake rather than as a margin.
+               The Two-Gutter Rule, applied across the dock's edge instead of
+               inside it. */
+            className="mb-3 ps-[22px] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-200"
+          >
+            <ul className="flex flex-wrap items-center gap-2">
+              {references.map((item, index) => {
+                // Only the first is sent to an editing model — they composite,
+                // so a second photograph dilutes rather than reinforces. The
+                // rest stay attached and visible, dimmed rather than hidden:
+                // removing the first promotes the next, and that is only
+                // obvious if the next one is on screen.
+                const inUse = index < usableReferences.length;
+                const credit = item.sourceName
+                  ? `${item.sourceName}${item.license ? ` — ${item.license}` : ""}`
+                  : "Uploaded";
+                return (
+                  <li key={item.id} className="group relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={item.url}
+                      alt={item.name}
+                      width={64}
+                      height={64}
+                      decoding="async"
+                      title={`${credit}${inUse ? "" : " · not sent"}`}
+                      className={`size-16 rounded-xl border object-cover transition-opacity duration-(--duration-fast) ease-(--ease-out) motion-reduce:transition-none ${
+                        inUse ? "border-line-strong opacity-100" : "border-line opacity-45"
+                      }`}
+                    />
+                    {!inUse && <span className="sr-only">Not sent to the model.</span>}
+                    <button
+                      type="button"
+                      onClick={() => void removeReference(item.id)}
+                      aria-label={`Remove reference photograph: ${item.name}`}
+                      /* 24px meets the WCAG 2.2 AA minimum target size. Held
+                         back until the thumbnail is hovered or something inside
+                         it takes focus, so four photographs do not read as four
+                         delete buttons — but always present where hover does not
+                         exist, since there is nothing to reveal it on a touch
+                         screen. */
+                      className="absolute -right-1.5 -top-1.5 grid size-6 place-items-center rounded-full border border-line bg-surface text-ink-3 opacity-0 shadow-[var(--shadow-card)] transition-[opacity,color,background-color] duration-(--duration-fast) ease-(--ease-out) group-hover:opacity-100 hover:bg-sunken hover:text-ink focus-visible:opacity-100 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] motion-reduce:transition-none [@media(hover:none)]:opacity-100"
+                    >
+                      <X aria-hidden className="size-3" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            {/*
+              One line doing two jobs that were previously two paragraphs and a
+              badge: which photograph is actually in play, and who took it.
+
+              ink-2 rather than ink-3: measured against the page ground, ink-3
+              lands at 4.49:1 — a hair under the 4.5:1 that body text at this
+              size needs.
+
+              The photographer is a link because Unsplash's API terms ask for a
+              credit back to the photograph, and a `title` attribute is not one.
+            */}
+            <p className="mt-2 text-xs leading-relaxed text-ink-2">
+              {/*
+                Three states, and the middle one is why this line exists at all.
+                A dimmed photograph with no words beside it is the interface
+                telling the editor something is wrong without saying what.
+              */}
+              {usableReferences.length === 0 ? (
+                // Every thumbnail dimmed and no explanation is the worst of the
+                // three. It happens whenever the chosen model reads text only,
+                // which is a property of the dropdown, not of the photographs.
+                <>Not used — {selectedOption?.label ?? "this model"} makes images from text alone. </>
+              ) : (
+                references.length > usableReferences.length && <>Using the first of {references.length}. </>
+              )}
+              {activeReference?.sourceName ? (
+                <>
+                  Photo by{" "}
+                  {activeReference.sourceUrl ? (
+                    <a
+                      href={activeReference.sourceUrl}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="underline decoration-line-strong underline-offset-2 transition-colors duration-(--duration-fast) hover:text-ink hover:decoration-current focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+                    >
+                      {activeReference.sourceName}
+                    </a>
+                  ) : (
+                    activeReference.sourceName
+                  )}
+                  {activeReference.license ? ` · ${activeReference.license}` : ""}
+                </>
+              ) : (
+                <>Uploaded reference.</>
+              )}
+            </p>
+          </section>
+        )}
+
         <div className="cs-bezel motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:duration-500">
         <div className="cs-bezel-core relative">
           <label htmlFor="image-prompt" className="sr-only">Image prompt</label>
@@ -877,53 +988,6 @@ function ImagePanel({
                 (_, index) => index + 1
               ).map((value) => ({ value: String(value), label: `${value} image${value > 1 ? "s" : ""}` }))}
             />
-
-            {/* Each reference is its own chip, because each one is now its own
-                decision: an editor did not necessarily choose it, and the row
-                behind it knows where it came from and whether anyone has
-                cleared it. A licence badge on an open-licence image, and
-                nothing on one taken from a publisher — the absence is the
-                information. */}
-            {references.map((item, index) => {
-              const beyondModel = index >= usableReferences.length;
-              const detail = [
-                item.origin === "article_source" ? `From ${item.sourceName ?? "a cited source"} — not licensed` :
-                item.origin === "open_license" ? `${item.sourceName ?? "Unknown"} — ${item.license ?? "licence unknown"}` :
-                "Uploaded",
-                beyondModel ? "Not sent — only the first reference is used" : null,
-              ].filter(Boolean).join(". ");
-              return (
-                <span
-                  key={item.id}
-                  title={detail}
-                  className={`inline-flex h-9 items-center gap-2 rounded-full py-1 pl-1 pr-1 text-sm ${
-                    beyondModel ? "bg-sunken opacity-50" : "bg-sunken"
-                  }`}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={item.url} alt="" width={28} height={28} decoding="async" className="size-7 rounded-full object-cover" />
-                  <span className="max-w-28 truncate font-medium text-ink-2">{item.name}</span>
-                  {item.origin === "article_source" && (
-                    <span className="rounded-full bg-warn-soft px-1.5 text-[11px] font-semibold text-ink-2">
-                      not licensed
-                    </span>
-                  )}
-                  {item.origin === "open_license" && item.license && (
-                    <span className="rounded-full bg-sunken px-1.5 text-[11px] font-semibold text-ink-3">
-                      {item.license}
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => void removeReference(item.id)}
-                    className="grid size-7 place-items-center rounded-full text-ink-3 transition-colors hover:bg-deep hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
-                    aria-label={`Remove reference image ${item.name}`}
-                  >
-                    <X aria-hidden className="size-3.5" />
-                  </button>
-                </span>
-              );
-            })}
 
             {/* Finding references is offered whatever model is selected: it is
                 an act on the article, and it switches the model itself if the
