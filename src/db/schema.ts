@@ -171,6 +171,24 @@ export type ProjectInputs = {
    * existed — so an editor who never picks keeps the old behaviour.
    */
   coverImageId?: string;
+  /**
+   * The autopilot's image work in progress, carried from one poke to the next.
+   *
+   * Only the unattended path writes this. An editor's browser holds the drafted
+   * prompt in component state between pressing Find and pressing Generate; the
+   * runner has no browser and no state, so what the editor would be looking at
+   * on screen is written down here instead.
+   */
+  autopilotImage?: {
+    prompt: string;
+    variantPrompts: string[];
+    /** What to search a photo library for — written by the visual brief. */
+    photoQuery?: string;
+    /** The photograph the final prompt was written against, if one was found. */
+    referenceId?: string;
+    /** Which generator to use: the editing endpoint when there is a reference. */
+    optionId?: string;
+  };
 };
 
 export type SelectedTopic = {
@@ -294,7 +312,23 @@ export const routines = pgTable("routines", {
  * A full article takes minutes and a serverless function gets 60 seconds, so
  * the position lives in the database and one request advances one step.
  */
-export type RoutineStep = "topic" | "plan" | "draft" | "images" | "publish" | "done";
+/**
+ * Where an unattended run has got to.
+ *
+ * The cover is THREE steps, not one, because a request here is killed at sixty
+ * seconds and making a picture is four remote calls: write the prompt, search
+ * for a photograph, rewrite the prompt against it, generate. All four in one
+ * step ran to 46 seconds and was cut off every time.
+ */
+export type RoutineStep =
+  | "topic"
+  | "plan"
+  | "draft"
+  | "prompt"
+  | "reference"
+  | "images"
+  | "publish"
+  | "done";
 export type RoutineRunStatus = "running" | "done" | "failed";
 
 export const routineRuns = pgTable("routine_runs", {

@@ -167,8 +167,8 @@ with no human in the loop. It is off until somebody turns it on.
    which direction (or rotate through all of them), how many images, and whether
    the Hub gets a draft or a published post.
 
-**Why a poke and not one long job.** A full article is five model-and-provider
-steps taking two to three minutes; a serverless function gets sixty seconds. So
+**Why a poke and not one long job.** A full article is seven model-and-provider
+steps taking three to four minutes; a serverless function gets sixty seconds. So
 a run is a state machine whose position lives in `routine_runs`, advanced a step
 at a time by whatever calls the endpoint. A crashed run resumes where it stopped
 rather than being lost, and two schedulers arriving together cannot advance the
@@ -177,7 +177,11 @@ same run twice (`FOR UPDATE SKIP LOCKED` plus a claim that expires).
 One poke does one step, because steps are not the same size — a topic takes ten
 seconds and a draft can take fifty — and starting a second one with half the
 budget left is what a 504 looks like from the outside. At a poke every five
-minutes an article lands about twenty-five minutes after it starts.
+minutes an article lands about half an hour after it starts.
+
+The cover is three of those seven steps — write the prompt, find the photograph
+and rewrite the prompt against it, generate — because doing all four remote
+calls in one step took 46 seconds and was killed every time.
 
 `vercel.json` also calls the endpoint daily as a backstop. That is a safety net,
 not the schedule — Vercel's Hobby cron fires about once a day, which would take

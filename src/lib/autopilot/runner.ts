@@ -268,6 +268,89 @@ async function startRun(routine: Awaited<ReturnType<typeof getRoutine>>) {
 }
 
 /** Generate one image and leave it on the project for publishing to pick up. */
+/**
+ * Read and write the image work a run carries between pokes.
+ *
+ * The manual stage keeps this in the browser between pressing Find and pressing
+ * Generate. There is no browser here, so it goes on the project.
+ */
+async function readImageWork(projectId: string) {
+  const db = await getDb();
+  const [row] = await db.select().from(projects).where(eq(projects.id, projectId)).limit(1);
+  if (!row) throw new Error("Project not found");
+  return { inputs: row.inputs, work: row.inputs.autopilotImage };
+}
+
+async function writeImageWork(
+  projectId: string,
+  patch: Partial<NonNullable<ProjectInputs["autopilotImage"]>>
+) {
+  const db = await getDb();
+  const { inputs, work } = await readImageWork(projectId);
+  await db
+    .update(projects)
+    .set({
+      inputs: {
+        ...inputs,
+        autopilotImage: { prompt: "", variantPrompts: [], ...work, ...patch },
+      },
+      updatedAt: new Date(),
+    })
+    .where(eq(projects.id, projectId));
+}
+
+/**
+ * Step one of three: write the prompt, before any photograph exists.
+ *
+ * The brief this produces is also what says WHAT TO SEARCH FOR — the scene the
+ * article describes, not its subject — so the search cannot come first.
+ */
+async function runPromptStep(projectId: string, count: number) {
+  const drafted = await generateImagePromptCore(projectId, { variationCount: count });
+  await writeImageWork(projectId, {
+    prompt: drafted.prompt,
+    variantPrompts: drafted.variants.map((variant) => variant.prompt),
+    photoQuery: drafted.brief.photoQuery,
+    referenceId: undefined,
+    optionId: undefined,
+  });
+}
+
+/**
+ * Step two: find the photograph, then write the prompt again having seen it.
+ *
+ * The second draft is the point of the whole exercise. Without it "match the
+ * reference" is an instruction with nothing behind it — the writer knows a
+ * photograph exists but not what is in it, and invents a scene from the article
+ * instead. A run with no usable photograph keeps the first draft and says so by
+ * leaving `referenceId` unset.
+ */
+async function runReferenceStep(projectId: string, count: number) {
+  const options = await imageGenerationOptions();
+  if (options.length === 0) return;
+  const { work } = await readImageWork(projectId);
+  const found = await findReferenceImagesCore(projectId, {
+    query: work?.photoQuery ?? "",
+  });
+  const reference = found.references[0];
+  const option = (reference && options.find((o) => o.capabilities.referenceImages)) ?? options[0];
+  if (!reference || !option.capabilities.referenceImages) {
+    await writeImageWork(projectId, { optionId: option.optionId });
+    return;
+  }
+  const finalPrompt = await generateImagePromptCore(projectId, {
+    variationCount: count,
+    referenceId: reference.id,
+  });
+  await writeImageWork(projectId, {
+    prompt: finalPrompt.prompt,
+    variantPrompts: finalPrompt.variants.map((variant) => variant.prompt),
+    referenceId: reference.id,
+    optionId: option.optionId,
+  });
+}
+
+/** Step three: make the picture, and say which one is the cover. */
 async function runImageStep(projectId: string, count: number) {
   const options = await imageGenerationOptions();
   if (options.length === 0) {
@@ -275,34 +358,18 @@ async function runImageStep(projectId: string, count: number) {
     // the whole run over a missing Fal key would be the wrong trade.
     return;
   }
-  // Draft the prompt first: the reference search uses the scene phrase the brief
-  // writes, and searching before there is a brief finds pictures of the topic
-  // rather than of the situation.
-  const drafted = await generateImagePromptCore(projectId, { variationCount: count });
-  const found = await findReferenceImagesCore(projectId, {
-    query: drafted.brief.photoQuery,
-  });
-  const reference = found.references[0];
-
-  // With a photograph attached the editing endpoint is the only one that can
-  // read it, exactly as the stage switches models when an editor presses Find.
-  const option =
-    (reference && options.find((o) => o.capabilities.referenceImages)) ?? options[0];
-  const withReference = Boolean(reference) && option.capabilities.referenceImages;
-
-  // The prompt is re-drafted once the reference exists, so the brief has
-  // actually seen the photograph it is being told to match.
-  const finalPrompt = withReference
-    ? await generateImagePromptCore(projectId, { variationCount: count, referenceId: reference.id })
-    : drafted;
+  const { work } = await readImageWork(projectId);
+  if (!work?.prompt) throw new Error("No image prompt was written for this article.");
+  const option = options.find((o) => o.optionId === work.optionId) ?? options[0];
+  const useReference = Boolean(work.referenceId) && option.capabilities.referenceImages;
 
   const run = await generateImagesCore(projectId, {
-    prompt: finalPrompt.prompt,
+    prompt: work.prompt,
     optionId: option.optionId,
     aspectRatio: "16:9",
     variationCount: Math.max(1, Math.min(count, option.capabilities.maxVariations)),
-    referenceIds: withReference ? [reference.id] : [],
-    variantPrompts: finalPrompt.variants.map((v) => v.prompt),
+    referenceIds: useReference && work.referenceId ? [work.referenceId] : [],
+    variantPrompts: work.variantPrompts,
   });
 
   /* Say which one is the cover rather than letting the default decide. With no
@@ -312,13 +379,11 @@ async function runImageStep(projectId: string, count: number) {
   const cover = run.images[0];
   if (cover) {
     const db = await getDb();
-    const [row] = await db.select().from(projects).where(eq(projects.id, projectId)).limit(1);
-    if (row) {
-      await db
-        .update(projects)
-        .set({ inputs: { ...row.inputs, coverImageId: cover.id }, updatedAt: new Date() })
-        .where(eq(projects.id, projectId));
-    }
+    const { inputs } = await readImageWork(projectId);
+    await db
+      .update(projects)
+      .set({ inputs: { ...inputs, coverImageId: cover.id }, updatedAt: new Date() })
+      .where(eq(projects.id, projectId));
   }
 }
 
@@ -331,6 +396,22 @@ async function advance(run: ClaimedRun, routine: Awaited<ReturnType<typeof getRo
   if (!projectId) throw new Error("This run has no article attached.");
 
   let next: RoutineStep = run.step;
+
+  /* A run left at `images` by the version that did all four calls in one step
+     has no prompt written down, and this one cannot invent it. Rewind it a step
+     rather than failing it three times over a state it never chose. Costs one
+     poke and no API call. */
+  if (run.step === "images" && routine.imagesPerRun > 0) {
+    const { work } = await readImageWork(projectId);
+    if (!work?.prompt) {
+      await db
+        .update(routineRuns)
+        .set({ step: "prompt", lockedUntil: null, attempts: 0, error: null, updatedAt: new Date() })
+        .where(eq(routineRuns.id, run.id));
+      return "prompt" as RoutineStep;
+    }
+  }
+
   switch (run.step) {
     case "plan":
       await preparePlanCore(projectId);
@@ -338,13 +419,21 @@ async function advance(run: ClaimedRun, routine: Awaited<ReturnType<typeof getRo
       break;
     case "draft":
       await generateDraftCore(projectId);
+      // Zero images means the article goes out without a cover, and it has to
+      // mean that here: the generator clamps its own count to at least one, so
+      // skipping the steps is the only way to actually ask for no picture.
+      next = routine.imagesPerRun > 0 ? "prompt" : "publish";
+      break;
+    case "prompt":
+      await runPromptStep(projectId, routine.imagesPerRun);
+      next = "reference";
+      break;
+    case "reference":
+      await runReferenceStep(projectId, routine.imagesPerRun);
       next = "images";
       break;
     case "images":
-      // Zero means the article goes out without a cover, and it has to mean
-      // that here: the generator clamps its own count to at least one, so
-      // skipping the step is the only way to actually ask for no image.
-      if (routine.imagesPerRun > 0) await runImageStep(projectId, routine.imagesPerRun);
+      await runImageStep(projectId, routine.imagesPerRun);
       next = "publish";
       break;
     case "publish":

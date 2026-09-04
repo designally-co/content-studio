@@ -1,14 +1,14 @@
 # Pokes Content Studio's autopilot endpoint on a timer.
 #
 # Vercel's own cron on the Hobby plan fires roughly once a day, and one article
-# takes five steps — that schedule would need most of a week to finish one. This
+# takes seven steps — that schedule would need over a week to finish one. This
 # runs every five minutes instead (GitHub's shortest schedule), costs nothing on
 # a public repository, and works whatever plan the project is on.
 #
 # FIVE MINUTES BECAUSE A POKE DOES ONE STEP. A request is killed at sixty
 # seconds and a draft can take fifty, so the runner will not begin a second step
-# unless a slow one would still fit — which it rarely does. Five steps at five
-# minutes puts an article about twenty-five minutes after the first poke.
+# unless a slow one would still fit — which it rarely does. Seven steps at five
+# minutes puts an article about half an hour after the first poke.
 #
 # The endpoint is idempotent: a poke with nothing to do returns `idle` and costs
 # a single database query, so a tight schedule is cheap.

@@ -139,7 +139,7 @@ The first account created through the first-run flow is given `role: "admin"`.
 
 **`routines`** — the autopilot's single settings row: `enabled`, `category_id` (null rotates), `max_per_day`, `images_per_run`, `hub_status` (`draft` | `published`), `last_run_at`. Created on first use, so there is nothing to set up.
 
-**`routine_runs`** — one row per unattended article, and the autopilot's memory between requests: `project_id`, `step` (`topic` → `plan` → `draft` → `images` → `publish` → `done`), `status` (`running` | `done` | `failed`), `attempts`, `error`, `locked_until`. The step column is what makes a run resumable after a crash; `locked_until` is what stops two schedulers advancing the same run. Read by **Settings → Autopilot**.
+**`routine_runs`** — one row per unattended article, and the autopilot's memory between requests: `project_id`, `step` (`topic` → `plan` → `draft` → `prompt` → `reference` → `images` → `publish` → `done`), `status` (`running` | `done` | `failed`), `attempts`, `error`, `locked_until`. The step column is what makes a run resumable after a crash; `locked_until` is what stops two schedulers advancing the same run. Read by **Settings → Autopilot**.
 
 **`api_keys`** — user-saved image-provider keys, `encrypted_value` = AES-256-GCM `iv:authTag:ciphertext` (hex), keyed off `ENCRYPTION_KEY`. Only `fal` is a live provider. **Anthropic is environment-only and never stored here.**
 
@@ -374,7 +374,7 @@ On boot, `getDb()` runs the migrator and seeder automatically **unless `SKIP_DB_
 
 **Vercel** — push to `main`. Region `sin1`. Set every variable from §9.
 
-**The autopilot's scheduler.** Nothing in Vercel drives it usefully: Hobby cron fires roughly once a day and one article takes five steps, so a run would take most of a week. `.github/workflows/autopilot.yml` pokes the endpoint every five minutes instead — free, and no plan change. It needs two **repository secrets**: `AUTOPILOT_URL` (`https://<your-app>/api/cron/autopilot`) and `AUTOPILOT_SECRET` (the same value as `CRON_SECRET`). With either missing the workflow exits 0 without calling anything, so a fork or a clone does not fail CI over a feature it has not configured. `vercel.json` keeps a daily cron as a backstop. Anything that can make an HTTPS request on a timer works equally well.
+**The autopilot's scheduler.** Nothing in Vercel drives it usefully: Hobby cron fires roughly once a day and one article takes seven steps, so a run would take most of a week. `.github/workflows/autopilot.yml` pokes the endpoint every five minutes instead — free, and no plan change. It needs two **repository secrets**: `AUTOPILOT_URL` (`https://<your-app>/api/cron/autopilot`) and `AUTOPILOT_SECRET` (the same value as `CRON_SECRET`). With either missing the workflow exits 0 without calling anything, so a fork or a clone does not fail CI over a feature it has not configured. `vercel.json` keeps a daily cron as a backstop. Anything that can make an HTTPS request on a timer works equally well.
 
 **Docker** — multi-stage build to `.next/standalone`, runs as non-root `nextjs` (uid 1001), exposes 3000, mounts `/app/data` for PGlite/local images/secrets:
 
