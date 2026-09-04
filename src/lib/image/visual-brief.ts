@@ -30,6 +30,80 @@ export const VISUAL_DIRECTION = {
     "Surreal, art-directed imagery that transforms abstract ideas into unexpected visual stories.",
 } as const;
 
+/*
+ * TWO DIRECTIONS NOW, AND ONE OF THEM IS THE DEFAULT.
+ *
+ * Conceptual Editorial above is deliberate and still here. But in practice it
+ * produced covers that were surreal without being about anything an editor
+ * could point at — the metaphor was legible to the model that wrote it and to
+ * nobody else, and an image that means nothing to the reader is worse than a
+ * plain one, however art-directed.
+ *
+ * Grounded Editorial is the answer to that: show the world the article is
+ * actually about. An article on designers working with AI gets a designer at a
+ * desk — a real workspace, real light, a plausible moment — rather than a
+ * floating monolith standing in for cognition. It is led by a reference
+ * photograph, and the generated image is the same KIND of scene rather than a
+ * copy of that photograph.
+ *
+ * Both remain selectable. Grounded is the default because it is what the
+ * article usually needs; Conceptual is there for the piece whose subject has no
+ * scene to photograph.
+ */
+export const GROUNDED_DIRECTION = {
+  name: "Grounded Editorial",
+  summary:
+    "A real, believable scene from the world the article describes, photographed rather than imagined.",
+} as const;
+
+export const IMAGE_MODES = [
+  {
+    value: "grounded",
+    label: "True to life",
+    description: "A real scene from the article's subject, following the reference photo.",
+  },
+  {
+    value: "conceptual",
+    label: "Conceptual",
+    description: "A metaphor for the article's idea — surreal, art-directed, not literal.",
+  },
+] as const;
+
+export type ImageMode = (typeof IMAGE_MODES)[number]["value"];
+
+export const DEFAULT_IMAGE_MODE: ImageMode = "grounded";
+
+/** What a grounded image is judged on, in the order it should be applied. */
+export const GROUNDED_CHARACTERISTICS = [
+  {
+    name: "The Real Subject",
+    rule: "Show the people, tools, materials and places the article is actually about. If the article is about designers using AI, the frame holds a designer working — not a symbol standing in for one.",
+  },
+  {
+    name: "Follow the Reference",
+    rule: "The reference photograph sets the kind of scene: the same sort of subject, setting, activity, framing and light. Make that scene again for this article. It must not be a copy — different person, different room, different moment — but someone shown both should recognise them as the same kind of picture.",
+  },
+  {
+    name: "Photographic, Not Rendered",
+    rule: "Real camera behaviour: one light source that makes sense, natural falloff, believable depth of field, honest skin and surface texture. No glow, no rim-lit product-shot lighting, no polished CGI sheen.",
+  },
+  {
+    name: "An Ordinary Moment",
+    rule: "A person mid-task rather than posed at the camera. Hands doing something. The small untidiness of a real desk.",
+  },
+  {
+    name: "Plain Composition",
+    rule: "Frame it the way a photo editor would: clear subject, room to breathe, nothing floating or symmetrical for its own sake.",
+  },
+  {
+    name: "Restrained Colour",
+    rule: "The colours the setting would really have. No teal-and-orange grade, no neon accent, no gradient background.",
+  },
+] as const;
+
+export const GROUNDED_PRINCIPLE =
+  "It should look like a photograph commissioned for this article, not like an image a model produced.";
+
 /** The four criteria the finished image is judged against. */
 export const IMAGE_CRITERIA = [
   {
@@ -94,15 +168,19 @@ export const OVERALL_PRINCIPLE =
   "AI-generated visuals should feel editorial, conceptual, and art-directed — not artificial.";
 
 /** The direction as a prompt block, so every stage states it identically. */
-export const visualDirectionBlock = (): string =>
-  [
-    `Visual direction: ${VISUAL_DIRECTION.name} — ${VISUAL_DIRECTION.summary}`,
+export const visualDirectionBlock = (mode: ImageMode = DEFAULT_IMAGE_MODE): string => {
+  const direction = mode === "conceptual" ? VISUAL_DIRECTION : GROUNDED_DIRECTION;
+  const characteristics = mode === "conceptual" ? IMAGE_CHARACTERISTICS : GROUNDED_CHARACTERISTICS;
+  const principle = mode === "conceptual" ? OVERALL_PRINCIPLE : GROUNDED_PRINCIPLE;
+  return [
+    `Visual direction: ${direction.name} — ${direction.summary}`,
     "",
     "Key characteristics:",
-    ...IMAGE_CHARACTERISTICS.map((c) => `- ${c.name} — ${c.rule}`),
+    ...characteristics.map((c) => `- ${c.name} — ${c.rule}`),
     "",
-    `Overall principle: ${OVERALL_PRINCIPLE}`,
+    `Overall principle: ${principle}`,
   ].join("\n");
+};
 
 export type ArticleVisualBrief = {
   articleType: "typography" | "ux_ui" | "tools" | "design_principles" | "branding" | "websites" | "trend" | "other";
@@ -120,6 +198,16 @@ export type ArticleVisualBrief = {
    * all for an editor picking one cover.
    */
   alternateConcepts: string[];
+  /**
+   * A short phrase to search a stock library with — the scene, in the words a
+   * photographer would file it under: "designer working at desk with laptop".
+   *
+   * This is what makes a grounded image possible. Searching the brief's subject
+   * and named subjects returned pictures OF the topic (a logo, a screenshot, a
+   * product page); the image needed a picture of the SITUATION, and nothing in
+   * the brief described one until this field existed.
+   */
+  photoQuery: string;
   imageRole: string;
   mainSubject: string;
   namedSubjects: string[];
@@ -162,6 +250,15 @@ export const MAX_PROMPT_VARIANTS = 4;
 export const finishImagePrompt = (
   written: string,
   brief: ArticleVisualBrief,
-  concept: string
-): string =>
-  `${written.trim()}\n\n${visualDirectionBlock()}\n\nConcept the image must carry: ${concept}. Anchor subject: ${brief.mainSubject}. Must include: ${brief.mustInclude.join(", ") || brief.mainSubject}. Avoid: ${brief.mustAvoid.join(", ") || "readable text, invented logos, stock-photography framing"}.`;
+  concept: string,
+  mode: ImageMode = DEFAULT_IMAGE_MODE
+): string => {
+  const tail =
+    mode === "conceptual"
+      ? `Concept the image must carry: ${concept}. Anchor subject: ${brief.mainSubject}. Must include: ${brief.mustInclude.join(", ") || brief.mainSubject}. Avoid: ${brief.mustAvoid.join(", ") || "readable text, invented logos, stock-photography framing"}.`
+      : // Grounded: the scene leads, and the reference is named as the thing to
+        // match in kind. "Avoid" drops the stock-photography line, which would
+        // contradict the direction — a stock photograph is the model here.
+        `Scene the image must show: ${concept}. Subject in frame: ${brief.mainSubject}. Must include: ${brief.mustInclude.join(", ") || brief.mainSubject}. Avoid: ${brief.mustAvoid.join(", ") || "readable text, invented logos, counterfeit interfaces"}. Match the reference photograph in kind — same sort of subject, setting, activity and light — without copying it.`;
+  return `${written.trim()}\n\n${visualDirectionBlock(mode)}\n\n${tail}`;
+};

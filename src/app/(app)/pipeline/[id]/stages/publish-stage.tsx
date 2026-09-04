@@ -34,8 +34,11 @@ import type { ImageAspectRatio } from "@/lib/image/providers";
 import { MAX_FOUND_REFERENCES } from "@/lib/image/reference-policy";
 import type { BrandReviewResult } from "@/lib/brand-review";
 import {
+  DEFAULT_IMAGE_MODE,
   IMAGE_DIRECTIONS,
+  IMAGE_MODES,
   type ArticleVisualBrief,
+  type ImageMode,
   type ImagePromptVariant,
   type ImageDirection,
 } from "@/lib/image/visual-brief";
@@ -382,6 +385,15 @@ function ImagePanel({
   const [variants, setVariants] = useState<ImagePromptVariant[]>([]);
   const [draftedPrompt, setDraftedPrompt] = useState("");
   const [direction, setDirection] = useState<ImageDirection>("auto");
+  /*
+   * Whether the image is a real scene or a metaphor.
+   *
+   * Grounded by default. The conceptual direction produced covers that were
+   * surreal without being about anything a reader could name, and an image that
+   * means nothing is worse than a plain one. Conceptual stays available for the
+   * piece whose subject has no scene to photograph.
+   */
+  const [mode, setMode] = useState<ImageMode>(DEFAULT_IMAGE_MODE);
   // Designally house style is the official default; users can override it below.
   const [visualBrief, setVisualBrief] = useState<ArticleVisualBrief | null>(null);
   const [optionId, setOptionId] = useState(initialOptionId);
@@ -511,9 +523,17 @@ function ImagePanel({
     setFindNote(null);
     try {
       const result = await findReferenceImagesAction(projectId, {
-        query: visualBrief
-          ? [visualBrief.mainSubject, ...visualBrief.namedSubjects].filter(Boolean).join(" ")
-          : undefined,
+        // `photoQuery` describes the SITUATION — "designer working at desk
+        // laptop" — which is what a stock library can actually answer. The
+        // subject and named subjects returned pictures OF the topic: a logo, a
+        // screenshot, a product page. Falls back to them only when no brief has
+        // been drafted yet.
+        query:
+          visualBrief?.photoQuery?.trim() ||
+          (visualBrief
+            ? [visualBrief.mainSubject, ...visualBrief.namedSubjects].filter(Boolean).join(" ")
+            : undefined),
+        mode,
       });
       setReferences(result.references);
       const notes: string[] = [];
@@ -556,6 +576,7 @@ function ImagePanel({
         hasReferenceImage: usableReferences.length > 0,
         referenceCount: usableReferences.length,
         direction,
+        mode,
         variationCount: count,
       });
       setPrompt(result.prompt);
@@ -757,6 +778,28 @@ function ImagePanel({
         {openPanel === "style" && (
           <div className="mb-2 rounded-2xl border border-line bg-surface p-4 shadow-[var(--shadow-pop)] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-200">
             <div className="grid gap-4 sm:grid-cols-2">
+              {/* First, because it decides what the other control even means:
+                  a composition choice reads differently for a photograph than
+                  for a metaphor. */}
+              <div className="space-y-2">
+                <label htmlFor="image-mode" className="text-sm font-semibold text-ink">Kind of image</label>
+                <MenuSelect
+                  id="image-mode"
+                  ariaLabel="Kind of image"
+                  className="w-full text-sm"
+                  value={mode}
+                  onChange={(value) => {
+                    setMode(value as ImageMode);
+                    // A brief written as a metaphor cannot be reused as a
+                    // scene, and the prompts under it even less so.
+                    setVisualBrief(null);
+                    setPrompt("");
+                    setVariants([]);
+                    setDraftedPrompt("");
+                  }}
+                  options={IMAGE_MODES.map((item) => ({ value: item.value, label: item.label, description: item.description }))}
+                />
+              </div>
               <div className="space-y-2">
                 <label htmlFor="image-direction" className="text-sm font-semibold text-ink">Composition</label>
                 <MenuSelect
@@ -800,7 +843,7 @@ function ImagePanel({
               openPanel === "style" ? "border-line-strong bg-sunken text-ink" : "border-line bg-surface text-ink-2 hover:border-line-strong hover:text-ink"
             }`}
           >
-            Style overrides
+            {IMAGE_MODES.find((item) => item.value === mode)?.label ?? "Style overrides"}
             {direction !== "auto" && (
               <span aria-hidden className="size-1.5 rounded-full bg-accent" />
             )}

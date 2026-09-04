@@ -139,6 +139,9 @@ export async function GET() {
     AUTH_GOOGLE_SECRET: Boolean(process.env.AUTH_GOOGLE_SECRET),
     ENCRYPTION_KEY: Boolean(process.env.ENCRYPTION_KEY),
     FAL_KEY: Boolean(process.env.FAL_KEY),
+    // Without it, grounded images have no photograph of a working scene to be
+    // matched against, and fall back to a channel that rarely has one.
+    UNSPLASH_ACCESS_KEY: Boolean(process.env.UNSPLASH_ACCESS_KEY),
     HUB_BASE_URL: Boolean(process.env.HUB_BASE_URL),
     HUB_API_KEY: Boolean(process.env.HUB_API_KEY),
     SUPABASE_URL: Boolean(process.env.SUPABASE_URL),

@@ -28,12 +28,15 @@ import { pillarForDirection } from "@/lib/content-pillars";
 import type { BrandReviewResult } from "@/lib/brand-review";
 import { IMAGE_SYSTEM_PROMPT } from "@/prompts/system";
 import {
+  DEFAULT_IMAGE_MODE,
   IMAGE_DIRECTIONS,
+  IMAGE_MODES,
   MAX_PROMPT_VARIANTS,
   finishImagePrompt,
   type ArticleVisualBrief,
   type DraftedImagePrompt,
   type ImageDirection,
+  type ImageMode,
   type ImagePromptVariant,
 } from "@/lib/image/visual-brief";
 
@@ -207,6 +210,8 @@ export async function generateImagePromptAction(
     /** How many references are attached — they are described to the prompt differently in number. */
     referenceCount?: number;
     direction?: ImageDirection;
+    /** Grounded (a real scene) or conceptual (a metaphor). See visual-brief.ts. */
+    mode?: ImageMode;
     /** How many images the editor intends to generate — one prompt is written per image. */
     variationCount?: number;
   }
@@ -223,6 +228,9 @@ export async function generateImagePromptAction(
   const direction = IMAGE_DIRECTIONS.some((option) => option.value === requestedDirection)
     ? requestedDirection as ImageDirection
     : "auto";
+  const mode: ImageMode = IMAGE_MODES.some((option) => option.value === imageContext?.mode)
+    ? (imageContext!.mode as ImageMode)
+    : DEFAULT_IMAGE_MODE;
   const hasReferenceImage = Boolean(imageContext?.hasReferenceImage);
   const referenceCount = Math.max(
     0,
@@ -244,6 +252,7 @@ export async function generateImagePromptAction(
       article: article.slice(0, 24000),
       direction,
       hasReferenceImage,
+      mode,
     }),
     schema: {
       type: "object",
@@ -253,6 +262,7 @@ export async function generateImagePromptAction(
         concept: { type: "string" },
         conceptReason: { type: "string" },
         alternateConcepts: { type: "array", items: { type: "string" } },
+        photoQuery: { type: "string" },
         imageRole: { type: "string" },
         mainSubject: { type: "string" },
         namedSubjects: { type: "array", items: { type: "string" } },
@@ -263,7 +273,7 @@ export async function generateImagePromptAction(
         mustAvoid: { type: "array", items: { type: "string" } },
         referenceGuidance: { type: "string" },
       },
-      required: ["articleType", "articleStructure", "concept", "conceptReason", "alternateConcepts", "imageRole", "mainSubject", "namedSubjects", "visualCharacteristics", "composition", "mood", "mustInclude", "mustAvoid", "referenceGuidance"],
+      required: ["articleType", "articleStructure", "concept", "conceptReason", "alternateConcepts", "photoQuery", "imageRole", "mainSubject", "namedSubjects", "visualCharacteristics", "composition", "mood", "mustInclude", "mustAvoid", "referenceGuidance"],
       additionalProperties: false,
     },
     // Room for the alternate concepts the brief now carries as well.
@@ -309,6 +319,7 @@ export async function generateImagePromptAction(
       aspectRatio: imageContext?.aspectRatio?.slice(0, 10),
       hasReferenceImage,
       referenceCount,
+      mode,
     });
     const run = (extra?: string) =>
       runText({
@@ -329,7 +340,7 @@ export async function generateImagePromptAction(
         throw new SchemaValidationError("image_prompt", "image prompt must be English (Thai characters found)");
       }
     }
-    return { concept, prompt: finishImagePrompt(written, brief, concept) };
+    return { concept, prompt: finishImagePrompt(written, brief, concept, mode) };
   };
 
   const settled = await Promise.allSettled(concepts.map(writeVariant));

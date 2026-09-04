@@ -250,6 +250,88 @@ export async function leadImageFromPage(
   };
 }
 
+type UnsplashResult = {
+  urls?: { regular?: string; full?: string };
+  alt_description?: string | null;
+  description?: string | null;
+  links?: { html?: string };
+  user?: { name?: string; username?: string };
+};
+
+/**
+ * Photographs of a situation, from Unsplash.
+ *
+ * This is the channel a grounded image is actually built on. The other two find
+ * pictures ABOUT a topic — a source article's lead image is as often a logo or
+ * a banner as a photograph, and Openverse leans towards archive and museum
+ * material. Neither reliably answers "a designer working at a desk", which is
+ * the kind of picture a grounded cover has to be matched against.
+ *
+ * The Unsplash License permits commercial use and modification without
+ * permission, which is what makes it safe to generate from. Attribution is not
+ * legally required by that licence but is asked for, and Unsplash's API terms
+ * do require crediting the photographer — so it is recorded on the row like any
+ * other licence, and travels with the image.
+ *
+ * Needs UNSPLASH_ACCESS_KEY. Without one this returns nothing and the caller
+ * falls back to Openverse, which needs no key but finds fewer usable scenes.
+ */
+export async function unsplashImages(query: string, limit: number): Promise<ReferenceCandidate[]> {
+  const key = process.env.UNSPLASH_ACCESS_KEY;
+  const terms = query.trim().slice(0, 120);
+  if (!key || !terms || limit <= 0) return [];
+
+  const endpoint = new URL("https://api.unsplash.com/search/photos");
+  endpoint.searchParams.set("query", terms);
+  endpoint.searchParams.set("per_page", String(Math.min(limit * 3, 15)));
+  // Landscape: these become article covers, and a portrait reference pushes the
+  // generated frame the wrong way.
+  endpoint.searchParams.set("orientation", "landscape");
+  endpoint.searchParams.set("content_filter", "high");
+
+  let results: UnsplashResult[];
+  try {
+    const response = await fetch(endpoint, {
+      headers: {
+        authorization: `Client-ID ${key}`,
+        "accept-version": "v1",
+        "user-agent": USER_AGENT,
+      },
+      signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
+      cache: "no-store",
+    });
+    if (!response.ok) return [];
+    const payload = (await response.json()) as { results?: UnsplashResult[] };
+    results = Array.isArray(payload?.results) ? payload.results : [];
+  } catch {
+    return [];
+  }
+
+  const candidates: ReferenceCandidate[] = [];
+  for (const result of results) {
+    if (candidates.length >= limit) break;
+    // `regular` is ~1080px wide — plenty for a reference, and a fraction of
+    // `full`, which would spend the byte cap for nothing.
+    const source = result.urls?.regular ?? result.urls?.full;
+    if (!source) continue;
+    const image = await downloadImage(source);
+    if (!image) continue;
+
+    const photographer = result.user?.name?.slice(0, 180) ?? "";
+    const title = (result.alt_description ?? result.description ?? terms).slice(0, 100);
+    candidates.push({
+      ...image,
+      originalName: `${title}${image.ext === "png" ? ".png" : ".jpg"}`,
+      origin: "open_license",
+      sourceUrl: result.links?.html ?? source,
+      sourceName: photographer || "Unsplash",
+      license: "Unsplash License",
+      attribution: `Photo by ${photographer || "an Unsplash photographer"} on Unsplash`,
+    });
+  }
+  return candidates;
+}
+
 type OpenverseResult = {
   title?: string;
   url?: string;
@@ -340,23 +422,47 @@ export async function findReferenceCandidates(params: {
   limit: number;
   useArticleSources: boolean;
   useOpenLicense: boolean;
+  /**
+   * Search the stock libraries first and let the article's own sources fill
+   * what is left, rather than the other way round.
+   *
+   * Which order is right depends entirely on what the image is for. A grounded
+   * cover has to be matched against a photograph of a SITUATION — a designer at
+   * a desk — and a cited source's lead image is as often a logo, a banner or a
+   * screenshot as it is a photograph. A conceptual cover wants the material
+   * actually connected to the piece, so there the sources lead.
+   */
+  stockFirst?: boolean;
 }): Promise<ReferenceCandidate[]> {
   const { limit } = params;
   if (limit <= 0) return [];
 
-  const fromSources = params.useArticleSources
-    ? (
-        await Promise.all(
-          // More pages than slots: most will have no usable lead image.
-          params.sources.slice(0, limit * 2).map((source) => leadImageFromPage(source.url, source.name))
-        )
-      ).filter((candidate): candidate is ReferenceCandidate => candidate !== null)
-    : [];
+  const fromSources = async (room: number) =>
+    params.useArticleSources && room > 0
+      ? (
+          await Promise.all(
+            // More pages than slots: most will have no usable lead image.
+            params.sources.slice(0, room * 2).map((source) => leadImageFromPage(source.url, source.name))
+          )
+        ).filter((candidate): candidate is ReferenceCandidate => candidate !== null)
+      : [];
 
-  const kept = dedupe(fromSources).slice(0, limit);
-  if (kept.length >= limit || !params.useOpenLicense) return kept;
+  /** Unsplash where a key allows it, Openverse otherwise. */
+  const fromStock = async (room: number) => {
+    if (!params.useOpenLicense || room <= 0) return [];
+    const unsplash = await unsplashImages(params.query, room);
+    if (unsplash.length >= room) return unsplash;
+    const openverse = await openLicenseImages(params.query, room - unsplash.length);
+    return [...unsplash, ...openverse];
+  };
 
-  const filler = await openLicenseImages(params.query, limit - kept.length);
+  const lead = params.stockFirst ? await fromStock(limit) : await fromSources(limit);
+  const kept = dedupe(lead).slice(0, limit);
+  if (kept.length >= limit) return kept;
+
+  const filler = params.stockFirst
+    ? await fromSources(limit - kept.length)
+    : await fromStock(limit - kept.length);
   return dedupe([...kept, ...filler]).slice(0, limit);
 }
 

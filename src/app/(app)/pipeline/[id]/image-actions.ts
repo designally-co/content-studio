@@ -12,6 +12,7 @@ import { deleteStoredImage, loadStoredImage, saveImage } from "@/lib/image/stora
 import { imageSize } from "@/lib/image/dimensions";
 import { findReferenceCandidates } from "@/lib/image/reference-sources";
 import { MAX_FOUND_REFERENCES } from "@/lib/image/reference-policy";
+import { DEFAULT_IMAGE_MODE, IMAGE_MODES, type ImageMode } from "@/lib/image/visual-brief";
 import { extractOutlineSources } from "@/lib/outline";
 import type { ImageAspectRatio, ReferenceImageInput } from "@/lib/image/providers";
 import { IMAGE_ASPECT_RATIOS } from "@/lib/image/providers";
@@ -161,12 +162,21 @@ export async function uploadImageReferenceAction(
  */
 export async function findReferenceImagesAction(
   projectId: string,
-  options?: { query?: string; useArticleSources?: boolean; useOpenLicense?: boolean }
+  options?: {
+    query?: string;
+    useArticleSources?: boolean;
+    useOpenLicense?: boolean;
+    /** Grounded searches the stock libraries first; see findReferenceCandidates. */
+    mode?: ImageMode;
+  }
 ): Promise<{ references: UploadedReferenceView[]; searched: number; note?: string }> {
   await requireUser();
   const loaded = await loadProject(projectId);
   if (!loaded) throw new Error("Project not found.");
 
+  const mode: ImageMode = IMAGE_MODES.some((option) => option.value === options?.mode)
+    ? (options!.mode as ImageMode)
+    : DEFAULT_IMAGE_MODE;
   const useArticleSources = options?.useArticleSources !== false;
   const useOpenLicense = options?.useOpenLicense !== false;
   if (!useArticleSources && !useOpenLicense) {
@@ -218,6 +228,7 @@ export async function findReferenceImagesAction(
     limit: room,
     useArticleSources,
     useOpenLicense,
+    stockFirst: mode === "grounded",
   });
 
   const saved: UploadedReferenceView[] = [];
@@ -262,9 +273,11 @@ export async function findReferenceImagesAction(
     searched: unseen.length,
     note:
       saved.length === 0
-        ? unseen.length > 0
-          ? "None of the cited sources published a usable lead image, and the open-licence search returned nothing for this subject."
-          : "The open-licence search returned nothing for this subject."
+        ? mode === "grounded" && !process.env.UNSPLASH_ACCESS_KEY
+          ? "No photographs were found. UNSPLASH_ACCESS_KEY is not set, so only the article's own sources and Openverse were searched — neither reliably has a photograph of a working scene."
+          : unseen.length > 0
+            ? "No usable photograph came back — the stock search found nothing for this scene, and none of the cited sources published a usable lead image."
+            : "The stock search found nothing for this scene. Try Auto-draft first, so the search uses the scene the brief describes."
         : undefined,
   };
 }
