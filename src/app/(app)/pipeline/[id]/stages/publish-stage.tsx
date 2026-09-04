@@ -408,7 +408,6 @@ function ImagePanel({
   const [error, setError] = useState<string | null>(null);
   const [promptExpanded, setPromptExpanded] = useState(false);
   const [promptNeedsExpansion, setPromptNeedsExpansion] = useState(false);
-  const [openPanel, setOpenPanel] = useState<"brief" | null>(null);
   // Optimistic: the route resolves the cover on reload, but the choice has to
   // register the instant it is clicked or the control feels broken.
   const [chosenCoverId, setChosenCoverId] = useState<string | null>(coverImageId);
@@ -760,52 +759,6 @@ function ImagePanel({
           how many images there are. Padding cannot do it — `bottom` pins the
           element's own edge, so padding sits inside that and reads as nothing. */}
       <div className="sticky bottom-16 z-20 mt-auto mb-16 pt-6">
-        {/* Panels open above their chips, because the dock is at the foot of the
-            page and there is nowhere below to open into. */}
-        {openPanel === "brief" && visualBrief && (
-          <dl className="mb-2 grid gap-x-6 gap-y-4 rounded-2xl border border-line bg-surface p-4 text-sm shadow-[var(--shadow-pop)] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-200 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <dt className="font-semibold text-ink">Scene</dt>
-              <dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.scene}</dd>
-            </div>
-            {visualBrief.referenceScene && (
-              <div className="sm:col-span-2">
-                <dt className="font-semibold text-ink">The reference photograph shows</dt>
-                <dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.referenceScene}</dd>
-              </div>
-            )}
-            <div>
-              <dt className="font-semibold text-ink">Photo search</dt>
-              <dd className="mt-1 leading-relaxed text-ink-2">{visualBrief.photoQuery}</dd>
-            </div>
-            {visualBrief.alternateScenes.length > 0 && (
-              <div>
-                <dt className="font-semibold text-ink">Other scenes</dt>
-                <dd className="mt-1 leading-relaxed text-ink-2">
-                  {visualBrief.alternateScenes.join(" · ")}
-                </dd>
-              </div>
-            )}
-          </dl>
-        )}
-
-        {/* Chips sit on the dock's own edge rather than up the page: they are
-            settings on the prompt, so they belong with it. */}
-        <div className="mb-2 flex flex-wrap items-center gap-2">
-          {visualBrief && (
-            <button
-              type="button"
-              onClick={() => setOpenPanel((current) => (current === "brief" ? null : "brief"))}
-              aria-expanded={openPanel === "brief"}
-              className={`inline-flex min-h-9 items-center rounded-full border px-3 text-sm font-semibold transition-colors duration-(--duration-fast) ease-(--ease-spring) focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] ${
-                openPanel === "brief" ? "border-line-strong bg-sunken text-ink" : "border-line bg-surface text-ink-2 hover:border-line-strong hover:text-ink"
-              }`}
-            >
-              What the prompt was built from
-            </button>
-          )}
-        </div>
-
         <div
           aria-hidden
           // Reaches past the gap: with the dock held 64px off the bottom, a
