@@ -133,7 +133,7 @@ export default async function LibraryPage({
           away like the heading on Create. Pinned to the top it also stacked
           under the app's mobile header and covered the hamburger. */}
       <header className="mx-auto w-full max-w-7xl px-5 pt-10 sm:px-8 sm:pt-14 lg:px-12 xl:px-16">
-        <h1 className="font-heading text-[length:var(--text-h1)] font-bold leading-[1.1] tracking-[-0.02em] text-ink sm:text-[length:var(--text-hero)]">
+        <h1 className="font-heading text-[length:var(--text-h1)] font-semibold leading-[1.1] tracking-[-0.02em] text-ink sm:text-[length:var(--text-hero)]">
           Everything on the desk.
         </h1>
         {/* The counts were already computed for the grid. Stating them costs

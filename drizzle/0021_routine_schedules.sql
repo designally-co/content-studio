@@ -25,7 +25,7 @@ ALTER TABLE "routines" ADD COLUMN IF NOT EXISTS "updated_at" timestamp with time
 CREATE INDEX IF NOT EXISTS "routines_due_idx" ON "routines" ("enabled", "next_run_at");--> statement-breakpoint
 
 -- The runs of a routine, listed newest first on its card.
-CREATE INDEX IF NOT EXISTS "routine_runs_routine_idx" ON "routine_runs" ("routine_id", "started_at");
+CREATE INDEX IF NOT EXISTS "routine_runs_routine_idx" ON "routine_runs" ("routine_id", "started_at");--> statement-breakpoint
 
 -- The routine that already exists was made by the version with no schedule of
 -- its own: an external timer fired every few minutes and the daily limit

@@ -23,7 +23,7 @@ export function Section({
     <section className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
-          <h2 className="font-heading text-[length:var(--text-h2)] font-bold leading-tight tracking-[-0.01em] text-ink">
+          <h2 className="font-heading text-[length:var(--text-h2)] font-semibold leading-tight tracking-[-0.01em] text-ink">
             {title}
           </h2>
           {description && (

@@ -7,9 +7,8 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
 import { MoreHorizontal } from "lucide-react";
 import { IconTrash, IconEdit, IconSpark, IconArrowRight } from "@/components/icons";
-import { StatusMark, routineState } from "./routine-status";
 import { Switch } from "./switch";
-import { describeSchedule } from "@/lib/autopilot/schedule";
+import { WEEKDAY_NAMES } from "@/lib/autopilot/schedule";
 import {
   STEP_LABELS,
   STEP_ORDER,
@@ -301,35 +300,27 @@ function Empty({ onCreate }: { onCreate: () => void }) {
 }
 
 /**
- * When a routine next runs, in the routine's OWN time zone.
+ * The schedule, in the shortest true sentence.
  *
- * The card used to print the schedule in Asia/Bangkok and the next run in
- * whatever zone the browser was in, on the same line, with neither labelled —
- * "Every Monday at 09:00 (Asia/Bangkok) · next Thu, Sep 10, 05:22 PM". Two
- * clocks silently disagreeing is worse than one clock, so both now read in the
- * zone the routine was configured with, and the relative form leads because
- * "in 3 days" is the part anyone actually wanted.
+ * `describeSchedule` is the form's version and carries the zone — "Every
+ * Monday at 09:00 (Asia/Bangkok)" — which is what the form needs while you are
+ * choosing it and more than the card needs once you have. Every routine on the
+ * page reads on the same clock, so naming it on each one is a parenthesis
+ * repeated down the column. Twelve-hour, because that is how the time gets
+ * said out loud.
  */
-function nextRun(iso: string, timeZone: string) {
-  const when = new Date(iso);
-  const ms = when.getTime() - Date.now();
-  const rel = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
-  const minutes = Math.round(ms / 60000);
-  const relative =
-    Math.abs(minutes) < 60
-      ? rel.format(minutes, "minute")
-      : Math.abs(minutes) < 60 * 24
-        ? rel.format(Math.round(minutes / 60), "hour")
-        : rel.format(Math.round(minutes / (60 * 24)), "day");
-  const absolute = when.toLocaleString(undefined, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone,
-  });
-  return { relative, absolute };
+function cardSchedule(routine: RoutineView): string {
+  if (routine.scheduleKind === "manual") return "Only when you press Run now";
+
+  const [rawHour, rawMinute] = routine.runAt.split(":");
+  const hour = Number(rawHour);
+  const clock = `${((hour + 11) % 12) + 1}:${rawMinute ?? "00"} ${hour < 12 ? "am" : "pm"}`;
+
+  if (routine.scheduleKind === "weekdays") return `Monday to Friday at ${clock}`;
+  if (routine.scheduleKind === "weekly") {
+    return `Every ${WEEKDAY_NAMES[routine.weekday] ?? "Monday"} at ${clock}`;
+  }
+  return `Every day at ${clock}`;
 }
 
 function RoutineCard({
@@ -362,23 +353,10 @@ function RoutineCard({
   const [enabled, setEnabled] = useOptimistic(routine.enabled);
   const running = Boolean(live && !live.finished);
   const isManual = routine.scheduleKind === "manual";
-  const schedule = describeSchedule({
-    kind: routine.scheduleKind,
-    runAt: routine.runAt,
-    timeZone: routine.timeZone,
-    weekday: routine.weekday,
-  });
 
   /* A failure the page is holding from this session outranks the stored one:
      it is the newer fact, and it is the one the reader just caused. */
   const broken = Boolean(failure) || last?.status === "failed";
-  const state = routineState({
-    running,
-    enabled,
-    isManual,
-    lastStatus: broken ? "failed" : last?.status,
-  });
-  const next = enabled && routine.nextRunAt && !running ? nextRun(routine.nextRunAt, routine.timeZone) : null;
 
   return (
     /* Borderless white on the sunken ground, the way a Library card and a
@@ -387,7 +365,7 @@ function RoutineCard({
        at; the surface change carries the separation on its own. */
     <section className="rounded-2xl bg-surface p-5 transition-shadow duration-(--duration-base) ease-(--ease-out) hover:shadow-[var(--shadow-card)]">
       <div className="flex items-start justify-between gap-4">
-        <h3 className="min-w-0 flex-1 font-heading text-[length:var(--text-h3)] font-bold leading-snug tracking-tight text-ink">
+        <h3 className="min-w-0 flex-1 font-heading text-[length:var(--text-h3)] font-semibold leading-snug tracking-tight text-ink">
           {routine.name}
         </h3>
         {/* A manual routine has nothing to switch on, so the slot stays empty
@@ -411,48 +389,33 @@ function RoutineCard({
       {routine.description && (
         /* Two lines, then an ellipsis. A description is context for the name,
            and one routine explaining itself at length pushes the next one off
-           the screen. */
+           the screen.
+
+           IT IS THE ONLY PROSE ON THE CARD NOW. The schedule and the last run
+           were stacked under it as two more grey lines, so every routine was
+           four lines deep and a list of five was twenty lines of text to scan.
+           The schedule moved to the footer, where one line of metadata belongs;
+           when a routine last wrote something is the Library's question. */
         <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-ink-2">
           {routine.description}
         </p>
       )}
 
-      <p className="mt-1.5 text-sm text-ink-3">{schedule}</p>
-
       {live && <Progress live={live} />}
       {!live && failure && <Failure message={humanise(failure)} />}
-      {!live && !failure && last && <LastRun run={last} />}
+      {!live && !failure && last?.status === "failed" && <LastRun run={last} />}
 
-      {/* One row when it fits, two when it does not. Squeezed onto a phone the
-          single row truncated the meta to "· nex…" — the half of the footer
-          that is information, sacrificed for the half that is buttons. */}
-      <div className="mt-4 flex flex-col items-start gap-2 border-t border-line pt-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <div className="flex min-w-0 max-w-full items-center gap-2 text-sm">
-          <StatusMark state={state} />
-          {next && (
-            <span className="truncate text-ink-3" title={`${next.absolute} (${routine.timeZone.replace(/_/g, " ")})`}>
-              · next {next.relative}
-            </span>
-          )}
-        </div>
-
-        <div className="flex shrink-0 items-center gap-1 self-end sm:self-auto">
-          {/* RUN NOW IS THE ACTION THIS PAGE IS FOR, and it was two clicks deep
-              in an unlabelled menu — including on a manual routine, whose only
-              way to do anything is this button, and immediately after a
-              failure, which is exactly when somebody wants to try again. */}
-          <Button
-            type="button"
-            size="sm"
-            variant={isManual && !broken ? "default" : "ghost"}
-            disabled={anyRunning}
-            onClick={onRunNow}
-          >
-            <IconSpark width={15} height={15} />
-            {running ? "Running…" : broken ? "Run again" : "Run now"}
-          </Button>
-          <RoutineMenu name={routine.name} onEdit={onEdit} onDelete={() => setConfirming(true)} />
-        </div>
+      <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-3.5">
+        <p className="min-w-0 truncate text-sm text-ink-3">{cardSchedule(routine)}</p>
+        <RoutineMenu
+          name={routine.name}
+          running={running}
+          anyRunning={anyRunning}
+          broken={broken}
+          onRunNow={onRunNow}
+          onEdit={onEdit}
+          onDelete={() => setConfirming(true)}
+        />
       </div>
 
       {confirming && (
@@ -495,29 +458,39 @@ function Failure({ message }: { message: string }) {
 }
 
 /**
- * Edit and Delete.
+ * Run now, Edit, Delete.
  *
- * Run now used to live here too, which put the page's main action behind an
- * unlabelled trigger. What remains is what a menu is for: the actions you reach
- * for occasionally and do not want competing with the name.
+ * One target rather than three competing with the name. Run now sat on the
+ * card for a while and it was the loudest thing in a footer that is otherwise
+ * metadata — on a list of five routines, five buttons offering to start an
+ * article. It is the first item here, where a decision to start one is made
+ * deliberately rather than in passing.
  */
 function RoutineMenu({
   name,
+  running,
+  anyRunning,
+  broken,
+  onRunNow,
   onEdit,
   onDelete,
 }: {
   name: string;
+  running: boolean;
+  anyRunning: boolean;
+  broken: boolean;
+  onRunNow: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
   const item =
-    "flex min-h-11 w-full cursor-default select-none items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold outline-none transition-colors data-highlighted:bg-sunken data-disabled:pointer-events-none data-disabled:opacity-50";
+    "flex min-h-11 w-full cursor-default select-none items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium outline-none transition-colors data-highlighted:bg-sunken data-disabled:pointer-events-none data-disabled:opacity-50";
 
   return (
     <DropdownMenuPrimitive.Root modal={false}>
       <DropdownMenuPrimitive.Trigger
         aria-label={`More actions for ${name}`}
-        className="grid size-9 place-items-center rounded-lg text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] data-[state=open]:bg-sunken data-[state=open]:text-ink"
+        className="grid size-9 shrink-0 place-items-center rounded-lg text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] data-[state=open]:bg-sunken data-[state=open]:text-ink"
       >
         <MoreHorizontal aria-hidden className="size-5" />
       </DropdownMenuPrimitive.Trigger>
@@ -526,8 +499,16 @@ function RoutineMenu({
           align="end"
           sideOffset={6}
           collisionPadding={12}
-          className="z-(--z-dropdown) w-56 rounded-2xl border border-line bg-surface p-1.5 text-ink shadow-[var(--shadow-pop)] outline-none duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none"
+          className="z-(--z-dropdown) w-56 rounded-xl border border-line bg-surface p-1.5 text-ink shadow-[var(--shadow-pop)] outline-none duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none"
         >
+          <DropdownMenuPrimitive.Item
+            className={item}
+            disabled={anyRunning}
+            onSelect={() => onRunNow()}
+          >
+            <IconSpark width={16} height={16} className="text-ink-3" />
+            {running ? "Running…" : broken ? "Run again" : "Run now"}
+          </DropdownMenuPrimitive.Item>
           <DropdownMenuPrimitive.Item className={item} onSelect={() => onEdit()}>
             <IconEdit width={16} height={16} className="text-ink-3" />
             Edit

@@ -654,7 +654,7 @@ function ImagePanel({
           a choice — with one image the tile's own badge already says it. */}
       <header className="flex flex-wrap items-center justify-between gap-x-8 gap-y-3">
         <div className="min-w-0 flex-1">
-          <h2 className="max-w-[46ch] text-balance font-heading text-[length:var(--text-h2)] font-bold leading-tight tracking-tight text-ink">
+          <h2 className="max-w-[46ch] text-balance font-heading text-[length:var(--text-h2)] font-semibold leading-tight tracking-tight text-ink">
             {title}
           </h2>
           {imgs.length > 1 && (
@@ -1118,7 +1118,7 @@ function GeneratedImage({ img, feature = false, selected, onSelect, onDeleted }:
         {selected && (
           <span
             aria-hidden
-            className="absolute left-3 top-3 z-20 inline-flex min-h-8 items-center gap-1.5 rounded-full bg-accent px-3 text-xs font-bold text-white"
+            className="absolute left-3 top-3 z-20 inline-flex min-h-8 items-center gap-1.5 rounded-full bg-accent px-3 text-xs font-semibold text-white"
           >
             <IconCheck width={12} height={12} />
             Publishing

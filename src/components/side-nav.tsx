@@ -126,7 +126,7 @@ export function SideNav({ isAdmin = false }: { isAdmin?: boolean }) {
               <p className="text-xs font-semibold uppercase tracking-[var(--tracking-caps)] text-accent-ink">
                 Designally
               </p>
-              <p className="font-heading text-base font-bold tracking-tight text-ink">
+              <p className="font-heading text-base font-semibold tracking-tight text-ink">
                 Content Studio
               </p>
             </div>
@@ -144,7 +144,7 @@ function MobileBrand() {
   return (
     <div className="flex min-w-0 items-center gap-2.5">
       <FlatMark size={32} />
-      <span className="truncate font-heading text-sm font-bold text-ink">Content Studio</span>
+      <span className="truncate font-heading text-sm font-semibold text-ink">Content Studio</span>
     </div>
   );
 }

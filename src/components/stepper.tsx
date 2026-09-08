@@ -66,7 +66,7 @@ export function Stepper({
                   numerals, 5.19:1 — the second place the pure orange is
                   called legal. */}
               <span
-                className={`grid size-5 shrink-0 place-items-center rounded-full text-xs font-bold transition-colors duration-(--duration-fast) ease-(--ease-spring) ${
+                className={`grid size-5 shrink-0 place-items-center rounded-full text-xs font-semibold transition-colors duration-(--duration-fast) ease-(--ease-spring) ${
                   active
                     ? "bg-accent text-ink"
                     : done

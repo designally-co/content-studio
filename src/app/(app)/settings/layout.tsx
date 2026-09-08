@@ -22,7 +22,7 @@ export default async function SettingsLayout({
   return (
     <div className="min-h-svh bg-sunken">
       <div className="mx-auto w-full max-w-5xl px-5 pb-24 pt-10 sm:px-8 sm:pt-14 lg:px-12">
-        <h1 className="font-heading text-[length:var(--text-h1)] font-bold leading-[1.1] tracking-[-0.02em] text-ink sm:text-[length:var(--text-hero)]">
+        <h1 className="font-heading text-[length:var(--text-h1)] font-semibold leading-[1.1] tracking-[-0.02em] text-ink sm:text-[length:var(--text-hero)]">
           Settings
         </h1>
 

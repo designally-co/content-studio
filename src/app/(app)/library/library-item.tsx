@@ -75,7 +75,7 @@ export function LibraryItem({ id, title, category, dateLabel, readMinutes, statu
       className="rounded-sm after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
     >
       <h2
-        className={`text-pretty font-heading font-bold leading-snug tracking-tight text-ink transition-colors duration-(--duration-fast) group-hover:text-accent-ink ${
+        className={`text-pretty font-heading font-semibold leading-snug tracking-tight text-ink transition-colors duration-(--duration-fast) group-hover:text-accent-ink ${
           featured
             ? "line-clamp-3 text-[length:var(--text-h2)]"
             : "line-clamp-2 text-[length:var(--text-h3)]"

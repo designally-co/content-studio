@@ -183,7 +183,7 @@ export function DraftsStage({
           <div className="cs-bezel-core">
             <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 px-5 pb-4 pt-5 sm:px-8 sm:pt-6">
               <div className="min-w-0">
-                <p className="font-heading text-[length:var(--text-h3)] font-bold tracking-tight text-ink">Article draft</p>
+                <p className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">Article draft</p>
                 <p className="mt-1 text-sm text-ink-2" aria-live="polite">
                   {draft.streaming ? "Writing draft…" : revising ? "Applying revision…" : dirty || pending ? "Saving…" : draft.contentMd ? `Saved · Target ${targetLength}` : `Target ${targetLength}`}
                 </p>
@@ -233,7 +233,7 @@ export function DraftsStage({
           >
             <div className="cs-bezel-core">
               <div className="px-5 pb-4 pt-5">
-                <h3 className="font-heading text-[length:var(--text-h3)] font-bold tracking-tight text-ink">Revise</h3>
+                <h3 className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">Revise</h3>
                 <p className="mt-1 text-sm leading-relaxed text-ink-2">One focused change at a time.</p>
               </div>
 
