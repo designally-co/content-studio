@@ -7,7 +7,8 @@ import { createSignedImageUrls } from "@/lib/image/storage";
 import { PageHeading } from "@/components/page-heading";
 import { FilterBar } from "./filter-bar";
 import { IconNew } from "@/components/icons";
-import { LibraryItem } from "./library-item";
+import { LibraryRow } from "./library-row";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -190,18 +191,33 @@ export default async function LibraryPage({
             </Link>
           </div>
         ) : (
-          <>
-            {showFeatured && (
-              <div className="mb-5">
-                <LibraryItem {...toItemProps(featured)} featured />
-              </div>
-            )}
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {(showFeatured ? rest : rows).map((r) => (
-                <LibraryItem key={r.id} {...toItemProps(r)} />
-              ))}
-            </div>
-          </>
+          /* The table sits on a plate, the way every other list in the product
+             does — the rules inside it are the structure, so the container
+             needs nothing but a surface to hold them. */
+          <div className="overflow-hidden rounded-2xl border border-line bg-surface">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="px-4 text-ink-3">Title</TableHead>
+                  <TableHead className="hidden px-4 text-ink-3 sm:table-cell">Direction</TableHead>
+                  <TableHead className="px-4 text-ink-3">Status</TableHead>
+                  <TableHead className="hidden px-4 text-ink-3 lg:table-cell">Read</TableHead>
+                  <TableHead className="hidden px-4 text-ink-3 md:table-cell">Updated</TableHead>
+                  {/* The delete control's column. Named for assistive
+                      technology, blank on screen: a header that said "Actions"
+                      would be a word wider than the thing beneath it. */}
+                  <TableHead className="w-px px-4">
+                    <span className="sr-only">Actions</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((r) => (
+                  <LibraryRow key={r.id} {...toItemProps(r)} />
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </main>
     </div>
