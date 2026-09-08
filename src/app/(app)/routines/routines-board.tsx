@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
 import { MoreHorizontal } from "lucide-react";
 import { IconTrash, IconEdit, IconSpark, IconArrowRight } from "@/components/icons";
+import { StatusMark, routineState } from "./routine-status";
+import { Switch } from "./switch";
 import { describeSchedule } from "@/lib/autopilot/schedule";
 import {
   STEP_LABELS,
@@ -176,9 +178,12 @@ export function RoutinesBoard({
       <Readiness anthropic={anthropicReady} hub={hubReady} cron={cronReady} />
 
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-sm font-semibold text-ink-2">
+        {/* A count, not a heading: the page title above already says what this
+            list is, and an h2 that only restates the noun gives heading
+            navigation a stop that leads nowhere. */}
+        <p className="text-sm text-ink-3">
           {routines.length} {routines.length === 1 ? "routine" : "routines"}
-        </h2>
+        </p>
         {!creating && (
           <Button
             type="button"
@@ -194,7 +199,7 @@ export function RoutinesBoard({
       </div>
 
       {creating && (
-        <div className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
+        <div className="rounded-2xl bg-surface p-5 sm:p-6">
           <RoutineForm
             directions={directions}
             submitLabel="Create routine"
@@ -258,11 +263,6 @@ export function RoutinesBoard({
         )
       )}
 
-      <p className="px-1 pt-1 text-sm leading-relaxed text-ink-3">
-        Every article a routine writes appears in the Library like any other, whether it ran on its
-        schedule or you pressed Run now. While this page is open it moves runs along itself; closed,
-        they advance on the schedule instead.
-      </p>
     </div>
   );
 }
@@ -300,6 +300,38 @@ function Empty({ onCreate }: { onCreate: () => void }) {
   );
 }
 
+/**
+ * When a routine next runs, in the routine's OWN time zone.
+ *
+ * The card used to print the schedule in Asia/Bangkok and the next run in
+ * whatever zone the browser was in, on the same line, with neither labelled —
+ * "Every Monday at 09:00 (Asia/Bangkok) · next Thu, Sep 10, 05:22 PM". Two
+ * clocks silently disagreeing is worse than one clock, so both now read in the
+ * zone the routine was configured with, and the relative form leads because
+ * "in 3 days" is the part anyone actually wanted.
+ */
+function nextRun(iso: string, timeZone: string) {
+  const when = new Date(iso);
+  const ms = when.getTime() - Date.now();
+  const rel = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+  const minutes = Math.round(ms / 60000);
+  const relative =
+    Math.abs(minutes) < 60
+      ? rel.format(minutes, "minute")
+      : Math.abs(minutes) < 60 * 24
+        ? rel.format(Math.round(minutes / 60), "hour")
+        : rel.format(Math.round(minutes / (60 * 24)), "day");
+  const absolute = when.toLocaleString(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone,
+  });
+  return { relative, absolute };
+}
+
 function RoutineCard({
   routine,
   last,
@@ -329,6 +361,7 @@ function RoutineCard({
   const [, startToggle] = useTransition();
   const [enabled, setEnabled] = useOptimistic(routine.enabled);
   const running = Boolean(live && !live.finished);
+  const isManual = routine.scheduleKind === "manual";
   const schedule = describeSchedule({
     kind: routine.scheduleKind,
     runAt: routine.runAt,
@@ -336,71 +369,91 @@ function RoutineCard({
     weekday: routine.weekday,
   });
 
+  /* A failure the page is holding from this session outranks the stored one:
+     it is the newer fact, and it is the one the reader just caused. */
+  const broken = Boolean(failure) || last?.status === "failed";
+  const state = routineState({
+    running,
+    enabled,
+    isManual,
+    lastStatus: broken ? "failed" : last?.status,
+  });
+  const next = enabled && routine.nextRunAt && !running ? nextRun(routine.nextRunAt, routine.timeZone) : null;
+
   return (
-    <section className="rounded-2xl border border-line bg-surface p-5">
+    /* Borderless white on the sunken ground, the way a Library card and a
+       Settings plate already are. The bordered box this used to be gave four
+       routines four competing outlines on a page whose job is to be glanced
+       at; the surface change carries the separation on its own. */
+    <section className="rounded-2xl bg-surface p-5 transition-shadow duration-(--duration-base) ease-(--ease-out) hover:shadow-[var(--shadow-card)]">
       <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <h3 className="font-heading text-base font-bold text-ink">{routine.name}</h3>
-          {routine.description && (
-            <p className="mt-0.5 text-sm leading-relaxed text-ink-2">{routine.description}</p>
-          )}
-          <p className="mt-1.5 text-sm text-ink-3">
-            {schedule}
-            {enabled && routine.nextRunAt && !running && (
-              <>
-                {" · next "}
-                {new Date(routine.nextRunAt).toLocaleString(undefined, {
-                  weekday: "short",
-                  day: "numeric",
-                  month: "short",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </>
-            )}
-          </p>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-1.5">
-          {routine.scheduleKind === "manual" ? (
-            <span className="px-1.5 text-sm text-ink-3">By hand</span>
-          ) : (
-            <label className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 text-sm">
-              <input
-                type="checkbox"
-                checked={enabled}
-                onChange={(event) => {
-                  const next = event.target.checked;
-                  startToggle(async () => {
-                    setEnabled(next);
-                    await onToggle(next);
-                  });
-                }}
-                className="size-5 rounded-md border-line-strong accent-[var(--orange-500)]"
-                aria-label={`Run ${routine.name} on its schedule`}
-              />
-              <span className={enabled ? "font-semibold text-ink" : "text-ink-2"}>
-                {enabled ? "On" : "Off"}
-              </span>
-            </label>
-          )}
-
-          <RoutineMenu
-            name={routine.name}
-            running={running}
-            anyRunning={anyRunning}
-            onRunNow={onRunNow}
-            onEdit={onEdit}
-            onDelete={() => setConfirming(true)}
+        <h3 className="min-w-0 flex-1 font-heading text-[length:var(--text-h3)] font-bold leading-snug tracking-tight text-ink">
+          {routine.name}
+        </h3>
+        {/* A manual routine has nothing to switch on, so the slot stays empty
+            rather than holding the words "By hand" in the shape of a control —
+            that fact is in the status mark below, and a label shaped like a
+            switch invites a click that does nothing. */}
+        {!isManual && (
+          <Switch
+            checked={enabled}
+            label={`Run ${routine.name} on its schedule`}
+            onChange={(nextValue) => {
+              startToggle(async () => {
+                setEnabled(nextValue);
+                await onToggle(nextValue);
+              });
+            }}
           />
-        </div>
+        )}
       </div>
 
-      {live && <Progress live={live} />}
-      {!live && failure && (
-        <p className="mt-3 text-sm leading-relaxed text-danger-ink">{humanise(failure)}</p>
+      {routine.description && (
+        /* Two lines, then an ellipsis. A description is context for the name,
+           and one routine explaining itself at length pushes the next one off
+           the screen. */
+        <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-ink-2">
+          {routine.description}
+        </p>
       )}
+
+      <p className="mt-1.5 text-sm text-ink-3">{schedule}</p>
+
+      {live && <Progress live={live} />}
+      {!live && failure && <Failure message={humanise(failure)} />}
       {!live && !failure && last && <LastRun run={last} />}
+
+      {/* One row when it fits, two when it does not. Squeezed onto a phone the
+          single row truncated the meta to "· nex…" — the half of the footer
+          that is information, sacrificed for the half that is buttons. */}
+      <div className="mt-4 flex flex-col items-start gap-2 border-t border-line pt-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <div className="flex min-w-0 max-w-full items-center gap-2 text-sm">
+          <StatusMark state={state} />
+          {next && (
+            <span className="truncate text-ink-3" title={`${next.absolute} (${routine.timeZone.replace(/_/g, " ")})`}>
+              · next {next.relative}
+            </span>
+          )}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1 self-end sm:self-auto">
+          {/* RUN NOW IS THE ACTION THIS PAGE IS FOR, and it was two clicks deep
+              in an unlabelled menu — including on a manual routine, whose only
+              way to do anything is this button, and immediately after a
+              failure, which is exactly when somebody wants to try again. */}
+          <Button
+            type="button"
+            size="sm"
+            variant={isManual && !broken ? "default" : "ghost"}
+            disabled={anyRunning}
+            onClick={onRunNow}
+          >
+            <IconSpark width={15} height={15} />
+            {running ? "Running…" : broken ? "Run again" : "Run now"}
+          </Button>
+          <RoutineMenu name={routine.name} onEdit={onEdit} onDelete={() => setConfirming(true)} />
+        </div>
+      </div>
 
       {confirming && (
         /* Not a dialog. The question is one line and the answer is two buttons;
@@ -424,19 +477,36 @@ function RoutineCard({
   );
 }
 
-/** Run now, Edit, Delete — one target instead of three competing with the name. */
+/**
+ * Why it stopped.
+ *
+ * On a tinted ground rather than as loose red prose in the middle of the card:
+ * the message is often three lines of provider detail, and unbounded red text
+ * pushed the card open and read as the loudest thing on the page. Contained, it
+ * stays legible without taking the card over — and the action that answers it
+ * is the button underneath, not another link inside the paragraph.
+ */
+function Failure({ message }: { message: string }) {
+  return (
+    <p className="mt-3 rounded-xl bg-danger-soft px-4 py-3 text-sm leading-relaxed text-danger-ink">
+      {message}
+    </p>
+  );
+}
+
+/**
+ * Edit and Delete.
+ *
+ * Run now used to live here too, which put the page's main action behind an
+ * unlabelled trigger. What remains is what a menu is for: the actions you reach
+ * for occasionally and do not want competing with the name.
+ */
 function RoutineMenu({
   name,
-  running,
-  anyRunning,
-  onRunNow,
   onEdit,
   onDelete,
 }: {
   name: string;
-  running: boolean;
-  anyRunning: boolean;
-  onRunNow: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -458,14 +528,6 @@ function RoutineMenu({
           collisionPadding={12}
           className="z-(--z-dropdown) w-56 rounded-2xl border border-line bg-surface p-1.5 text-ink shadow-[var(--shadow-pop)] outline-none duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none"
         >
-          <DropdownMenuPrimitive.Item
-            className={item}
-            disabled={anyRunning}
-            onSelect={() => onRunNow()}
-          >
-            <IconSpark width={16} height={16} className="text-ink-3" />
-            {running ? "Running…" : "Run now"}
-          </DropdownMenuPrimitive.Item>
           <DropdownMenuPrimitive.Item className={item} onSelect={() => onEdit()}>
             <IconEdit width={16} height={16} className="text-ink-3" />
             Edit
@@ -500,16 +562,17 @@ function LastRun({ run }: { run: RunView }) {
   });
   if (run.status === "failed") {
     return (
-      <p className="mt-3 text-sm leading-relaxed text-danger-ink">
-        <span className="font-semibold">Last run stopped</span> at{" "}
-        {STEP_LABELS[run.step].toLowerCase()}, {when}
-        {run.error ? ` — ${humanise(run.error)}` : "."}
-      </p>
+      <Failure
+        message={`Stopped at ${STEP_LABELS[run.step].toLowerCase()}, ${when}${
+          run.error ? ` — ${humanise(run.error)}` : "."
+        }`}
+      />
     );
   }
   return (
     <p className="mt-3 text-sm text-ink-3">
-      {run.status === "done" ? "Last wrote" : "Started"} {run.title === "Untitled article" ? "an article" : `“${run.title}”`}, {when}
+      {run.status === "done" ? "Last wrote" : "Started"}{" "}
+      {run.title === "Untitled article" ? "an article" : `“${run.title}”`}, {when}
       {run.projectId && (
         <>
           {" · "}
