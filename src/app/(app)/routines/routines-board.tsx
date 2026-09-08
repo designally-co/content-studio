@@ -188,16 +188,22 @@ export function RoutinesBoard({
             Each one writes an article and sends it to the Hub, unreviewed.
           </p>
         </div>
-        <Button
-          type="button"
-          className="shrink-0"
-          onClick={() => {
-            setCreating(true);
-            setEditing(null);
-          }}
-        >
-          New routine
-        </Button>
+        {/* Nothing to add to yet, and the empty state below is already
+            offering exactly this. Two primary buttons on one screen, the same
+            colour, doing the same thing, is a choice the reader has to make
+            for no reason. */}
+        {routines.length > 0 && (
+          <Button
+            type="button"
+            className="shrink-0"
+            onClick={() => {
+              setCreating(true);
+              setEditing(null);
+            }}
+          >
+            New routine
+          </Button>
+        )}
       </div>
 
       <Readiness anthropic={anthropicReady} hub={hubReady} cron={cronReady} />
@@ -295,9 +301,11 @@ function Empty({ onCreate }: { onCreate: () => void }) {
   return (
     <div className="px-5 py-14 text-center">
       <p className="text-sm font-semibold text-ink">Nothing runs on its own yet</p>
-      <p className="mx-auto mt-1.5 max-w-[46ch] text-sm leading-relaxed text-ink-2">
-        A routine is a saved recipe: a content direction, when to run, and what to do with the
-        finished article. You can start one by hand at any time, whether or not it has a schedule.
+      {/* The heading says nothing runs yet; the line under it should say what
+          making one involves, not define the word. What it writes and when it
+          runs are the two questions the form asks. */}
+      <p className="mx-auto mt-1.5 max-w-[40ch] text-sm leading-relaxed text-ink-2">
+        Choose what it writes about and when it runs.
       </p>
       <Button type="button" className="mt-5" onClick={onCreate}>
         Create the first one
