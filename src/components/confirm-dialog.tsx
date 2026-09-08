@@ -5,7 +5,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /**
- * Deleting something, asked properly.
+ * An irreversible thing, asked properly.
  *
  * IT WAS AN INLINE PANEL INSIDE THE CARD, which put a destructive button in
  * the same few hundred pixels as the menu that opens it — one stray click from
@@ -27,15 +27,20 @@ const SHEET = {
   "--sheet-ink-2": "#737373",
 } as React.CSSProperties;
 
-export function ConfirmDelete({
+export function ConfirmDialog({
   title,
   description,
+  confirmLabel = "Delete",
   open,
   onCancel,
   onConfirm,
 }: {
   title: string;
   description: React.ReactNode;
+  /* Named for the act, not for the dialog. "Confirm" makes the reader look
+     back up at the title to find out what they are confirming; the word on the
+     button should be the thing that is about to happen. */
+  confirmLabel?: string;
   open: boolean;
   onCancel: () => void;
   onConfirm: () => void;
@@ -69,7 +74,7 @@ export function ConfirmDelete({
               Cancel
             </Button>
             <Button type="button" variant="destructive" onClick={onConfirm}>
-              Delete
+              {confirmLabel}
             </Button>
           </div>
         </Dialog.Content>

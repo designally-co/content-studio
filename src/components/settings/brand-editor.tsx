@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { Save } from "lucide-react";
 import { TagInput, ChipSelect } from "@/components/tag-input";
 import { saveBrandAction } from "./actions";
 import type { InferSelectModel } from "drizzle-orm";
@@ -152,10 +151,7 @@ export function BrandEditor({ brand }: { brand: Brand }) {
       </SettingsPanel>
 
       <div className="flex justify-end pt-1">
-        <Button type="submit">
-          <Save />
-          Save brand
-        </Button>
+        <Button type="submit">Save brand</Button>
       </div>
     </form>
   );

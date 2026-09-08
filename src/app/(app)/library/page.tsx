@@ -203,7 +203,6 @@ export default async function LibraryPage({
             action={
               hasActiveFilters ? undefined : (
                 <Link href="/" className="cs-btn-primary">
-                  <IconNew width={16} height={16} />
                   New content
                 </Link>
               )

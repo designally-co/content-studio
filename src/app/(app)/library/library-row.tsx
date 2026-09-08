@@ -48,9 +48,7 @@ export function LibraryRow({
 
   async function remove() {
     if (
-      !window.confirm(
-        `Delete “${title}”? This permanently removes the article, its revisions, references, and generated images.`,
-      )
+      !window.confirm(`Delete “${title}”? This cannot be undone.`)
     )
       return;
     setDeleting(true);

@@ -2,8 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
-import { ConfirmDelete } from "@/components/confirm-delete";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import {
@@ -103,7 +102,6 @@ export function ArticleTable({ rows }: { rows: ArticleRow[] }) {
             disabled={pending}
             onClick={() => setConfirming(true)}
           >
-            <Trash2 data-icon="inline-start" />
             {pending ? "Deleting…" : "Delete"}
           </Button>
         </div>
@@ -153,15 +151,9 @@ export function ArticleTable({ rows }: { rows: ArticleRow[] }) {
         </Table>
       </div>
 
-      <ConfirmDelete
+      <ConfirmDialog
         title={count === 1 ? "Delete this article?" : `Delete ${count} articles?`}
-        description={
-          <>
-            {count === 1 ? "It is" : "They are"} removed permanently, along with
-            {count === 1 ? " its" : " their"} revisions, references and generated
-            images. Anything already published to the Hub stays there.
-          </>
-        }
+        description="Permanent. Anything already published to the Hub stays there."
         open={confirming}
         onCancel={() => setConfirming(false)}
         onConfirm={remove}

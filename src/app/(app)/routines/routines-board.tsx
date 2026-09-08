@@ -17,7 +17,7 @@ import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
 import { Clock, MoreHorizontal, Pencil, Play, Trash2 } from "lucide-react";
 import { IconArrowRight } from "@/components/icons";
 import { Switch } from "@/components/switch";
-import { ConfirmDelete } from "@/components/confirm-delete";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { WEEKDAY_NAMES } from "@/lib/autopilot/schedule";
 import {
   STEP_LABELS,
@@ -470,14 +470,9 @@ function RoutineCard({
         />
       </div>
 
-      <ConfirmDelete
+      <ConfirmDialog
         title="Delete this routine?"
-        description={
-          <>
-            <span className="font-medium text-(--sheet-ink)">{routine.name}</span> stops running.
-            The articles it already wrote stay in the Library — only the schedule goes.
-          </>
-        }
+        description="The articles it wrote stay. Only the schedule goes."
         open={confirming}
         onCancel={() => setConfirming(false)}
         onConfirm={() => {

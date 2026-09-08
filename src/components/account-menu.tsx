@@ -1,8 +1,10 @@
 "use client";
 
+import { useRef, useState } from "react";
 import { DropdownMenu } from "radix-ui";
 import { LogOut, Fingerprint, FileText, KeyRound, ChevronsUpDown } from "lucide-react";
 import { logoutAction } from "@/app/actions";
+import { ConfirmDialog } from "./confirm-dialog";
 import { SECTION_LABELS, type SettingsSection } from "./settings/sections";
 
 /**
@@ -31,6 +33,9 @@ export function AccountMenu({
   collapsed?: boolean;
   onOpenSettings: (section: SettingsSection) => void;
 }) {
+  const [confirmingSignOut, setConfirmingSignOut] = useState(false);
+  const signOutForm = useRef<HTMLFormElement>(null);
+
   /* NOT A PALETTE. That icon means colour, artwork, a design tool — and this
      section holds none of it: a name, a tone of voice, terminology, rules, and
      who the writing is for. Nothing in it is visual, and the logo upload that
@@ -52,6 +57,7 @@ export function AccountMenu({
   const destructive = `${item} text-danger-ink data-highlighted:bg-danger-soft`;
 
   return (
+    <>
     <DropdownMenu.Root>
       <DropdownMenu.Trigger
         aria-label="Account and settings"
@@ -107,19 +113,45 @@ export function AccountMenu({
 
           <Rule />
 
-          {/* A form, not a fetch: signing out is a server action, and a button
-              inside a form still works if the page's JavaScript never arrives. */}
-          <form action={logoutAction}>
-            <DropdownMenu.Item asChild className={destructive}>
-              <button type="submit">
-                <LogOut aria-hidden className="size-[18px] shrink-0" />
-                Sign out
-              </button>
-            </DropdownMenu.Item>
-          </form>
+          {/* IT ASKS FIRST. Sign out sits one row under Brand, Content and
+              API — three items that open a panel you can close again — and it
+              is the only one that throws away what you were doing. A menu is
+              also the easiest thing in the product to press by accident: it
+              opens under the pointer, and the last row is where the pointer
+              lands on the way past. */}
+          <DropdownMenu.Item
+            className={destructive}
+            onSelect={() => setConfirmingSignOut(true)}
+          >
+            <LogOut aria-hidden className="size-[18px] shrink-0" />
+            Sign out
+          </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
+
+    {/* STILL A FORM SUBMIT, just one the dialog asks for. Signing out is a
+        server action that ends in a redirect, and a form posting to it is the
+        path that was already working; calling the action from a transition
+        instead would have swapped a proven mechanism for an untested one on
+        the single control that, if it breaks, leaves nobody able to sign out.
+        The form is empty and hidden — it exists to be submitted. */}
+    <form ref={signOutForm} action={logoutAction} className="hidden" />
+
+    {/* Outside the menu, which closes on select — a dialog mounted inside it
+        would be unmounted by the very choice that opened it. */}
+    <ConfirmDialog
+      title="Sign out?"
+      description="Your work is saved."
+      confirmLabel="Sign out"
+      open={confirmingSignOut}
+      onCancel={() => setConfirmingSignOut(false)}
+      onConfirm={() => {
+        setConfirmingSignOut(false);
+        signOutForm.current?.requestSubmit();
+      }}
+    />
+    </>
   );
 }
 

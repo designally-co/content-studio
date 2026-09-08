@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import type { SavedApiKey } from "@/lib/secrets";
 import { saveApiKeyAction, deleteApiKeyAction } from "./actions";
 import { Section } from "./section";
@@ -56,7 +56,7 @@ export function ApiKeys({ keys, onSaved }: { keys: SavedApiKey[]; onSaved: () =>
                 </div>
                 <DeleteConfirm
                   title={`Delete “${key.label}”?`}
-                  description="This key will no longer be available for image generation."
+                  description="Image generation loses this key."
                   disabled={pending}
                   onConfirm={() => {
                     const data = new FormData();
@@ -93,7 +93,7 @@ export function ApiKeys({ keys, onSaved }: { keys: SavedApiKey[]; onSaved: () =>
               />
             </div>
             <Button type="submit" variant="outline" disabled={pending}>
-              <Plus data-icon="inline-start" /> {pending ? "Saving…" : "Save key"}
+              {pending ? "Saving…" : "Save key"}
             </Button>
             {/* Beside the one key field, because this is where the question is
                 actually asked: why is there nowhere to put the Anthropic key?
