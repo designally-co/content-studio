@@ -24,7 +24,7 @@ import {
   setCoverImageAction,
   uploadImageReferenceAction,
 } from "../image-actions";
-import { IconSpark, IconDownload, IconCheck, IconTrash } from "@/components/icons";
+import { IconDownload, IconCheck, IconTrash } from "@/components/icons";
 import { ImageSettingsMenu, ReferenceMenu } from "./image-dock-menus";
 import { AccentOrb } from "@/components/accent-orb";
 import type { ImageAspectRatio } from "@/lib/image/providers";
@@ -1561,13 +1561,14 @@ function PublishRail({
           useful order, so its findings stay open above the fold once run. */}
       <section className="cs-bezel">
         <div className="cs-bezel-core p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-ink">Brand check</h3>
-            <button type="button" onClick={reviewArticle} disabled={reviewing || !anthropicReady} className="cs-tool">
-              <IconSpark width={15} height={15} />
-              {reviewing ? "Reviewing…" : review ? "Again" : "Run"}
-            </button>
-          </div>
+          {/* THE ACTION IS UNDER THE TEXT, not opposite the heading. "Run" was
+              a small control floated to the right of a title, so the sentence
+              explaining what it does sat BELOW the button that does it — you
+              read the label, then the reason, in that order. It also left the
+              panel's only action at a different width and altitude from every
+              other panel in the rail. Full width at the foot, like Regenerate
+              in the Revise panel. */}
+          <h3 className="text-sm font-semibold text-ink">Brand check</h3>
           {!anthropicReady && <p className="mt-2 text-sm text-ink-2">Configure Anthropic to run the review.</p>}
           {reviewError && <p className="mt-2 text-sm text-danger" role="alert">{reviewError}</p>}
           {!review && anthropicReady && !reviewing && (
@@ -1593,6 +1594,19 @@ function PublishRail({
               )}
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={reviewArticle}
+            disabled={reviewing || !anthropicReady}
+            /* The same treatment as Apply revision: this is its panel's own
+               action, and an outlined button is what that weight looks like
+               here. `cs-tool` is the borderless one, which the rail keeps for
+               the quiet action at the foot of a panel — Regenerate the draft. */
+            className="cs-btn mt-4 w-full justify-center"
+          >
+            {reviewing ? "Reviewing…" : review ? "Check again" : "Run brand check"}
+          </button>
         </div>
       </section>
     </div>
