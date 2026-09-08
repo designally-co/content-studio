@@ -90,6 +90,11 @@
   /* Chrome — the panel a page sits beside, and the dock it types into. One step
      down from the page so the working surface is the lighter of the two. */
   --chrome: #f0f0f0;
+  /* Two steps down from the rail, for the only two states a nav row has. The
+     row is distinguished by SURFACE alone — same ink, same weight, same icon
+     as every other row — so these two values carry the whole interaction. */
+  --chrome-hover: #e9e9e9;
+  --chrome-active: #e2e2e2;
   /* The dock is its own surface: white, on a hairline of the chrome grey. It
      gets a name so the scroll mask below can reference the same value — the
      two were hard-coded separately once and the mask became a pale stripe the
@@ -276,6 +281,8 @@
   --color-ink-3: var(--ink-faint);
   --color-placeholder: var(--placeholder);
   --color-chrome: var(--chrome);
+  --color-chrome-hover: var(--chrome-hover);
+  --color-chrome-active: var(--chrome-active);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-press: var(--accent-press);

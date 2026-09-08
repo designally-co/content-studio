@@ -165,23 +165,18 @@ function NavLinks({ pathname, isAdmin, onNavigate, collapsed = false }: { pathna
               title={collapsed ? label : undefined}
               // Collapsed rows are square and centred. A full-width pill behind
               // a lone centred icon reads as a mis-sized target, not a state.
-              /* ORANGE IS FOR THE ACTION, NOT FOR WHERE YOU ARE. The rail
-                 marks the current page by lifting it to the plate white the
-                 rest of the product uses for a working surface, against the
-                 chrome grey of the rail — a change of surface, not of hue. It
-                 leaves the accent free to mean the one thing it should: the
-                 button you are meant to press. */
-              className={`flex min-h-11 items-center rounded-lg text-sm transition-colors duration-(--duration-fast) ease-(--ease-out) ${collapsed ? "mx-auto size-11 justify-center px-0" : "gap-2.5 px-3 py-2.5"} ${
-                active
-                  ? "bg-surface font-semibold text-ink shadow-[0_1px_2px_rgba(26,26,26,0.06)]"
-                  : "text-ink-2 hover:bg-sunken hover:text-ink"
+              /* ONE DIFFERENCE, NOT FOUR. The current row used to change its
+                 fill, its ink, its weight AND its icon colour all at once —
+                 four signals for one fact. It changes surface and nothing
+                 else: same ink, same weight, same icon as every row beside it,
+                 sitting on a grey two steps down from the rail. Hover is the
+                 step between, so the pointer reads as a preview of selection
+                 rather than as a different idea. */
+              className={`flex min-h-12 items-center rounded-xl text-base text-ink transition-colors duration-(--duration-fast) ease-(--ease-out) ${collapsed ? "mx-auto size-12 justify-center px-0" : "gap-3 px-3"} ${
+                active ? "bg-chrome-active" : "hover:bg-chrome-hover"
               }`}
             >
-              <Icon
-                className={active ? "text-ink" : "text-ink-3"}
-                width={collapsed ? 20 : 18}
-                height={collapsed ? 20 : 18}
-              />
+              <Icon className="text-ink" width={20} height={20} />
               <span className={collapsed ? "sr-only" : ""}>{label}</span>
             </Link>
           );
