@@ -1514,8 +1514,16 @@ function PublishRail({
             </div>
           )}
 
-          <button type="button" onClick={() => void send("draft")} disabled={disabled} className="cs-tool w-full justify-center">
-            Save as a Hub draft instead
+          {/* Outlined, like every other panel action in the pipeline — Apply
+              revision, Regenerate the draft, Run brand check. This was the last
+              borderless one, which made the only alternative to publishing look
+              like the least of the buttons rather than the other choice.
+
+              "instead" went with it. The word was doing the work the position
+              already does: it sits directly under the publish button, so what
+              it is an alternative TO is not in question. */}
+          <button type="button" onClick={() => void send("draft")} disabled={disabled} className="cs-btn w-full justify-center">
+            Save as a Hub draft
           </button>
             </>
           )}
