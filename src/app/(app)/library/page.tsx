@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { and, eq, desc, asc, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
-import { projects, categories, drafts, images } from "@/db/schema";
-import { countMetrics } from "@/lib/text";
+import { projects, categories, images } from "@/db/schema";
 import { createSignedImageUrls } from "@/lib/image/storage";
 import { PageHeading } from "@/components/page-heading";
 import { FilterBar } from "./filter-bar";
@@ -54,42 +53,26 @@ export default async function LibraryPage({
 
   const latestImageByProject = new Map<string, string>();
   const latestImagePathByProject = new Map<string, string>();
-  const readTimeByProject = new Map<string, number>();
   if (rows.length > 0) {
     const projectIds = rows.map((row) => row.id);
-    const [imageRows, draftRows] = await Promise.all([
-      db
-        .select({
-          id: images.id,
-          projectId: images.projectId,
-          storagePath: images.storagePath,
-        })
-        .from(images)
-        .where(inArray(images.projectId, projectIds))
-        .orderBy(desc(images.createdAt)),
-      db
-        .select({
-          projectId: drafts.projectId,
-          contentMd: drafts.contentMd,
-          isSelected: drafts.isSelected,
-        })
-        .from(drafts)
-        .where(inArray(drafts.projectId, projectIds))
-        .orderBy(desc(drafts.isSelected), desc(drafts.createdAt)),
-    ]);
+    /* Only the covers. The read time that used to sit beside them cost every
+       draft's FULL BODY TEXT, fetched and word-counted for every row on the
+       page, to render two words in a column nobody sorted by. The column is
+       gone and so is the query. */
+    const imageRows = await db
+      .select({
+        id: images.id,
+        projectId: images.projectId,
+        storagePath: images.storagePath,
+      })
+      .from(images)
+      .where(inArray(images.projectId, projectIds))
+      .orderBy(desc(images.createdAt));
     for (const image of imageRows) {
       if (!latestImageByProject.has(image.projectId)) {
         latestImageByProject.set(image.projectId, image.id);
         latestImagePathByProject.set(image.projectId, image.storagePath);
       }
-    }
-    for (const draft of draftRows) {
-      if (readTimeByProject.has(draft.projectId)) continue;
-      const metric = countMetrics(draft.contentMd);
-      const minutes = metric.isThai
-        ? Math.ceil(metric.chars / 500)
-        : Math.ceil(metric.words / 200);
-      readTimeByProject.set(draft.projectId, Math.max(1, minutes));
     }
   }
 
@@ -134,10 +117,6 @@ export default async function LibraryPage({
   ).length;
   const draftCount = rows.length - publishedCount;
   const noun = rows.length === 1 ? "article" : "articles";
-  // The most recently worked-on article leads, because resuming it is the
-  // reason this page gets opened. Not worth doing for a handful of items.
-  const [featured, ...rest] = rows;
-  const showFeatured = rows.length >= 4;
 
   const toItemProps = (row: (typeof rows)[number]) => ({
     id: row.id,
@@ -148,7 +127,6 @@ export default async function LibraryPage({
       month: "short",
       day: "numeric",
     }),
-    readMinutes: readTimeByProject.get(row.id) ?? null,
     status: row.status,
     imageUrl: imageUrlByProject.get(row.id) ?? null,
   });
@@ -201,7 +179,6 @@ export default async function LibraryPage({
                   <TableHead className="px-4 text-ink-3">Title</TableHead>
                   <TableHead className="hidden px-4 text-ink-3 sm:table-cell">Direction</TableHead>
                   <TableHead className="px-4 text-ink-3">Status</TableHead>
-                  <TableHead className="hidden px-4 text-ink-3 lg:table-cell">Read</TableHead>
                   <TableHead className="hidden px-4 text-ink-3 md:table-cell">Updated</TableHead>
                   {/* The delete control's column. Named for assistive
                       technology, blank on screen: a header that said "Actions"

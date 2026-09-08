@@ -27,7 +27,6 @@ export function LibraryRow({
   title,
   category,
   dateLabel,
-  readMinutes,
   status,
   imageUrl,
 }: {
@@ -35,7 +34,6 @@ export function LibraryRow({
   title: string;
   category: string;
   dateLabel: string;
-  readMinutes: number | null;
   status: ProjectStatus;
   imageUrl: string | null;
 }) {
@@ -114,10 +112,6 @@ export function LibraryRow({
         ) : (
           <span className="text-ink-3">Draft</span>
         )}
-      </TableCell>
-
-      <TableCell className="hidden whitespace-nowrap text-ink-3 lg:table-cell">
-        {readMinutes ? `${readMinutes} min` : "—"}
       </TableCell>
 
       <TableCell className="hidden whitespace-nowrap text-ink-3 md:table-cell">{dateLabel}</TableCell>
