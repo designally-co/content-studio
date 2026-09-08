@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { saveModelSettingsAction } from "./actions";
 import { Button } from "@/components/ui/button";
-import { Section, Plate } from "./section";
+import { Section } from "./section";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -35,7 +35,7 @@ export function ModelSelectionCard({
 
   return (
     <Section title="Model selection" description="Choose the models Content Studio uses for speed-sensitive and quality-sensitive tasks.">
-      <Plate>
+      <div>
         <form action={saveModelSettingsAction} className="grid gap-4 sm:grid-cols-2">
           <input type="hidden" name="research" value={research} />
           <input type="hidden" name="drafting" value={drafting} />
@@ -76,7 +76,7 @@ export function ModelSelectionCard({
             <Button type="submit">Save models</Button>
           </div>
         </form>
-      </Plate>
+      </div>
     </Section>
   );
 }

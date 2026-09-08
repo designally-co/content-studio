@@ -1057,9 +1057,21 @@
    it — the two were close enough to pass for one surface. With the page on the
    platform's parchment and sunken a real step below it, the same rule painted
    the whole Create route a grey darker than every other screen. */
+/* Create paints its own ground all the way up, so no ancestor's surface shows
+   through behind it.
+
+   `> div` USED TO MEAN "the app shell" AND CAUGHT EVERY PORTAL WITH IT. Radix
+   puts a dialog's overlay and content directly under `body`, so both were
+   handed an opaque page-coloured background with `!important` — which turned
+   the settings sheet's 25% dim into a solid sheet of paint and made the entire
+   app behind it disappear. It went unseen until the account menu made a sheet
+   openable from Create at all; nothing else here ever portalled.
+
+   Naming the shell says what was always meant, and cannot swallow the next
+   thing that portals into the body. */
 html:has(.cs-create-page),
 body:has(.cs-create-page),
-body:has(.cs-create-page) > div,
+body:has(.cs-create-page) > [data-app-shell],
 main:has(.cs-create-page),
 .cs-create-page {
   background-color: var(--bg) !important;

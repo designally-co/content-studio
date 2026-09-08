@@ -80,24 +80,40 @@ export function SettingsSheet({
     <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-(--z-backdrop) bg-ink/25 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 motion-reduce:animate-none" />
+        {/* THE FRAME DOES NOT SCROLL; THE COLUMN INSIDE IT DOES. With the
+            scroll on the rounded box itself, the scrollbar rode the sheet's
+            outer edge and cut across both corner curves. Holding the side
+            padding out here and scrolling within it insets the bar by the same
+            gutter as the content, so it sits inside the sheet rather than on
+            its rim. Same 92svh ceiling and 46rem measure as the routine sheet. */}
         <Dialog.Content
           style={SHEET}
-          className="fixed left-1/2 top-1/2 z-(--z-modal) max-h-[90svh] w-[min(46rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl bg-(--sheet-bg) p-5 shadow-[var(--shadow-pop)] outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none sm:p-7"
+          className="fixed left-1/2 top-1/2 z-(--z-modal) flex max-h-[92svh] w-[min(46rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl bg-(--sheet-bg) px-5 shadow-[var(--shadow-pop)] outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none sm:px-7"
           aria-describedby={undefined}
         >
-          <div className="mb-6 flex items-start justify-between gap-4">
-            {/* The section names itself. "Settings" as a title, with the section
-                named again on a rail beside it, said the same thing twice. */}
-            <Dialog.Title className="font-heading text-[length:var(--text-h2)] font-semibold tracking-tight text-(--sheet-ink)">
-              {SECTION_LABELS[section]}
-            </Dialog.Title>
-            <Dialog.Close
-              aria-label="Close"
-              className="-mr-1 -mt-1 grid size-9 shrink-0 place-items-center rounded-lg text-(--sheet-ink-2) transition-colors duration-(--duration-fast) hover:bg-chrome hover:text-(--sheet-ink) focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
-            >
-              <X aria-hidden className="size-5" />
-            </Dialog.Close>
-          </div>
+        <div className="min-h-0 flex-1 overflow-y-auto py-5 sm:py-7">
+          {/* NOT DRAWN, BUT STILL SAID. A dialog has to have a name — it is what
+              a screen reader announces on open, and Radix warns without one —
+              so the section still titles the sheet, just not twice. The content
+              already opens with its own heading ("Brand identity", "Content
+              directions"), and a sheet reached by pressing "Brand" does not
+              need "Brand" written across the top to say where you are. */}
+          <Dialog.Title className="sr-only">{SECTION_LABELS[section]}</Dialog.Title>
+
+          {/* Floated rather than given a row of its own. With the title gone
+              that row held nothing but the close button, and a 36px band of
+              empty above every sheet is a worse trade than letting the first
+              heading flow around it — which is the one thing float is for. */}
+          <Dialog.Close
+            aria-label="Close"
+            /* No negative right margin. It optically aligned the icon inside
+               the old padded header, but here it puts the button 4px past the
+               scroller's content box — enough to raise a horizontal scrollbar
+               across the foot of every sheet. */
+            className="-mt-1 ml-3 mb-1 grid size-9 shrink-0 float-right place-items-center rounded-lg text-(--sheet-ink-2) transition-colors duration-(--duration-fast) hover:bg-chrome hover:text-(--sheet-ink) focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+          >
+            <X aria-hidden className="size-5" />
+          </Dialog.Close>
 
           {failed ? (
             <Message>
@@ -131,6 +147,7 @@ export function SettingsSheet({
               <ModelSelectionCard textModels={data.textModels} settings={data.settings} />
             </div>
           )}
+        </div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

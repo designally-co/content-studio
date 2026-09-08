@@ -4,7 +4,7 @@ import { useTransition } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import type { SavedApiKey } from "@/lib/secrets";
 import { saveApiKeyAction, deleteApiKeyAction } from "./actions";
-import { Section, Plate } from "./section";
+import { Section } from "./section";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,7 +47,7 @@ export function ApiKeys({ keys, onSaved }: { keys: SavedApiKey[]; onSaved: () =>
     >
       <div className="space-y-4">
         {keys.length > 0 && (
-          <Plate className="divide-y divide-line py-1">
+          <div className="divide-y divide-(--sheet-line)">
             {keys.map((key) => (
               <div key={key.id} className="flex items-center gap-3 py-3">
                 <div className="min-w-0 flex-1">
@@ -66,11 +66,11 @@ export function ApiKeys({ keys, onSaved }: { keys: SavedApiKey[]; onSaved: () =>
                 />
               </div>
             ))}
-          </Plate>
+          </div>
         )}
         {/* One provider exists, so there is no provider choice to make — the
             field names it instead of asking. */}
-        <Plate>
+        <div>
           <form
             onSubmit={(event) => {
               event.preventDefault();
@@ -96,7 +96,7 @@ export function ApiKeys({ keys, onSaved }: { keys: SavedApiKey[]; onSaved: () =>
               <Plus data-icon="inline-start" /> {pending ? "Saving…" : "Save key"}
             </Button>
           </form>
-        </Plate>
+        </div>
       </div>
     </Section>
   );

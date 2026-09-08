@@ -8,7 +8,7 @@ import type { InferSelectModel } from "drizzle-orm";
 import type { brandProfiles } from "@/db/schema";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Section, Plate } from "./section";
+import { Section } from "./section";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -98,7 +98,7 @@ export function BrandEditor({ brand }: { brand: Brand }) {
         title="Brand identity"
         description="How the brand is identified across the app."
       >
-        <Plate className="space-y-6">
+        <div className="space-y-6">
           <div className="flex flex-wrap items-center gap-5">
             <Avatar className="size-20 rounded-2xl bg-sunken">
               {logoSrc ? <AvatarImage src={logoSrc} alt={`${brand.name} logo`} className="object-contain p-2.5" /> : null}
@@ -135,7 +135,7 @@ export function BrandEditor({ brand }: { brand: Brand }) {
               placeholder="Internal note describing this profile"
             />
           </Field>
-        </Plate>
+        </div>
       </Section>
 
       {/* 2 — Writing guidelines */}
@@ -143,7 +143,7 @@ export function BrandEditor({ brand }: { brand: Brand }) {
         title="Writing guidelines"
         description="Optional brand-specific writing guidance applied alongside tone and terminology."
       >
-        <Plate>
+        <div>
           <Field label="Additional writing guidance" htmlFor="strategy-additional">
             <Textarea
               id="strategy-additional"
@@ -153,7 +153,7 @@ export function BrandEditor({ brand }: { brand: Brand }) {
               placeholder="Any voice, terminology, or editorial guidance not covered below…"
             />
           </Field>
-        </Plate>
+        </div>
       </Section>
 
       {/* 3 — Tone of voice */}
@@ -161,7 +161,7 @@ export function BrandEditor({ brand }: { brand: Brand }) {
         title="Tone of voice"
         description="The personality and language constraints the model should follow."
       >
-        <Plate className="space-y-5">
+        <div className="space-y-5">
           <Field label="Descriptors">
             <ChipSelect
               name="toneDescriptors"
@@ -177,7 +177,7 @@ export function BrandEditor({ brand }: { brand: Brand }) {
               placeholder="e.g. Speak like a knowledgeable peer. Avoid hype. Short sentences."
             />
           </Field>
-        </Plate>
+        </div>
       </Section>
 
       {/* 4 — Terminology & rules */}
@@ -185,7 +185,7 @@ export function BrandEditor({ brand }: { brand: Brand }) {
         title="Terminology and rules"
         description="Exact wording, preferred phrases, and boundaries for the brand."
       >
-        <Plate className="space-y-5">
+        <div className="space-y-5">
           <Field label="Terminology">
             <TagInput
               name="terminology"
@@ -209,7 +209,7 @@ export function BrandEditor({ brand }: { brand: Brand }) {
               />
             </Field>
           </div>
-        </Plate>
+        </div>
       </Section>
 
       {/* 5 — Audience */}
@@ -217,7 +217,7 @@ export function BrandEditor({ brand }: { brand: Brand }) {
         title="Audience"
         description="Who the articles are written for. Added to every generation."
       >
-        <Plate>
+        <div>
           <Field label="Target audience" htmlFor="audience">
             <Textarea
               id="audience"
@@ -226,7 +226,7 @@ export function BrandEditor({ brand }: { brand: Brand }) {
               placeholder="e.g. SME owners in Thailand evaluating a website refresh"
             />
           </Field>
-        </Plate>
+        </div>
       </Section>
 
       <div className="flex justify-end pt-2">

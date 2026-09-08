@@ -36,18 +36,3 @@ export function Section({
     </section>
   );
 }
-
-/**
- * The surface a section's content sits on.
- *
- * Removing the cards left every field floating directly on the recessed
- * ground, which read as unfinished rather than minimal — a scatter of outlined
- * inputs on a beige field with nothing holding them. The heading stays on the
- * ground and the content gets a plate, which is the same figure/ground relation
- * the Library cards use: no border, no resting shadow, just a lighter surface.
- */
-export function Plate({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div className={`rounded-2xl bg-surface p-5 sm:p-6 ${className}`}>{children}</div>
-  );
-}
