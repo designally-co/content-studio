@@ -2,8 +2,16 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useOptimistic,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { Button } from "@/components/ui/button";
+import { PageHeading } from "@/components/page-heading";
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
 import { Clock, MoreHorizontal, Pencil, Play, Trash2 } from "lucide-react";
 import { IconArrowRight } from "@/components/icons";
@@ -64,9 +72,12 @@ export function RoutinesBoard({
      one captured when the loop started. */
   const driving = useRef<string | null>(null);
   const gone = useRef(false);
-  useEffect(() => () => {
-    gone.current = true;
-  }, []);
+  useEffect(
+    () => () => {
+      gone.current = true;
+    },
+    [],
+  );
 
   /**
    * Move a run along, one request per step, until it ends.
@@ -99,15 +110,19 @@ export function RoutinesBoard({
                 ? {
                     ...run,
                     step: report.step,
-                    finished: report.status === "running" ? undefined : (report.status as "done" | "failed"),
+                    finished:
+                      report.status === "running"
+                        ? undefined
+                        : (report.status as "done" | "failed"),
                     message: report.message,
                   }
-                : run
-            )
+                : run,
+            ),
           );
 
           if (report.status !== "running") {
-            if (report.message) setFailures((all) => ({ ...all, [runId]: report.message! }));
+            if (report.message)
+              setFailures((all) => ({ ...all, [runId]: report.message! }));
             startTransition(() => router.refresh());
             return;
           }
@@ -116,7 +131,7 @@ export function RoutinesBoard({
         if (driving.current === runId) driving.current = null;
       }
     },
-    [router]
+    [router],
   );
 
   /* Pick up whatever is already running, including a run this tab did not
@@ -135,7 +150,7 @@ export function RoutinesBoard({
       setLive((current) => {
         // Keep a just-finished run on screen until the page data catches up.
         const finished = current.filter(
-          (run) => run.finished && !rows.some((row) => row.id === run.id)
+          (run) => run.finished && !rows.some((row) => row.id === run.id),
         );
         return [...rows, ...finished];
       });
@@ -161,12 +176,18 @@ export function RoutinesBoard({
       }
       setLive((current) => [
         ...current,
-        { id: started.runId, routineId, projectId: null, step: "plan", title: "Starting…" },
+        {
+          id: started.runId,
+          routineId,
+          projectId: null,
+          step: "plan",
+          title: "Starting…",
+        },
       ]);
       startTransition(() => router.refresh());
       void drive(started.runId);
     },
-    [drive, router]
+    [drive, router],
   );
 
   // Derived from state, not from the drive loop's ref: a ref read during render
@@ -174,37 +195,31 @@ export function RoutinesBoard({
   const busy = live.some((run) => !run.finished);
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-4">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="font-heading text-[length:var(--text-h1)] font-semibold leading-tight tracking-tight text-ink">
-            Routines
-          </h1>
-          {/* One line. It was three clauses naming every stage of a run —
-              topic, research, draft, cover — which the run itself reports
-              while it happens. What a reader needs before they have made one
-              is what it does and that nobody checks it. */}
-          <p className="mt-1 text-sm text-ink-3">
-            Each one writes an article and sends it to the Hub, unreviewed.
-          </p>
-        </div>
-        {/* Nothing to add to yet, and the empty state below is already
-            offering exactly this. Two primary buttons on one screen, the same
-            colour, doing the same thing, is a choice the reader has to make
-            for no reason. */}
-        {routines.length > 0 && (
-          <Button
-            type="button"
-            className="shrink-0"
-            onClick={() => {
-              setCreating(true);
-              setEditing(null);
-            }}
-          >
-            New routine
-          </Button>
-        )}
-      </div>
+    <div className="w-full max-w-3xl space-y-4">
+      <PageHeading
+        title="Routines"
+        /* One line. It was three clauses naming every stage of a run — topic,
+           research, draft, cover — which the run itself reports while it
+           happens. What a reader needs before they have made one is what it
+           does and that nobody checks it. */
+        description="Each one writes an article and sends it to the Hub, unreviewed."
+        actions={
+          /* Nothing to add to yet, and the empty state below already offers
+             exactly this. Two primary buttons on one screen, the same colour,
+             doing the same thing, is a choice with nothing on either side. */
+          routines.length > 0 ? (
+            <Button
+              type="button"
+              onClick={() => {
+                setCreating(true);
+                setEditing(null);
+              }}
+            >
+              New routine
+            </Button>
+          ) : undefined
+        }
+      />
 
       <Readiness anthropic={anthropicReady} hub={hubReady} cron={cronReady} />
 
@@ -248,42 +263,51 @@ export function RoutinesBoard({
       {routines.length === 0 && <Empty onCreate={() => setCreating(true)} />}
 
       {routines.map((routine) => (
-          <RoutineCard
-            key={routine.id}
-            routine={routine}
-            /* The newest run only. Which article came from which routine is a
+        <RoutineCard
+          key={routine.id}
+          routine={routine}
+          /* The newest run only. Which article came from which routine is a
                question the Library answers; this card answers "is it working". */
-            last={history.find((run) => run.routineId === routine.id) ?? null}
-            live={live.find((run) => run.routineId === routine.id) ?? null}
-            failure={failures[routine.id]}
-            anyRunning={busy}
-            onEdit={() => {
-              setEditing(routine.id);
-              setCreating(false);
-            }}
-            onRunNow={() => runNow(routine.id)}
-            onToggle={async (enabled) => {
-              await toggleRoutineAction(routine.id, enabled);
+          last={history.find((run) => run.routineId === routine.id) ?? null}
+          live={live.find((run) => run.routineId === routine.id) ?? null}
+          failure={failures[routine.id]}
+          anyRunning={busy}
+          onEdit={() => {
+            setEditing(routine.id);
+            setCreating(false);
+          }}
+          onRunNow={() => runNow(routine.id)}
+          onToggle={async (enabled) => {
+            await toggleRoutineAction(routine.id, enabled);
+            router.refresh();
+          }}
+          onDelete={() =>
+            startTransition(async () => {
+              await deleteRoutineAction(routine.id);
               router.refresh();
-            }}
-            onDelete={() =>
-              startTransition(async () => {
-                await deleteRoutineAction(routine.id);
-                router.refresh();
-              })
-            }
-          />
+            })
+          }
+        />
       ))}
-
     </div>
   );
 }
 
-function Readiness({ anthropic, hub, cron }: { anthropic: boolean; hub: boolean; cron: boolean }) {
+function Readiness({
+  anthropic,
+  hub,
+  cron,
+}: {
+  anthropic: boolean;
+  hub: boolean;
+  cron: boolean;
+}) {
   const problems = [
     !anthropic && "The Anthropic key is not set, so nothing can be written.",
-    !hub && "The Hub is not configured, so there is nowhere to send finished articles.",
-    !cron && "CRON_SECRET is not set, so nothing will start on a schedule. Run now still works.",
+    !hub &&
+      "The Hub is not configured, so there is nowhere to send finished articles.",
+    !cron &&
+      "CRON_SECRET is not set, so nothing will start on a schedule. Run now still works.",
   ].filter(Boolean) as string[];
   if (problems.length === 0) return null;
   return (
@@ -300,7 +324,9 @@ function Readiness({ anthropic, hub, cron }: { anthropic: boolean; hub: boolean;
 function Empty({ onCreate }: { onCreate: () => void }) {
   return (
     <div className="px-5 py-14 text-center">
-      <p className="text-sm font-semibold text-ink">Nothing runs on its own yet</p>
+      <p className="text-sm font-semibold text-ink">
+        Nothing runs on its own yet
+      </p>
       {/* The heading says nothing runs yet; the line under it should say what
           making one involves, not define the word. What it writes and when it
           runs are the two questions the form asks. */}
@@ -331,7 +357,8 @@ function cardSchedule(routine: RoutineView): string {
   const hour = Number(rawHour);
   const clock = `${((hour + 11) % 12) + 1}:${rawMinute ?? "00"} ${hour < 12 ? "am" : "pm"}`;
 
-  if (routine.scheduleKind === "weekdays") return `Monday to Friday at ${clock}`;
+  if (routine.scheduleKind === "weekdays")
+    return `Monday to Friday at ${clock}`;
   if (routine.scheduleKind === "weekly") {
     return `Every ${WEEKDAY_NAMES[routine.weekday] ?? "Monday"} at ${clock}`;
   }
@@ -453,7 +480,6 @@ function RoutineCard({
           onDelete();
         }}
       />
-
     </section>
   );
 }
@@ -545,7 +571,10 @@ function RoutineMenu({
             <Play aria-hidden className="size-[18px] shrink-0" />
             {running ? "Running…" : broken ? "Run again" : "Run now"}
           </DropdownMenuPrimitive.Item>
-          <DropdownMenuPrimitive.Item className={normal} onSelect={() => onEdit()}>
+          <DropdownMenuPrimitive.Item
+            className={normal}
+            onSelect={() => onEdit()}
+          >
             <Pencil aria-hidden className="size-[18px] shrink-0" />
             Edit routine
           </DropdownMenuPrimitive.Item>
@@ -588,11 +617,15 @@ function LastRun({ run }: { run: RunView }) {
   return (
     <p className="mt-3 text-sm text-ink-3">
       {run.status === "done" ? "Last wrote" : "Started"}{" "}
-      {run.title === "Untitled article" ? "an article" : `“${run.title}”`}, {when}
+      {run.title === "Untitled article" ? "an article" : `“${run.title}”`},{" "}
+      {when}
       {run.projectId && (
         <>
           {" · "}
-          <Link href={`/pipeline/${run.projectId}`} className="underline underline-offset-2 hover:text-ink">
+          <Link
+            href={`/pipeline/${run.projectId}`}
+            className="underline underline-offset-2 hover:text-ink"
+          >
             open it
           </Link>
         </>
@@ -618,7 +651,11 @@ function Progress({ live }: { live: Live }) {
           )}
         </p>
         <p className="text-sm text-ink-3">
-          {done ? "Done" : failed ? `at step ${position}` : `${position} of ${STEP_ORDER.length}`}
+          {done
+            ? "Done"
+            : failed
+              ? `at step ${position}`
+              : `${position} of ${STEP_ORDER.length}`}
         </p>
       </div>
       <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-deep">
@@ -626,7 +663,9 @@ function Progress({ live }: { live: Live }) {
           className={`h-full rounded-full transition-[width] duration-(--duration-base) ease-(--ease-out) ${
             failed ? "bg-destructive" : "bg-accent"
           }`}
-          style={{ width: `${Math.round((position / STEP_ORDER.length) * 100)}%` }}
+          style={{
+            width: `${Math.round((position / STEP_ORDER.length) * 100)}%`,
+          }}
         />
       </div>
       {done && live.projectId && (
@@ -641,7 +680,9 @@ function Progress({ live }: { live: Live }) {
         </p>
       )}
       {live.message && (
-        <p className={`mt-2 text-sm leading-relaxed ${failed ? "text-danger-ink" : "text-ink-2"}`}>
+        <p
+          className={`mt-2 text-sm leading-relaxed ${failed ? "text-danger-ink" : "text-ink-2"}`}
+        >
           {humanise(live.message)}
         </p>
       )}

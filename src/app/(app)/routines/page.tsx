@@ -65,11 +65,9 @@ export default async function RoutinesPage() {
 
   return (
     <div className="min-h-svh bg-sunken">
-      {/* No header band. It ran the width of the screen above a column of
-          cards half that wide, so the page had two left edges and the title
-          belonged to neither. The heading sits on the list's own column now,
-          and scrolls with it. */}
-      <div className="px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+      {/* The same container Library opens with, so the two pages start on one
+          left edge instead of each inventing their own. */}
+      <div className="mx-auto w-full max-w-7xl px-5 pb-24 pt-10 sm:px-8 sm:pt-14 lg:px-12 xl:px-16">
         <RoutinesBoard
           routines={routines}
           history={history}

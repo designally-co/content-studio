@@ -4,6 +4,7 @@ import { getDb } from "@/db";
 import { projects, categories, drafts, images } from "@/db/schema";
 import { countMetrics } from "@/lib/text";
 import { createSignedImageUrls } from "@/lib/image/storage";
+import { PageHeading } from "@/components/page-heading";
 import { FilterBar } from "./filter-bar";
 import { IconNew } from "@/components/icons";
 import { LibraryItem } from "./library-item";
@@ -46,7 +47,7 @@ export default async function LibraryPage({
   const query = (sp.q ?? "").trim().toLowerCase();
   if (query) {
     rows = rows.filter((row) =>
-      (row.topic?.title ?? "Untitled project").toLowerCase().includes(query)
+      (row.topic?.title ?? "Untitled project").toLowerCase().includes(query),
     );
   }
 
@@ -57,12 +58,20 @@ export default async function LibraryPage({
     const projectIds = rows.map((row) => row.id);
     const [imageRows, draftRows] = await Promise.all([
       db
-        .select({ id: images.id, projectId: images.projectId, storagePath: images.storagePath })
+        .select({
+          id: images.id,
+          projectId: images.projectId,
+          storagePath: images.storagePath,
+        })
         .from(images)
         .where(inArray(images.projectId, projectIds))
         .orderBy(desc(images.createdAt)),
       db
-        .select({ projectId: drafts.projectId, contentMd: drafts.contentMd, isSelected: drafts.isSelected })
+        .select({
+          projectId: drafts.projectId,
+          contentMd: drafts.contentMd,
+          isSelected: drafts.isSelected,
+        })
         .from(drafts)
         .where(inArray(drafts.projectId, projectIds))
         .orderBy(desc(drafts.isSelected), desc(drafts.createdAt)),
@@ -76,7 +85,9 @@ export default async function LibraryPage({
     for (const draft of draftRows) {
       if (readTimeByProject.has(draft.projectId)) continue;
       const metric = countMetrics(draft.contentMd);
-      const minutes = metric.isThai ? Math.ceil(metric.chars / 500) : Math.ceil(metric.words / 200);
+      const minutes = metric.isThai
+        ? Math.ceil(metric.chars / 500)
+        : Math.ceil(metric.words / 200);
       readTimeByProject.set(draft.projectId, Math.max(1, minutes));
     }
   }
@@ -84,7 +95,9 @@ export default async function LibraryPage({
   // One batched signing request lets the browser load every card image straight
   // from Supabase Storage. Without it, each card hits /api/images/[id], and a
   // full grid means ~27 serverless invocations each opening a DB connection.
-  const signedUrlByPath = await createSignedImageUrls([...latestImagePathByProject.values()]);
+  const signedUrlByPath = await createSignedImageUrls([
+    ...latestImagePathByProject.values(),
+  ]);
   const imageUrlByProject = new Map<string, string>();
   for (const [projectId, imageId] of latestImageByProject) {
     const storagePath = latestImagePathByProject.get(projectId);
@@ -93,19 +106,31 @@ export default async function LibraryPage({
     imageUrlByProject.set(projectId, signed ?? `/api/images/${imageId}`);
   }
 
-  const sort = ["updated_desc", "created_desc", "title_asc", "title_desc"].includes(sp.sort)
+  const sort = [
+    "updated_desc",
+    "created_desc",
+    "title_asc",
+    "title_desc",
+  ].includes(sp.sort)
     ? sp.sort
     : "updated_desc";
   rows.sort((a, b) => {
-    if (sort === "created_desc") return b.createdAt.getTime() - a.createdAt.getTime();
+    if (sort === "created_desc")
+      return b.createdAt.getTime() - a.createdAt.getTime();
     if (sort === "title_asc" || sort === "title_desc") {
-      const comparison = (a.topic?.title || "Untitled project").localeCompare(b.topic?.title || "Untitled project", undefined, { sensitivity: "base" });
+      const comparison = (a.topic?.title || "Untitled project").localeCompare(
+        b.topic?.title || "Untitled project",
+        undefined,
+        { sensitivity: "base" },
+      );
       return sort === "title_asc" ? comparison : -comparison;
     }
     return b.updatedAt.getTime() - a.updatedAt.getTime();
   });
   const hasActiveFilters = Boolean(sp.category || sp.status || query);
-  const publishedCount = rows.filter((row) => row.status === "published").length;
+  const publishedCount = rows.filter(
+    (row) => row.status === "published",
+  ).length;
   const draftCount = rows.length - publishedCount;
   const noun = rows.length === 1 ? "article" : "articles";
   // The most recently worked-on article leads, because resuming it is the
@@ -133,19 +158,21 @@ export default async function LibraryPage({
           away like the heading on Create. Pinned to the top it also stacked
           under the app's mobile header and covered the hamburger. */}
       <header className="mx-auto w-full max-w-7xl px-5 pt-10 sm:px-8 sm:pt-14 lg:px-12 xl:px-16">
-        <h1 className="font-heading text-[length:var(--text-h1)] font-semibold leading-[1.1] tracking-[-0.02em] text-ink sm:text-[length:var(--text-hero)]">
-          Everything on the desk.
-        </h1>
-        {/* The counts were already computed for the grid. Stating them costs
-            nothing and tells an editor more than a sentence of prose. */}
-        <p className="mt-3 text-sm leading-relaxed text-ink-3 sm:text-base">
-          {hasActiveFilters
-            ? `${rows.length} matching ${noun}.`
-            : `${rows.length} ${noun} — ${draftCount} in draft, ${publishedCount} published.`}
-        </p>
+        <PageHeading
+          title="Everything on the desk."
+          /* The counts were already computed for the grid. Stating them costs
+             nothing and tells an editor more than a sentence of prose. */
+          description={
+            hasActiveFilters
+              ? `${rows.length} matching ${noun}.`
+              : `${rows.length} ${noun} — ${draftCount} in draft, ${publishedCount} published.`
+          }
+        />
 
         <div className="mt-7">
-          <FilterBar categories={cats.map((c) => ({ value: c.id, label: c.name }))} />
+          <FilterBar
+            categories={cats.map((c) => ({ value: c.id, label: c.name }))}
+          />
         </div>
       </header>
 
