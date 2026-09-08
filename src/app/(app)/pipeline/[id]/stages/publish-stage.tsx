@@ -156,7 +156,6 @@ export function PublishStage({
       <div>
         <ArticlePanel
           projectId={projectId}
-          title={title}
           draftId={draftId}
           longForm={longForm}
           draftMd={draftMd}
@@ -178,7 +177,6 @@ export function PublishStage({
 
 function ArticlePanel({
   projectId,
-  title,
   draftId,
   longForm,
   draftMd,
@@ -194,7 +192,6 @@ function ArticlePanel({
   onNext,
 }: {
   projectId: string;
-  title: string;
   draftId: string;
   longForm: boolean;
   draftMd: string;
@@ -235,7 +232,6 @@ function ArticlePanel({
         <>
       <ImagePanel
         projectId={projectId}
-        title={title}
         existing={images}
         initialReferences={imageReferences}
         defaultOptionId={defaultOptionId}
@@ -332,7 +328,6 @@ function ContentPanel({
 
 function ImagePanel({
   projectId,
-  title,
   existing,
   initialReferences,
   defaultOptionId,
@@ -344,7 +339,6 @@ function ImagePanel({
   onNext,
 }: {
   projectId: string;
-  title: string;
   existing: GeneratedImageView[];
   initialReferences: UploadedReferenceView[];
   defaultOptionId: string;
@@ -356,7 +350,19 @@ function ImagePanel({
   onNext: () => void;
 }) {
   const requestedOption = options.find((option) => option.optionId === defaultOptionId);
-  const initialOption = requestedOption ?? options[0];
+  /* A REFERENCE-CAPABLE MODEL BY DEFAULT. `options[0]` is registry order, which
+     put a text-to-image model in the dock and made "supports text-to-image
+     only" the first thing the stage said about itself. What the editor is
+     usually doing here is making a picture FOR an article that already exists,
+     and the reference models are the ones that can look at it.
+
+     A saved choice on the project still wins; this is only the fallback. Note
+     that these models also REQUIRE a reference, so the dock opens asking for
+     one — which the Reference menu answers from the article in a press. */
+  const initialOption =
+    requestedOption ??
+    options.find((option) => option.capabilities.referenceImages) ??
+    options[0];
   const initialOptionId = initialOption?.optionId ?? "";
   const requestedInitialRatio = (defaultAspectRatio || "1:1") as ImageAspectRatio;
   const initialRatio = initialOption?.capabilities.aspectRatios.includes(requestedInitialRatio)
@@ -658,20 +664,15 @@ function ImagePanel({
        other stage's. */
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8">
       <div className="flex min-h-[calc(100svh-9rem)] flex-col gap-6">
-        {/* A card, so this column STARTS where the rail starts. A bare heading
-            began a few pixels above the panel beside it and the two columns
-            read as slightly out of step — Drafts opens with a card on both
-            sides, and this now does the same. */}
-        <section className="cs-bezel">
-          <div className="cs-bezel-core p-5 sm:p-6">
-            <h2 className="max-w-[46ch] text-balance font-heading text-[length:var(--text-h2)] font-semibold leading-tight tracking-tight text-ink">
-              {title}
-            </h2>
-
-            {/* Only the selected one, and only as big as it can be without
-                pushing the composer off the screen. */}
-            {featured && (
-              <div className="mt-5 flex justify-center">
+        {/* NO TITLE. The article's name is on the stage before this one and the
+            one after it, and the stepper says which stage this is — repeating
+            it here named the thing you are not working on. The picture is the
+            subject; the card holds it and nothing else, and does not exist
+            until there is one to hold. */}
+        {featured && (
+          <section className="cs-bezel">
+            <div className="cs-bezel-core p-5 sm:p-6">
+              <div className="flex justify-center">
                 <GeneratedImage
                   key={featured.id}
                   img={featured}
@@ -681,9 +682,9 @@ function ImagePanel({
                   onDeleted={() => setImgs((current) => current.filter((item) => item.id !== featured.id))}
                 />
               </div>
-            )}
-          </div>
-        </section>
+            </div>
+          </section>
+        )}
 
       <div className="space-y-2">
         {!anthropicReady && (
@@ -695,9 +696,6 @@ function ImagePanel({
           <p id="generate-requirement" className="text-sm text-ink-2">
             This model needs a reference image before it can generate.
           </p>
-        )}
-        {!selectedOption?.capabilities.referenceImages && (
-          <p className="text-sm text-ink-3">This model supports text-to-image only.</p>
         )}
         {/* What the editor is about to get is not obvious from a single prompt
             field: the field shows one prompt, but a drafted set sends a

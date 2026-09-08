@@ -291,7 +291,13 @@ export function DraftsStage({
                 <form onSubmit={(event) => { event.preventDefault(); void revise(input); }} className="space-y-2.5">
                   <label htmlFor="revision-instruction" className="sr-only">Revision instruction</label>
                   <textarea id="revision-instruction" value={input} onChange={(event) => setInput(event.target.value)} className="cs-textarea min-h-24 rounded-2xl text-sm" placeholder="Make the typeface descriptions more specific…" />
-                  <button type="submit" disabled={revising || dirty || pending || !input.trim()} className="cs-cta group w-full justify-between">
+                  {/* SECONDARY. One orange button to a page, and on this page
+                      it is Continue to images — the thing that moves the
+                      article forward. Applying a revision keeps you exactly
+                      where you are, however often you do it, so it takes the
+                      outlined treatment the rest of this rail uses. Two filled
+                      oranges made the page ask twice which one was the point. */}
+                  <button type="submit" disabled={revising || dirty || pending || !input.trim()} className="cs-btn w-full justify-center">
                     {revising ? "Applying…" : "Apply revision"}
                   </button>
                 </form>
