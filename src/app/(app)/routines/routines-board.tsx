@@ -491,8 +491,16 @@ function RoutineMenu({
      Roomier than a compact menu: 18px icons, a 14px label at normal weight,
      and a full gutter between them. This is a short list of deliberate acts,
      not a dense toolbar, and it can afford the room. */
+  /* NO COLOUR IN THE BASE. It carried `text-ink`, and adding `text-danger-ink`
+     to the destructive item put two utilities of equal specificity on one
+     element — which of them wins is decided by the order Tailwind happened to
+     emit them in, not by the order they are written here. The delete item came
+     out the same ink as the rest. Each item states its own colour instead, and
+     the icons inherit it. */
   const item =
-    "flex min-h-11 w-full cursor-default select-none items-center gap-3.5 rounded-lg px-3 text-base font-normal text-ink outline-none transition-colors data-highlighted:bg-sunken data-disabled:pointer-events-none data-disabled:opacity-50";
+    "flex min-h-11 w-full cursor-default select-none items-center gap-3.5 rounded-lg px-3 text-base font-normal outline-none transition-colors data-disabled:pointer-events-none data-disabled:opacity-50";
+  const normal = `${item} text-ink data-highlighted:bg-sunken`;
+  const destructive = `${item} text-danger-ink data-highlighted:bg-danger-soft`;
 
   return (
     <DropdownMenuPrimitive.Root modal={false}>
@@ -512,19 +520,19 @@ function RoutineMenu({
           className="z-(--z-dropdown) w-56 rounded-2xl bg-surface p-2 shadow-[var(--shadow-pop)] outline-none duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none"
         >
           <DropdownMenuPrimitive.Item
-            className={item}
+            className={normal}
             disabled={anyRunning}
             onSelect={() => onRunNow()}
           >
             <Play aria-hidden className="size-[18px] shrink-0" />
             {running ? "Running…" : broken ? "Run again" : "Run now"}
           </DropdownMenuPrimitive.Item>
-          <DropdownMenuPrimitive.Item className={item} onSelect={() => onEdit()}>
+          <DropdownMenuPrimitive.Item className={normal} onSelect={() => onEdit()}>
             <Pencil aria-hidden className="size-[18px] shrink-0" />
             Edit routine
           </DropdownMenuPrimitive.Item>
           <DropdownMenuPrimitive.Item
-            className={`${item} text-danger-ink data-highlighted:bg-danger-soft`}
+            className={destructive}
             onSelect={() => onDelete()}
           >
             <Trash2 aria-hidden className="size-[18px] shrink-0" />
