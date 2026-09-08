@@ -7,7 +7,6 @@ import type { RoutineView, RunView } from "@/lib/autopilot/views";
 import { isHubConfigured } from "@/lib/hub";
 import { isAnthropicConfigured } from "@/lib/anthropic";
 import { requireUser } from "@/lib/session";
-import { PageHeader } from "@/components/page-header";
 import { RoutinesBoard } from "./routines-board";
 
 export const dynamic = "force-dynamic";
@@ -66,11 +65,11 @@ export default async function RoutinesPage() {
 
   return (
     <div className="min-h-svh bg-sunken">
-      <PageHeader
-        title="Routines"
-        description="A routine writes one article on its own — topic, research, draft, cover image — and sends it to the Knowledge Hub. Nobody reviews it on the way."
-      />
-      <div className="px-4 py-6 sm:px-6 lg:px-8">
+      {/* No header band. It ran the width of the screen above a column of
+          cards half that wide, so the page had two left edges and the title
+          belonged to neither. The heading sits on the list's own column now,
+          and scrolls with it. */}
+      <div className="px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
         <RoutinesBoard
           routines={routines}
           history={history}

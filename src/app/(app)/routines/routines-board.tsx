@@ -175,18 +175,22 @@ export function RoutinesBoard({
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-4">
-      <Readiness anthropic={anthropicReady} hub={hubReady} cron={cronReady} />
-
-      <div className="flex items-center justify-between gap-4">
-        {/* A count, not a heading: the page title above already says what this
-            list is, and an h2 that only restates the noun gives heading
-            navigation a stop that leads nowhere. */}
-        <p className="text-sm text-ink-3">
-          {routines.length} {routines.length === 1 ? "routine" : "routines"}
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="font-heading text-[length:var(--text-h1)] font-semibold leading-tight tracking-tight text-ink">
+            Routines
+          </h1>
+          {/* One line. It was three clauses naming every stage of a run —
+              topic, research, draft, cover — which the run itself reports
+              while it happens. What a reader needs before they have made one
+              is what it does and that nobody checks it. */}
+          <p className="mt-1 text-sm text-ink-3">
+            Each one writes an article and sends it to the Hub, unreviewed.
+          </p>
+        </div>
         <Button
           type="button"
-          size="sm"
+          className="shrink-0"
           onClick={() => {
             setCreating(true);
             setEditing(null);
@@ -195,6 +199,8 @@ export function RoutinesBoard({
           New routine
         </Button>
       </div>
+
+      <Readiness anthropic={anthropicReady} hub={hubReady} cron={cronReady} />
 
       {/* The form opens OVER the list rather than expanding inside it. Editing
           in place pushed every routine below it down the page and left the one
