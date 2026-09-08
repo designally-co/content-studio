@@ -52,7 +52,7 @@ export function SideNav({ isAdmin = false }: { isAdmin?: boolean }) {
 
   return (
     <>
-      <header className="sticky top-0 z-(--z-sticky) flex h-16 items-center gap-2 border-b border-line bg-chrome px-2 lg:hidden">
+      <header className="sticky top-0 z-(--z-sticky) flex h-16 items-center gap-2 border-b border-line-strong bg-chrome px-2 lg:hidden">
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -76,7 +76,7 @@ export function SideNav({ isAdmin = false }: { isAdmin?: boolean }) {
           />
           <aside
             id="mobile-navigation"
-            className="relative flex h-full w-[min(20rem,88vw)] flex-col border-r border-line bg-chrome shadow-[var(--shadow-pop)]"
+            className="relative flex h-full w-[min(20rem,88vw)] flex-col border-r border-line-strong bg-chrome shadow-[var(--shadow-pop)]"
             aria-label="Mobile navigation"
             role="dialog"
             aria-modal="true"
@@ -101,7 +101,7 @@ export function SideNav({ isAdmin = false }: { isAdmin?: boolean }) {
       <aside
         // z-(--z-nav) both lifts the nav over a route's sticky header and gives
         // the overhanging toggle a stacking context of its own to live in.
-        className={`relative z-(--z-nav) hidden min-h-dvh shrink-0 self-stretch border-r border-line bg-chrome transition-[width] duration-(--duration-base) ease-(--ease-out) lg:block ${
+        className={`relative z-(--z-nav) hidden min-h-dvh shrink-0 self-stretch border-r border-line-strong bg-chrome transition-[width] duration-(--duration-base) ease-(--ease-out) lg:block ${
           collapsed ? "w-20" : "w-60"
         }`}
       >
