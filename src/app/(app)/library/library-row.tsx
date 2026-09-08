@@ -60,9 +60,16 @@ export function LibraryRow({
   }
 
   /* `relative` on the row is what lets the title's stretched link cover the
-     whole line rather than just its own cell. */
+     whole line rather than just its own cell.
+
+     THE GUTTER IS SET ON THE ROW, NOT ON EACH CELL. The primitive pads a `td`
+     by 8px and a `th` by 16, so the column BOXES lined up while everything
+     printed inside them sat eight pixels apart from its own heading — the kind
+     of misalignment that reads as sloppiness without being obvious enough to
+     name. Declaring it once for every cell in the row is what stops the two
+     drifting again. */
   return (
-    <TableRow className="group relative hover:bg-sunken">
+    <TableRow className="group relative [&>td]:px-4 hover:bg-sunken">
       {/* `w-full max-w-0` is what makes a table cell truncate. A cell sizes to
           its content by default, so a long title widened the whole table and
           pushed the other columns off a phone instead of shortening itself;
