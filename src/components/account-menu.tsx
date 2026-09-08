@@ -3,7 +3,7 @@
 import { DropdownMenu } from "radix-ui";
 import { LogOut, Palette, FileText, KeyRound, ChevronsUpDown } from "lucide-react";
 import { logoutAction } from "@/app/actions";
-import { SECTION_LABELS, type SettingsSection } from "./settings/settings-sheet";
+import { SECTION_LABELS, type SettingsSection } from "./settings/sections";
 
 /**
  * Who you are, and everything that is about you rather than about the work.

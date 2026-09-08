@@ -7,7 +7,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { AccountMenu } from "./account-menu";
-import { SettingsSheet, type SettingsSection } from "./settings/settings-sheet";
+import { SettingsSheet } from "./settings/settings-sheet";
+import type { SettingsSection } from "./settings/sections";
 import {
   IconNew,
   IconLibrary,
@@ -179,11 +180,7 @@ export function SideNav({
       {/* Mounted outside both panels: the sheet belongs to the app, not to the
           rail that happened to open it. */}
       {settings && (
-        <SettingsSheet
-          section={settings}
-          onSectionChange={setSettings}
-          onClose={() => setSettings(null)}
-        />
+        <SettingsSheet section={settings} onClose={() => setSettings(null)} />
       )}
     </>
   );

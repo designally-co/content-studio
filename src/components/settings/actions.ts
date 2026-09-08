@@ -22,6 +22,7 @@ import { getBrand } from "@/lib/brand";
 import { DEFAULT_ARTICLE_PROMPT, getArticleRules } from "@/lib/article-template";
 import { serializeBrandStrategy } from "@/lib/designally-strategy";
 import type { BrandForEditor } from "./brand-editor";
+import type { SettingsSection } from "./sections";
 
 const API_KEY_PROVIDERS: ApiKeyProvider[] = ["fal"];
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // 2 MB
@@ -181,80 +182,87 @@ export async function saveBrandAction(formData: FormData) {
   revalidatePath("/", "layout");
 }
 
-// ---- reading, for the settings sheet ----
+// ---- reading, for the settings sheets ----
 
 /**
- * Everything the settings sheet shows, in one round trip.
+ * What one settings sheet needs, and nothing else.
  *
  * Settings used to be four server-rendered pages, so each one loaded exactly
- * what it needed and nothing else. A sheet has no route to hang that on, and
- * the alternative — loading it in the app layout — would charge every page in
- * the product for a panel most visits never open.
+ * what it needed. A sheet has no route to hang that on, and loading it in the
+ * app layout would charge every page in the product for a panel most visits
+ * never open — so it loads on open instead.
  *
- * So it loads on open, once, and switching between Brand and Content after
- * that is instant. The whole payload is a handful of small rows; splitting it
- * per section would trade a visible pause on every tab for bytes nobody is
- * counting.
+ * PER SECTION, because the sheets are now dedicated. Opening Brand and being
+ * charged for the directions list, the article template, the price table and
+ * the API keys is four queries nobody asked for, on a panel that shows none of
+ * it. A union rather than one wide type with optional fields: the sheet already
+ * knows which section it is, and this makes the compiler know too.
  */
-export type SettingsData = {
-  email: string;
-  isAdmin: boolean;
-  brand: BrandForEditor;
-  categories: { id: string; name: string; active: boolean }[];
-  articleTemplate: FormatRules;
-  /** Absent for non-admins — the API section is not theirs to see. */
-  api: { keys: SavedApiKey[]; textModels: string[]; settings: Record<string, string> } | null;
-};
+export type SettingsData =
+  | { section: "brand"; brand: BrandForEditor }
+  | {
+      section: "content";
+      categories: { id: string; name: string; active: boolean }[];
+      articleTemplate: FormatRules;
+    }
+  | {
+      section: "api";
+      keys: SavedApiKey[];
+      textModels: string[];
+      settings: Record<string, string>;
+    };
 
-export async function loadSettingsAction(): Promise<SettingsData> {
+export async function loadSettingsAction(section: SettingsSection): Promise<SettingsData> {
   const currentUser = await requireUser();
-  const isAdmin = currentUser.role === "admin";
   const db = await getDb();
 
-  const [brandRow, cats, articleTemplate] = await Promise.all([
-    getBrand(),
-    db.select().from(categories).orderBy(asc(categories.name)),
-    getArticleRules(),
-  ]);
-
-  // Image bytes stay on the server; the client gets one flag and loads the
-  // logo through /api/brand-logo.
-  const {
-    profileImageUrl,
-    profileImageData,
-    profileImageMime,
-    logoData,
-    logoMime,
-    ...brandCols
-  } = brandRow;
-  void profileImageUrl;
-  void profileImageMime;
-  void logoMime;
-
-  // The keys, prices and model routing are admin-only, and this is the boundary
-  // that decides it — not the menu that chose to render the item.
-  let api: SettingsData["api"] = null;
-  if (isAdmin) {
-    const [prices, settingsRows, savedKeys] = await Promise.all([
-      db.select().from(pricing).orderBy(asc(pricing.provider), asc(pricing.model)),
-      db.select().from(appSettings),
-      listApiKeys("fal"),
-    ]);
-    api = {
-      keys: savedKeys,
-      textModels: Array.from(
-        new Set(prices.filter((price) => price.provider === "anthropic").map((price) => price.model))
-      ),
-      settings: Object.fromEntries(settingsRows.map((row) => [row.key, row.value])),
+  if (section === "brand") {
+    // Image bytes stay on the server; the client gets one flag and loads the
+    // logo through /api/brand-logo.
+    const {
+      profileImageUrl,
+      profileImageData,
+      profileImageMime,
+      logoData,
+      logoMime,
+      ...brandCols
+    } = await getBrand();
+    void profileImageUrl;
+    void profileImageMime;
+    void logoMime;
+    return {
+      section,
+      brand: { ...brandCols, hasLogo: logoData !== "" || profileImageData !== "" },
     };
   }
 
+  if (section === "content") {
+    const [cats, articleTemplate] = await Promise.all([
+      db.select().from(categories).orderBy(asc(categories.name)),
+      getArticleRules(),
+    ]);
+    return {
+      section,
+      categories: cats.map((c) => ({ id: c.id, name: c.name, active: c.active })),
+      articleTemplate,
+    };
+  }
+
+  // The keys, prices and model routing are admin-only, and this is the boundary
+  // that decides it — not the menu that chose whether to render the item.
+  if (currentUser.role !== "admin") throw new Error("Not permitted.");
+
+  const [prices, settingsRows, savedKeys] = await Promise.all([
+    db.select().from(pricing).orderBy(asc(pricing.provider), asc(pricing.model)),
+    db.select().from(appSettings),
+    listApiKeys("fal"),
+  ]);
   return {
-    email: currentUser.email,
-    isAdmin,
-    brand: { ...brandCols, hasLogo: logoData !== "" || profileImageData !== "" },
-    categories: cats.map((c) => ({ id: c.id, name: c.name, active: c.active })),
-    articleTemplate,
-    api,
+    section,
+    keys: savedKeys,
+    textModels: Array.from(
+      new Set(prices.filter((price) => price.provider === "anthropic").map((price) => price.model))
+    ),
+    settings: Object.fromEntries(settingsRows.map((row) => [row.key, row.value])),
   };
 }
