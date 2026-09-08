@@ -7,11 +7,7 @@ import { MenuSelect } from "@/components/ui/menu-select";
 
 type Option = { value: string; label: string };
 
-export function FilterBar({
-  categories,
-}: {
-  categories: Option[];
-}) {
+export function FilterBar({ categories }: { categories: Option[] }) {
   const router = useRouter();
   const params = useSearchParams();
 
@@ -39,8 +35,18 @@ export function FilterBar({
     router.push(next.size ? `/?${next.toString()}` : "/");
   }
 
-  const filters: { key: string; label: string; options: Option[]; searchable?: boolean }[] = [
-    { key: "category", label: "All directions", options: categories, searchable: true },
+  const filters: {
+    key: string;
+    label: string;
+    options: Option[];
+    searchable?: boolean;
+  }[] = [
+    {
+      key: "category",
+      label: "All directions",
+      options: categories,
+      searchable: true,
+    },
     {
       key: "status",
       label: "All statuses",
@@ -51,7 +57,8 @@ export function FilterBar({
     },
   ];
 
-  const hasFilters = filters.some((f) => params.get(f.key)) || Boolean(queryParam);
+  const hasFilters =
+    filters.some((f) => params.get(f.key)) || Boolean(queryParam);
 
   return (
     <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
@@ -91,21 +98,27 @@ export function FilterBar({
         </div>
       ))}
       {hasFilters && (
-        <button onClick={() => {
-          const next = new URLSearchParams(params.toString());
-          filters.forEach((filter) => next.delete(filter.key));
-          next.delete("q");
-          router.push(next.size ? `/?${next.toString()}` : "/");
-        }} className="cs-btn col-span-2 text-sm sm:!h-9">
+        <button
+          onClick={() => {
+            const next = new URLSearchParams(params.toString());
+            filters.forEach((filter) => next.delete(filter.key));
+            next.delete("q");
+            router.push(next.size ? `/?${next.toString()}` : "/");
+          }}
+          className="cs-btn col-span-2 text-sm sm:!h-9 sm:ml-1"
+        >
           Clear filters
         </button>
       )}
-      <label className="col-span-2 flex items-center gap-2 sm:ml-auto">
-        <span className="shrink-0 text-sm font-medium text-ink-2">Sort by</span>
+      {/* Beside the filters, not opposite them. It sat behind a "Sort by"
+          label and an `ml-auto` that pushed it to the far side of the bar, so
+          three controls doing the same job — narrowing what the table shows —
+          were split across the width of the screen with a word between them.
+          Its own value already says what it is, the way the other two do. */}
+      <div className="col-span-1 sm:w-auto">
         <MenuSelect
           ariaLabel="Sort articles"
           className="cs-field-outline w-full text-sm sm:!h-9 sm:w-auto"
-          align="end"
           value={params.get("sort") ?? "updated_desc"}
           options={[
             { value: "updated_desc", label: "Recently edited" },
@@ -113,9 +126,11 @@ export function FilterBar({
             { value: "title_asc", label: "Title A–Z" },
             { value: "title_desc", label: "Title Z–A" },
           ]}
-          onChange={(value) => update("sort", value === "updated_desc" ? "" : value)}
+          onChange={(value) =>
+            update("sort", value === "updated_desc" ? "" : value)
+          }
         />
-      </label>
+      </div>
     </div>
   );
 }
