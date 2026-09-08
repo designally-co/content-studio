@@ -104,14 +104,16 @@ function timeOptions(current: string): string[] {
 function Field({
   label,
   htmlFor,
+  className = "",
   children,
 }: {
   label: string;
   htmlFor?: string;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-2">
+    <div className={`space-y-2 ${className}`}>
       <label
         htmlFor={htmlFor}
         className="block text-sm font-medium text-(--sheet-ink)"
@@ -127,9 +129,17 @@ function Field({
  * A setting that is a decision rather than a value: a white plate on the
  * dialog's ground, its consequence spelled out under its name.
  */
-function Plate({ children }: { children: React.ReactNode }) {
+function Plate({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="rounded-2xl border border-(--sheet-line) bg-(--sheet-plate) p-4 sm:p-5">
+    <div
+      className={`rounded-2xl border border-(--sheet-line) bg-(--sheet-plate) p-4 sm:p-5 ${className}`}
+    >
       {children}
     </div>
   );
@@ -186,7 +196,20 @@ export function RoutineForm({
             </Dialog.Close>
           </div>
 
-          <form action={action} className="space-y-5">
+          {/*
+            PROXIMITY, NOT A UNIFORM RHYTHM. Every gap in this form was 20px,
+            so five unrelated things read as one flat list: a label sat as far
+            from its own field's neighbour as the whole schedule sat from the
+            settings below it.
+
+            Three distances now, by what the things ARE. 8px holds a label to
+            its control. 20px separates the three fields that describe the
+            routine. 28px opens between describing it and configuring it — and
+            again before the actions, which belong to the dialog rather than to
+            the form. The two setting plates close to 10px, because they are
+            the same kind of thing and were drifting apart at 20.
+          */}
+          <form action={action}>
             {routine && <input type="hidden" name="id" value={routine.id} />}
 
             <Field label="Name" htmlFor="name">
@@ -202,7 +225,7 @@ export function RoutineForm({
 
             {/* Above the schedule, because what a routine is for outranks what
                 time it happens. */}
-            <Field label="Description" htmlFor="description">
+            <Field label="Description" htmlFor="description" className="mt-5">
               <textarea
                 id="description"
                 name="description"
@@ -214,7 +237,7 @@ export function RoutineForm({
               />
             </Field>
 
-            <Field label="Schedule" htmlFor="scheduleKind">
+            <Field label="Schedule" htmlFor="scheduleKind" className="mt-5">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <SelectShell>
                   <select
@@ -285,16 +308,19 @@ export function RoutineForm({
               </div>
             </Field>
 
-            <Plate>
+            <Plate className="mt-7">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <p className="text-base font-semibold text-(--sheet-ink)">
                     Publish automatically
                   </p>
-                  <p className="mt-0.5 max-w-[40ch] text-sm leading-relaxed text-(--sheet-ink-2)">
+                  {/* One line, and it still has to carry the warning: the
+                      difference between the two states is whether anybody
+                      reads the article before the public does. */}
+                  <p className="mt-0.5 text-sm leading-relaxed text-(--sheet-ink-2)">
                     {autoPublish
-                      ? "The article goes live on the Knowledge Hub with nobody reading it first."
-                      : "The article waits in the Knowledge Hub as a draft for you to read and publish."}
+                      ? "Goes live with nobody reading it first."
+                      : "Waits in the Hub as a draft."}
                   </p>
                 </div>
                 <Switch
@@ -310,15 +336,14 @@ export function RoutineForm({
               />
             </Plate>
 
-            <Collapsible.Root className="rounded-2xl border border-(--sheet-line) bg-(--sheet-plate)">
+            <Collapsible.Root className="mt-2.5 rounded-2xl border border-(--sheet-line) bg-(--sheet-plate)">
               <Collapsible.Trigger className="group/adv flex w-full items-start justify-between gap-4 p-4 text-left outline-none focus-visible:shadow-[var(--shadow-focus)] focus-visible:rounded-2xl sm:p-5">
                 <span className="min-w-0">
                   <span className="block text-base font-semibold text-(--sheet-ink)">
                     Advanced settings
                   </span>
-                  <span className="mt-0.5 block max-w-[40ch] text-sm leading-relaxed text-(--sheet-ink-2)">
-                    Which part of the territory it writes about, and the clock
-                    its schedule is read on.
+                  <span className="mt-0.5 block text-sm leading-relaxed text-(--sheet-ink-2)">
+                    Content direction and time zone.
                   </span>
                 </span>
                 <ChevronDown
@@ -395,7 +420,7 @@ function Footer({
 }) {
   const { pending } = useFormStatus();
   return (
-    <div className="flex justify-end gap-2 pt-1">
+    <div className="mt-7 flex justify-end gap-2">
       <Button
         type="button"
         variant="outline"
