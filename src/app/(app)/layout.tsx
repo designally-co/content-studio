@@ -12,7 +12,7 @@ export default async function AppLayout({
 
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
-      <SideNav isAdmin={currentUser.role === "admin"} />
+      <SideNav email={currentUser.email} isAdmin={currentUser.role === "admin"} />
       <main className="min-w-0 flex-1 bg-bg">{children}</main>
     </div>
   );

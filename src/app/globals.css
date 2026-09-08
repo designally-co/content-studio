@@ -367,6 +367,12 @@
      straddles its edge must paint over a route's sticky header, which would
      otherwise clip whatever overhangs into the content area. */
   --z-nav: 45;
+  /* A menu opened FROM the nav, which is the one dropdown that has to clear it.
+     At --z-dropdown the account menu painted underneath the rail it hangs off:
+     272px of menu, 240px of it hidden, and the only part you could see was the
+     sliver past the rail's edge. Above the nav, still below the backdrop, so a
+     sheet opened from the menu covers it rather than fighting it. */
+  --z-nav-dropdown: 46;
   --z-backdrop: 50;
   --z-modal: 60;
   --z-toast: 70;

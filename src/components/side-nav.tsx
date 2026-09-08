@@ -6,28 +6,42 @@ import { FlatMark } from "@/app/mark";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
+import { AccountMenu } from "./account-menu";
+import { SettingsSheet, type SettingsSection } from "./settings/settings-sheet";
 import {
   IconNew,
   IconLibrary,
   IconRoutine,
-  IconSettings,
 } from "./icons";
 
+/* Three destinations, and they are all places you do work. Settings was a
+   fourth row here and is not a destination — it is the drawer you open while
+   working somewhere else, so it moved into the account menu at the foot of the
+   rail. */
 const NAV = [
   { href: "/", label: "Create", icon: IconNew, exact: true },
   { href: "/library", label: "Library", icon: IconLibrary, exact: true },
   // A routine publishes to a live site with nobody reading it first, and the
   // page itself refuses anyone else — so the link is not offered either.
   { href: "/routines", label: "Routines", icon: IconRoutine, exact: false, adminOnly: true },
-  { href: "/settings", label: "Settings", icon: IconSettings, exact: false },
 ];
 
 /** Routes that open with the panel out of the way. */
 const COLLAPSED_ROUTES = new Set(["/"]);
 
-export function SideNav({ isAdmin = false }: { isAdmin?: boolean }) {
+export function SideNav({
+  email,
+  isAdmin = false,
+}: {
+  email: string;
+  isAdmin?: boolean;
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  // Which settings section is showing, or null for closed. Held here rather
+  // than in the menu so the sheet outlives the menu that opened it — a menu
+  // closes on select, and a sheet mounted inside one would close with it.
+  const [settings, setSettings] = useState<SettingsSection | null>(null);
   // The route decides the opening state and nothing else ever does: only the
   // toggle moves the panel after that. A sidebar that reflows when you follow
   // a link makes the link feel like it did something other than navigate, and
@@ -94,6 +108,19 @@ export function SideNav({ isAdmin = false }: { isAdmin?: boolean }) {
               </button>
             </div>
             <NavLinks pathname={pathname} isAdmin={isAdmin} onNavigate={() => setOpen(false)} />
+            <div className="shrink-0 border-t border-line px-4 pb-4 pt-3">
+              <AccountMenu
+                email={email}
+                isAdmin={isAdmin}
+                onOpenSettings={(section) => {
+                  // The drawer goes first. Leaving it open behind the sheet
+                  // would put a full-height panel under a modal and hand back
+                  // a covered screen when the sheet closes.
+                  setOpen(false);
+                  setSettings(section);
+                }}
+              />
+            </div>
           </aside>
         </div>
       )}
@@ -135,8 +162,29 @@ export function SideNav({ isAdmin = false }: { isAdmin?: boolean }) {
         <div className={`h-px shrink-0 bg-line ${collapsed ? "mx-3" : "mx-4"}`} />
 
         <NavLinks pathname={pathname} isAdmin={isAdmin} collapsed={collapsed} />
+
+        {/* NavLinks takes the slack, so this sits on the floor of the rail
+            whether there are three destinations or thirty. */}
+        <div className={`shrink-0 border-t border-line pb-4 pt-3 ${collapsed ? "px-2" : "px-4"}`}>
+          <AccountMenu
+            email={email}
+            isAdmin={isAdmin}
+            collapsed={collapsed}
+            onOpenSettings={setSettings}
+          />
+        </div>
         </div>
       </aside>
+
+      {/* Mounted outside both panels: the sheet belongs to the app, not to the
+          rail that happened to open it. */}
+      {settings && (
+        <SettingsSheet
+          section={settings}
+          onSectionChange={setSettings}
+          onClose={() => setSettings(null)}
+        />
+      )}
     </>
   );
 }

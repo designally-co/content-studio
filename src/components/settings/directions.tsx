@@ -1,57 +1,51 @@
-import { asc } from "drizzle-orm";
-import { getDb } from "@/db";
-import { categories } from "@/db/schema";
-import { getArticleRules } from "@/lib/article-template";
+"use client";
+
+import { useState } from "react";
 import { CONTENT_PILLARS, pillarForDirection } from "@/lib/content-pillars";
-import { CategoryToggle } from "../category-toggle";
-import { ArticleTemplateCard } from "../article-template-card";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Section } from "../section";
+import { CategoryToggle } from "./category-toggle";
+import { Section } from "./section";
 
-export default async function ContentSettingsPage() {
-  const db = await getDb();
-  const [cats, articleTemplate] = await Promise.all([
-    db.select().from(categories).orderBy(asc(categories.name)),
-    getArticleRules(),
-  ]);
+type Row = { id: string; name: string; active: boolean };
 
-  return (
-    <>
-      <DirectionsCard categoriesList={cats} />
-      <ArticleTemplateCard template={articleTemplate} />
-    </>
-  );
-}
+/**
+ * Which topics are offered when starting an article.
+ *
+ * Grouped by pillar so thirty-four rows read as four scannable sections rather
+ * than one undifferentiated wall. Anything matching no pillar still surfaces,
+ * loudly last, so drift is visible instead of silent.
+ */
+export function Directions({ rows }: { rows: Row[] }) {
+  /* What the switches have changed since the sheet opened, keyed by id. An
+     override rather than a copy of the list: when the sheet reloads its data
+     the fresh rows win for everything untouched, and anything touched already
+     agrees with what was written. No effect, no resynchronising. */
+  const [changed, setChanged] = useState<Record<string, boolean>>({});
+  const isActive = (row: Row) => changed[row.id] ?? row.active;
 
-type CategoryRow = typeof categories.$inferSelect;
-
-function DirectionsCard({ categoriesList }: { categoriesList: CategoryRow[] }) {
-  // Grouped by pillar so 34 rows read as three scannable sections rather than
-  // one undifferentiated wall. Anything matching no pillar still surfaces,
-  // loudly last, so drift is visible instead of silent.
   const groups = CONTENT_PILLARS.map((pillar) => ({
     name: pillar.name,
-    rows: categoriesList.filter((c) => pillarForDirection(c.name)?.slug === pillar.slug),
+    rows: rows.filter((row) => pillarForDirection(row.name)?.slug === pillar.slug),
   })).filter((group) => group.rows.length > 0);
-  const orphans = categoriesList.filter((c) => !pillarForDirection(c.name));
+  const orphans = rows.filter((row) => !pillarForDirection(row.name));
   if (orphans.length) groups.push({ name: "Not in any pillar", rows: orphans });
 
   return (
     <Section
       title="Content directions"
-      description="Names are fixed to match the Hub's topics. Deactivate one to hide it when starting an article."
+      description="Names are fixed to match the Hub's topics. Switch one off to hide it when starting an article."
     >
-      {categoriesList.length === 0 ? (
+      {rows.length === 0 ? (
         <p className="text-sm text-ink-3">No directions yet.</p>
       ) : (
         <Accordion type="multiple" className="space-y-2">
           {groups.map((group) => {
-            const activeCount = group.rows.filter((row) => row.active).length;
+            const activeCount = group.rows.filter(isActive).length;
             return (
               <AccordionItem
                 key={group.name}
@@ -68,25 +62,27 @@ function DirectionsCard({ categoriesList }: { categoriesList: CategoryRow[] }) {
                 </AccordionTrigger>
                 <AccordionContent className="px-4 pb-2">
                   {/* No "Inactive" word beside an off switch. The switch is
-                      already off, and printing it competes with the name of
-                      the direction — the same rule the routine toggles follow.
-                      Dimming the name is what carries it instead. */}
-                  {group.rows.map((category) => (
+                      already off, and printing it competes with the name of the
+                      direction. Dimming the name carries it instead. */}
+                  {group.rows.map((row) => (
                     <div
-                      key={category.id}
+                      key={row.id}
                       className="flex items-center justify-between gap-3 border-b border-line py-1 last:border-b-0"
                     >
                       <span
                         className={`min-w-0 flex-1 truncate text-sm ${
-                          category.active ? "text-ink" : "text-ink-3"
+                          isActive(row) ? "text-ink" : "text-ink-3"
                         }`}
                       >
-                        {category.name}
+                        {row.name}
                       </span>
                       <CategoryToggle
-                        id={category.id}
-                        name={category.name}
-                        active={category.active}
+                        id={row.id}
+                        name={row.name}
+                        active={isActive(row)}
+                        onChanged={(next) =>
+                          setChanged((prev) => ({ ...prev, [row.id]: next }))
+                        }
                       />
                     </div>
                   ))}

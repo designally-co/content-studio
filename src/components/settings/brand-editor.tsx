@@ -14,10 +14,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { parseBrandStrategy } from "@/lib/designally-strategy";
 
-type Brand = Omit<
+/** The brand row minus its image bytes, which never leave the server. */
+export type BrandForEditor = Omit<
   InferSelectModel<typeof brandProfiles>,
   "profileImageUrl" | "profileImageData" | "profileImageMime" | "logoData" | "logoMime"
 > & { hasLogo: boolean };
+
+type Brand = BrandForEditor;
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // keep in sync with actions.ts
 

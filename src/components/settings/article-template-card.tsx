@@ -24,7 +24,17 @@ import { Textarea } from "@/components/ui/textarea";
  * it through the form would bake the line into storage and append another on
  * every subsequent save.
  */
-export function ArticleTemplateCard({ template }: { template: FormatRules }) {
+export function ArticleTemplateCard({
+  template,
+  onSaved,
+}: {
+  template: FormatRules;
+  /* Asks the sheet for the data back. As a page this re-rendered on the server
+     after a save; in a sheet there is nothing to trigger that, so closing edit
+     mode would reveal the template as it was BEFORE the save — the new text
+     typed, submitted, stored, and then apparently discarded on screen. */
+  onSaved: () => void;
+}) {
   const [editing, setEditing] = useState(false);
   const [pending, start] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
@@ -40,6 +50,7 @@ export function ArticleTemplateCard({ template }: { template: FormatRules }) {
     start(async () => {
       await saveArticleTemplateAction(data);
       setEditing(false);
+      onSaved();
     });
   }
 

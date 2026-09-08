@@ -1,18 +1,27 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   categories,
   appSettings,
   brandProfiles,
+  pricing,
+  type FormatRules,
 } from "@/db/schema";
 import { requireUser } from "@/lib/session";
-import { addApiKey, deleteApiKey, type ApiKeyProvider } from "@/lib/secrets";
+import {
+  addApiKey,
+  deleteApiKey,
+  listApiKeys,
+  type ApiKeyProvider,
+  type SavedApiKey,
+} from "@/lib/secrets";
 import { getBrand } from "@/lib/brand";
-import { DEFAULT_ARTICLE_PROMPT } from "@/lib/article-template";
+import { DEFAULT_ARTICLE_PROMPT, getArticleRules } from "@/lib/article-template";
 import { serializeBrandStrategy } from "@/lib/designally-strategy";
+import type { BrandForEditor } from "./brand-editor";
 
 const API_KEY_PROVIDERS: ApiKeyProvider[] = ["fal"];
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // 2 MB
@@ -47,7 +56,7 @@ export async function toggleCategoryAction(formData: FormData) {
   const id = String(formData.get("id"));
   const active = formData.get("active") === "true";
   await db.update(categories).set({ active: !active }).where(eq(categories.id, id));
-  revalidatePath("/settings", "layout");
+  revalidatePath("/", "layout");
 }
 
 // ---- article template ----
@@ -61,7 +70,7 @@ export async function saveArticleTemplateAction(formData: FormData) {
       .values({ key, value })
       .onConflictDoUpdate({ target: appSettings.key, set: { value } });
   }
-  revalidatePath("/settings", "layout");
+  revalidatePath("/", "layout");
 }
 
 // ---- models ----
@@ -81,7 +90,7 @@ export async function saveModelSettingsAction(formData: FormData) {
       .values({ key, value })
       .onConflictDoUpdate({ target: appSettings.key, set: { value } });
   }
-  revalidatePath("/settings", "layout");
+  revalidatePath("/", "layout");
 }
 
 // ---- api keys ----
@@ -92,7 +101,7 @@ export async function saveApiKeyAction(formData: FormData) {
   const apiKey = String(formData.get("apiKey") ?? "").trim();
   if (!API_KEY_PROVIDERS.includes(provider as ApiKeyProvider) || !apiKey) return;
   await addApiKey(provider as ApiKeyProvider, apiKey);
-  revalidatePath("/settings", "layout");
+  revalidatePath("/", "layout");
 }
 
 export async function deleteApiKeyAction(formData: FormData) {
@@ -100,7 +109,7 @@ export async function deleteApiKeyAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   await deleteApiKey(id);
-  revalidatePath("/settings", "layout");
+  revalidatePath("/", "layout");
 }
 
 // ---- brand (singleton) ----
@@ -137,7 +146,7 @@ export async function saveBrandAction(formData: FormData) {
   const id = String(formData.get("id") ?? "").trim() || (await getBrand()).id;
   const name = String(formData.get("name") ?? "").trim();
   if (!name) {
-    revalidatePath("/settings", "layout");
+    revalidatePath("/", "layout");
     return;
   }
 
@@ -169,5 +178,83 @@ export async function saveBrandAction(formData: FormData) {
     })
     .where(eq(brandProfiles.id, id));
 
-  revalidatePath("/settings", "layout");
+  revalidatePath("/", "layout");
+}
+
+// ---- reading, for the settings sheet ----
+
+/**
+ * Everything the settings sheet shows, in one round trip.
+ *
+ * Settings used to be four server-rendered pages, so each one loaded exactly
+ * what it needed and nothing else. A sheet has no route to hang that on, and
+ * the alternative — loading it in the app layout — would charge every page in
+ * the product for a panel most visits never open.
+ *
+ * So it loads on open, once, and switching between Brand and Content after
+ * that is instant. The whole payload is a handful of small rows; splitting it
+ * per section would trade a visible pause on every tab for bytes nobody is
+ * counting.
+ */
+export type SettingsData = {
+  email: string;
+  isAdmin: boolean;
+  brand: BrandForEditor;
+  categories: { id: string; name: string; active: boolean }[];
+  articleTemplate: FormatRules;
+  /** Absent for non-admins — the API section is not theirs to see. */
+  api: { keys: SavedApiKey[]; textModels: string[]; settings: Record<string, string> } | null;
+};
+
+export async function loadSettingsAction(): Promise<SettingsData> {
+  const currentUser = await requireUser();
+  const isAdmin = currentUser.role === "admin";
+  const db = await getDb();
+
+  const [brandRow, cats, articleTemplate] = await Promise.all([
+    getBrand(),
+    db.select().from(categories).orderBy(asc(categories.name)),
+    getArticleRules(),
+  ]);
+
+  // Image bytes stay on the server; the client gets one flag and loads the
+  // logo through /api/brand-logo.
+  const {
+    profileImageUrl,
+    profileImageData,
+    profileImageMime,
+    logoData,
+    logoMime,
+    ...brandCols
+  } = brandRow;
+  void profileImageUrl;
+  void profileImageMime;
+  void logoMime;
+
+  // The keys, prices and model routing are admin-only, and this is the boundary
+  // that decides it — not the menu that chose to render the item.
+  let api: SettingsData["api"] = null;
+  if (isAdmin) {
+    const [prices, settingsRows, savedKeys] = await Promise.all([
+      db.select().from(pricing).orderBy(asc(pricing.provider), asc(pricing.model)),
+      db.select().from(appSettings),
+      listApiKeys("fal"),
+    ]);
+    api = {
+      keys: savedKeys,
+      textModels: Array.from(
+        new Set(prices.filter((price) => price.provider === "anthropic").map((price) => price.model))
+      ),
+      settings: Object.fromEntries(settingsRows.map((row) => [row.key, row.value])),
+    };
+  }
+
+  return {
+    email: currentUser.email,
+    isAdmin,
+    brand: { ...brandCols, hasLogo: logoData !== "" || profileImageData !== "" },
+    categories: cats.map((c) => ({ id: c.id, name: c.name, active: c.active })),
+    articleTemplate,
+    api,
+  };
 }
