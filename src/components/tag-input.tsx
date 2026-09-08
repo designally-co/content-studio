@@ -25,7 +25,13 @@ export function TagInput({
   }
 
   return (
-    <div className="rounded-[--radius] border border-line-strong bg-surface px-2 py-1.5 focus-within:border-accent focus-within:shadow-[0_0_0_3px_var(--accent-soft)]">
+    /* THE SAME FIELD AS EVERY OTHER FIELD. This was white, outlined in a hard
+       grey, cornered on `rounded-[--radius]` — which Tailwind does not parse,
+       so it had no radius at all — and it answered focus with a border colour
+       and a 3px soft shadow while every input beside it answered with a 2px
+       accent outline. Four disagreements with the house field, in the one
+       control that sits directly beneath three of them. */
+    <div className="min-h-11 rounded-xl border border-transparent bg-deep px-2.5 py-2 transition-colors duration-(--duration-fast) focus-within:[outline:2px_solid_var(--accent)] focus-within:[outline-offset:2px]">
       <input type="hidden" name={name} value={JSON.stringify(tags)} />
       <div className="flex flex-wrap items-center gap-1.5">
         {tags.map((tag) => (
@@ -61,7 +67,7 @@ export function TagInput({
           }}
           onBlur={() => draft && commit(draft)}
           placeholder={tags.length === 0 ? placeholder : ""}
-          className="min-w-[8rem] flex-1 bg-transparent px-1 py-0.5 text-sm text-ink outline-none placeholder:text-ink-3"
+          className="min-w-[8rem] flex-1 bg-transparent px-1.5 py-0.5 text-sm text-ink outline-none placeholder:text-placeholder"
         />
       </div>
     </div>

@@ -1,23 +1,31 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
-import { SquarePen } from "lucide-react";
+import { useTransition } from "react";
+import { Collapsible } from "radix-ui";
+import { ChevronDown } from "lucide-react";
 import { saveArticleTemplateAction } from "./actions";
 import type { FormatRules } from "@/db/schema";
 import { Button } from "@/components/ui/button";
-import { Section } from "./section";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 /**
- * The article template, presented as a record rather than a form.
+ * The instruction every article is written from.
  *
- * This is the most consequential setting in the product and the least often
- * changed: it is the instruction every article is written from. Two open input
- * fields made it look as casually editable as a display name, so it now reads
- * back at rest and only becomes a form on deliberate intent — the same posture
- * as the content directions, which cannot be edited here at all.
+ * THE ADVANCED-SETTINGS PANEL FROM THE ROUTINE SHEET. This is the most
+ * consequential setting in the product and the least often changed — a thousand
+ * words of instruction that sat open above everything else, so the one section
+ * you almost never touch was the one you scrolled past every time. Folded away
+ * it says what it is and stays shut until asked, exactly as the routine form
+ * treats its own advanced fields: a bordered panel on the sheet's ground, a
+ * heading and subline in the trigger, a chevron that turns.
+ *
+ * OPENING IT IS THE INTENT. It used to read back at rest behind an "Edit
+ * template" button — a second act of consent for something you had already gone
+ * two levels down to reach, and a read mode that showed the same text the form
+ * would show, in a box you could not type in. Unfolding the panel already says
+ * you came here to change this.
  *
  * The textarea shows the SAVED prompt, never `articlePrompt()`. That helper
  * appends a derived "Required target length" line for the model; round-tripping
@@ -30,130 +38,83 @@ export function ArticleTemplateCard({
 }: {
   template: FormatRules;
   /* Asks the sheet for the data back. As a page this re-rendered on the server
-     after a save; in a sheet there is nothing to trigger that, so closing edit
-     mode would reveal the template as it was BEFORE the save — the new text
-     typed, submitted, stored, and then apparently discarded on screen. */
+     after a save; in a sheet there is nothing to trigger that, so the panel
+     would go on showing the values from before the save. */
   onSaved: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
   const [pending, start] = useTransition();
-  const formRef = useRef<HTMLFormElement>(null);
-
   const prompt = template.prompt ?? "";
 
-  // Submitted from the client so edit mode can close only once the save has
-  // actually landed — a plain server-action form would revalidate underneath
-  // us and leave the fields open with no signal that anything happened.
+  // Submitted from the client so the save can be awaited before the panel is
+  // told to reload — a plain server-action form would revalidate underneath us.
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     start(async () => {
       await saveArticleTemplateAction(data);
-      setEditing(false);
       onSaved();
     });
   }
 
   return (
-    <Section
-      title="Article template"
-      description="The instructions every article is written from."
-      action={
-        !editing ? (
-          <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(true)}>
-            <SquarePen data-icon="inline-start" />
-            Edit
-          </Button>
-        ) : undefined
-      }
-    >
-      <div>
-        {editing ? (
-          <form
-            ref={formRef}
-            onSubmit={onSubmit}
-            className="grid gap-5 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-200"
-          >
-            <div className="grid gap-2">
-              <Label htmlFor="article-template-length">Target length</Label>
-              <Input
-                id="article-template-length"
-                name="length"
-                required
-                defaultValue={template.length}
-                placeholder="e.g. 1200-2000 words"
-                className="sm:max-w-64"
-              />
-              <p className="text-xs text-ink-3">
-                Written into the prompt on every generation. Plain numbers read most reliably.
-              </p>
-            </div>
+    <Collapsible.Root className="rounded-2xl border border-(--sheet-line,var(--border)) bg-(--sheet-plate,var(--surface))">
+      <Collapsible.Trigger className="group/tpl flex w-full items-start justify-between gap-4 rounded-2xl p-4 text-left outline-none focus-visible:shadow-[var(--shadow-focus)] sm:p-5">
+        <span className="min-w-0">
+          <span className="block text-base font-semibold text-ink">Article template</span>
+          <span className="mt-0.5 block text-sm leading-relaxed text-ink-3">
+            The instructions every article is written from.
+          </span>
+        </span>
+        <ChevronDown
+          aria-hidden
+          className="mt-0.5 size-5 shrink-0 text-ink-3 transition-transform duration-(--duration-fast) ease-(--ease-out) group-data-open/tpl:rotate-180"
+        />
+      </Collapsible.Trigger>
 
-            <div className="grid gap-2">
-              <Label htmlFor="article-template-prompt">Prompt</Label>
-              <Textarea
-                id="article-template-prompt"
-                name="prompt"
-                required
-                defaultValue={prompt}
-                className="min-h-64 leading-relaxed"
-                placeholder="Describe the structure, editorial standards, and rules the model should follow…"
-              />
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-              <p className="text-xs text-ink-3">
-                Applies to every article generated from now on. Drafts that already exist are untouched.
-              </p>
-              <div className="ml-auto flex gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setEditing(false)}
-                  disabled={pending}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={pending}>
-                  {pending ? "Saving…" : "Save template"}
-                </Button>
-              </div>
-            </div>
-          </form>
-        ) : (
-          <div className="grid gap-5">
-            <Fact label="Target length">
-              <p className="text-sm font-medium text-ink">{template.length}</p>
-            </Fact>
-
-            <Fact label="Prompt">
-              {prompt ? (
-                /* Scrolls rather than clamps: the whole instruction is the
-                   thing being reviewed, so none of it is hidden behind a
-                   "show more" the reader has to trust. */
-                <div className="max-h-56 overflow-y-auto rounded-xl bg-surface p-4">
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-2">
-                    {prompt}
-                  </p>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Using the built-in default template.
-                </p>
-              )}
-            </Fact>
+      <Collapsible.Content className="overflow-hidden data-open:animate-in data-open:slide-in-from-top-1 data-closed:animate-out data-closed:slide-out-to-top-1 motion-reduce:animate-none">
+        <form
+          onSubmit={onSubmit}
+          className="grid gap-5 border-t border-(--sheet-line,var(--border)) p-4 sm:p-5"
+        >
+          <div className="grid gap-2">
+            <Label htmlFor="article-template-length">Target length</Label>
+            {/* Full width, like every other field in the sheet. Capped at 16rem
+                it was the only control that stopped short of the margin, which
+                read as a different KIND of field rather than a shorter one. */}
+            <Input
+              id="article-template-length"
+              name="length"
+              required
+              defaultValue={template.length}
+              placeholder="e.g. 1200-2000 words"
+            />
+            <p className="text-xs text-ink-3">
+              Written into the prompt on every generation. Plain numbers read most reliably.
+            </p>
           </div>
-        )}
-      </div>
-    </Section>
-  );
-}
 
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="grid gap-1.5">
-      <span className="text-xs font-medium text-ink-3">{label}</span>
-      {children}
-    </div>
+          <div className="grid gap-2">
+            <Label htmlFor="article-template-prompt">Prompt</Label>
+            <Textarea
+              id="article-template-prompt"
+              name="prompt"
+              required
+              defaultValue={prompt}
+              className="min-h-64 leading-relaxed"
+              placeholder="Describe the structure, editorial standards, and rules the model should follow…"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-ink-3">
+              Applies to every article from now on. Existing drafts are untouched.
+            </p>
+            <Button type="submit" disabled={pending} className="ml-auto">
+              {pending ? "Saving…" : "Save template"}
+            </Button>
+          </div>
+        </form>
+      </Collapsible.Content>
+    </Collapsible.Root>
   );
 }
