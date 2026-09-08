@@ -25,7 +25,7 @@ import {
   uploadImageReferenceAction,
 } from "../image-actions";
 import { IconSpark, IconDownload, IconCheck, IconTrash } from "@/components/icons";
-import { ChipSelect } from "@/components/ui/chip-select";
+import { ImageSettingsMenu, ReferenceMenu } from "./image-dock-menus";
 import { AccentOrb } from "@/components/accent-orb";
 import type { ImageAspectRatio } from "@/lib/image/providers";
 import type { GeneratedImageView, UploadedReferenceView } from "@/lib/pipeline/views";
@@ -952,74 +952,39 @@ function ImagePanel({
           )}
 
           <div className="cs-dock-controls flex-wrap gap-2">
-            {/* Portalled, like the direction picker on the home surface — the
-                plate around them clips its own content, so an absolutely
-                positioned menu would be cut off at the dock's edge.
-                Each option carries its own rationale in the menu, which is where
-                it is useful, rather than as helper text stacked under a control
-                nobody is looking at yet. */}
-            <ChipSelect
-              id="image-model"
-              ariaLabel="Image model"
-              side="top"
-              value={optionId}
-              onChange={selectModel}
-              options={options.map((o) => ({ value: o.optionId, label: o.label, description: o.strengths }))}
-            />
-            <ChipSelect
-              id="image-ratio"
-              ariaLabel="Aspect ratio"
-              side="top"
-              value={aspectRatio}
-              onChange={(value) => setAspectRatio(value as ImageAspectRatio)}
-              options={(selectedOption?.capabilities.aspectRatios ?? []).map((ratio) => ({ value: ratio, label: ratio }))}
-            />
-            <ChipSelect
-              id="image-variations"
-              ariaLabel="Number of variations"
-              side="top"
-              value={String(count)}
-              onChange={(value) => setCount(Number(value))}
-              options={Array.from(
-                { length: selectedOption?.capabilities.maxVariations ?? 1 },
-                (_, index) => index + 1
-              ).map((value) => ({ value: String(value), label: `${value} image${value > 1 ? "s" : ""}` }))}
+            <ImageSettingsMenu
+              models={options.map((o) => ({ value: o.optionId, label: o.label, description: o.strengths }))}
+              model={optionId}
+              onModel={selectModel}
+              ratios={selectedOption?.capabilities.aspectRatios ?? []}
+              ratio={aspectRatio}
+              onRatio={(value) => setAspectRatio(value as ImageAspectRatio)}
+              maxVariations={selectedOption?.capabilities.maxVariations ?? 1}
+              count={count}
+              onCount={setCount}
             />
 
-            {/* Finding references is offered whatever model is selected: it is
-                an act on the article, and it switches the model itself if the
-                one in the dock cannot read what it found. */}
-            {references.length < MAX_FOUND_REFERENCES && (
-              <button
-                type="button"
-                onClick={() => void findReferences()}
-                disabled={finding || busy !== null}
-                className="cs-tool shrink-0"
-              >
-                <Sparkles aria-hidden className="size-4" strokeWidth={1.6} />
-                {finding ? "Looking…" : "Find references"}
-              </button>
-            )}
-
-            <label
-              className={`cs-tool cursor-pointer ${referenceMissing ? "text-danger-ink" : ""}`}
-              id="reference-image-label"
-            >
-              <ImagePlus aria-hidden className="size-4" strokeWidth={1.6} />
-              {uploading ? "Uploading…" : referenceMissing ? "Reference required" : "Upload"}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                disabled={uploading}
-                aria-labelledby="reference-image-label"
-                className="sr-only"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) void uploadReference(file);
-                }}
-              />
-            </label>
+            <ReferenceMenu
+              canFind={references.length < MAX_FOUND_REFERENCES}
+              finding={finding}
+              onFind={() => void findReferences()}
+              uploading={uploading}
+              missing={referenceMissing}
+              disabled={busy !== null}
+              fileInput={
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  disabled={uploading}
+                  className="sr-only"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) void uploadReference(file);
+                  }}
+                />
+              }
+            />
 
             {/* The same pair as the home composer, carrying the same handoff:
                 with nothing written, asking the system to write it is the live

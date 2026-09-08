@@ -791,16 +791,23 @@
 
 /* ---- composer dock ----
    A borderless white working surface lifted from the page by soft depth. */
+/* A LINE, NOT A HALO. The border was always a solid hairline, but a 30px
+   blurred shadow sat under it and faded outward, so the dock read as edged by a
+   gradient with the 1px line lost somewhere inside it. Nothing else in the
+   product is bounded that way — plates take a hairline, and the one thing that
+   floats (a menu) takes a shadow INSTEAD of a line, not as well.
+
+   Focus answers in the same currency: the line darkens one step. It was a
+   deeper, wider blur, which is a hard change to see and impossible to name. */
 .cs-dock {
   position: relative;
   background: var(--dock);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
-  box-shadow: 0 10px 30px rgba(26, 26, 26, 0.06);
-  transition: box-shadow var(--duration-fast) var(--ease-out);
+  transition: border-color var(--duration-fast) var(--ease-out);
 }
 .cs-dock:focus-within {
-  box-shadow: 0 14px 36px rgba(26, 26, 26, 0.1);
+  border-color: var(--border-strong);
 }
 /* 12px, not 16px: line-height 1.6 already contributes ~6px of half-leading
    above the first cap, so a numerically smaller top inset is what reads as
