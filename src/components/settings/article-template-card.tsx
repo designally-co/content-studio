@@ -1,9 +1,8 @@
 "use client";
 
 import { useTransition } from "react";
-import { Collapsible } from "radix-ui";
-import { ChevronDown } from "lucide-react";
 import { saveArticleTemplateAction } from "./actions";
+import { SettingsPanel } from "./panel";
 import type { FormatRules } from "@/db/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,64 +56,49 @@ export function ArticleTemplateCard({
   }
 
   return (
-    <Collapsible.Root className="rounded-2xl border border-(--sheet-line,var(--border)) bg-(--sheet-plate,var(--surface))">
-      <Collapsible.Trigger className="group/tpl flex w-full items-start justify-between gap-4 rounded-2xl p-4 text-left outline-none focus-visible:shadow-[var(--shadow-focus)] sm:p-5">
-        <span className="min-w-0">
-          <span className="block text-base font-semibold text-ink">Article template</span>
-          <span className="mt-0.5 block text-sm leading-relaxed text-ink-3">
-            The instructions every article is written from.
-          </span>
-        </span>
-        <ChevronDown
-          aria-hidden
-          className="mt-0.5 size-5 shrink-0 text-ink-3 transition-transform duration-(--duration-fast) ease-(--ease-out) group-data-open/tpl:rotate-180"
-        />
-      </Collapsible.Trigger>
+    <SettingsPanel
+      title="Article template"
+      description="The instructions every article is written from."
+    >
+      <form onSubmit={onSubmit} className="grid gap-5">
+        <div className="grid gap-2">
+          <Label htmlFor="article-template-length">Target length</Label>
+          {/* Full width, like every other field in the sheet. Capped at 16rem
+              it was the only control that stopped short of the margin, which
+              read as a different KIND of field rather than a shorter one. */}
+          <Input
+            id="article-template-length"
+            name="length"
+            required
+            defaultValue={template.length}
+            placeholder="e.g. 1200-2000 words"
+          />
+          <p className="text-xs text-ink-3">
+            Written into the prompt on every generation. Plain numbers read most reliably.
+          </p>
+        </div>
 
-      <Collapsible.Content className="overflow-hidden data-open:animate-in data-open:slide-in-from-top-1 data-closed:animate-out data-closed:slide-out-to-top-1 motion-reduce:animate-none">
-        <form
-          onSubmit={onSubmit}
-          className="grid gap-5 border-t border-(--sheet-line,var(--border)) p-4 sm:p-5"
-        >
-          <div className="grid gap-2">
-            <Label htmlFor="article-template-length">Target length</Label>
-            {/* Full width, like every other field in the sheet. Capped at 16rem
-                it was the only control that stopped short of the margin, which
-                read as a different KIND of field rather than a shorter one. */}
-            <Input
-              id="article-template-length"
-              name="length"
-              required
-              defaultValue={template.length}
-              placeholder="e.g. 1200-2000 words"
-            />
-            <p className="text-xs text-ink-3">
-              Written into the prompt on every generation. Plain numbers read most reliably.
-            </p>
-          </div>
+        <div className="grid gap-2">
+          <Label htmlFor="article-template-prompt">Prompt</Label>
+          <Textarea
+            id="article-template-prompt"
+            name="prompt"
+            required
+            defaultValue={prompt}
+            className="min-h-64 leading-relaxed"
+            placeholder="Describe the structure, editorial standards, and rules the model should follow…"
+          />
+        </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="article-template-prompt">Prompt</Label>
-            <Textarea
-              id="article-template-prompt"
-              name="prompt"
-              required
-              defaultValue={prompt}
-              className="min-h-64 leading-relaxed"
-              placeholder="Describe the structure, editorial standards, and rules the model should follow…"
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-ink-3">
-              Applies to every article from now on. Existing drafts are untouched.
-            </p>
-            <Button type="submit" disabled={pending} className="ml-auto">
-              {pending ? "Saving…" : "Save template"}
-            </Button>
-          </div>
-        </form>
-      </Collapsible.Content>
-    </Collapsible.Root>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-ink-3">
+            Applies to every article from now on. Existing drafts are untouched.
+          </p>
+          <Button type="submit" disabled={pending} className="ml-auto">
+            {pending ? "Saving…" : "Save template"}
+          </Button>
+        </div>
+      </form>
+    </SettingsPanel>
   );
 }

@@ -8,6 +8,7 @@ import type { InferSelectModel } from "drizzle-orm";
 import type { brandProfiles } from "@/db/schema";
 import { Button } from "@/components/ui/button";
 import { Section } from "./section";
+import { SettingsPanel } from "./panel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,10 +39,18 @@ export function BrandEditor({ brand }: { brand: Brand }) {
   const strategy = useMemo(() => parseBrandStrategy(brand.guidelineText), [brand.guidelineText]);
 
   return (
+    /* PLAIN SECTIONS, AND ONE PANEL. Folding all five turned a form into a list
+       of five shut doors — four of them hiding a single field, which is more
+       work to reach than it ever was to scroll past. A panel earns its fold by
+       holding something that costs a step to edit or takes real room; the rest
+       are just fields, and fields belong on the page.
+    
+       Terminology is the one that qualifies: three tag inputs, each needing a
+       word typed and committed with Enter rather than simply filled in. It sits
+       last, where the routine sheet keeps its advanced settings. */
     <form action={saveBrandAction} className="space-y-14">
       <input type="hidden" name="id" value={brand.id} />
 
-      {/* 1 — Identity */}
       <Section
         title="Brand identity"
         description="How the brand is identified across the app."
@@ -61,25 +70,21 @@ export function BrandEditor({ brand }: { brand: Brand }) {
         </div>
       </Section>
 
-      {/* 2 — Writing guidelines */}
       <Section
         title="Writing guidelines"
         description="Applied alongside tone and terminology."
       >
-        <div>
-          <Field label="Additional writing guidance" htmlFor="strategy-additional">
-            <Textarea
-              id="strategy-additional"
-              name="strategyAdditional"
-              defaultValue={strategy.additionalGuidelines || strategy.voice}
-              className="min-h-36"
-              placeholder="Any voice, terminology, or editorial guidance not covered below…"
-            />
-          </Field>
-        </div>
+        <Field label="Additional writing guidance" htmlFor="strategy-additional">
+          <Textarea
+            id="strategy-additional"
+            name="strategyAdditional"
+            defaultValue={strategy.additionalGuidelines || strategy.voice}
+            className="min-h-36"
+            placeholder="Any voice, terminology, or editorial guidance not covered below…"
+          />
+        </Field>
       </Section>
 
-      {/* 3 — Tone of voice */}
       <Section
         title="Tone of voice"
         description="The personality and language the model follows."
@@ -103,56 +108,43 @@ export function BrandEditor({ brand }: { brand: Brand }) {
         </div>
       </Section>
 
-      {/* 4 — Terminology & rules */}
-      <Section
-        title="Terminology and rules"
-        description="Exact wording, preferred phrases, and boundaries."
-      >
-        <div className="space-y-5">
-          <Field label="Terminology">
-            <TagInput
-              name="terminology"
-              defaultValue={brand.terminology ?? []}
-              placeholder="e.g. Designally (not Design Ally)"
-            />
-          </Field>
-          <div className="grid gap-5 md:grid-cols-2">
-            <Field label="Always do">
-              <TagInput
-                name="dos"
-                defaultValue={brand.dos ?? []}
-                placeholder="Add a rule"
-              />
-            </Field>
-            <Field label="Never do">
-              <TagInput
-                name="donts"
-                defaultValue={brand.donts ?? []}
-                placeholder="Add a rule"
-              />
-            </Field>
-          </div>
-        </div>
-      </Section>
-
-      {/* 5 — Audience */}
       <Section
         title="Audience"
         description="Who the articles are written for."
       >
-        <div>
-          <Field label="Target audience" htmlFor="audience">
-            <Textarea
-              id="audience"
-              name="audience"
-              defaultValue={brand.audience}
-              placeholder="e.g. SME owners in Thailand evaluating a website refresh"
-            />
-          </Field>
-        </div>
+        <Field label="Target audience" htmlFor="audience">
+          <Textarea
+            id="audience"
+            name="audience"
+            defaultValue={brand.audience}
+            placeholder="e.g. SME owners in Thailand evaluating a website refresh"
+          />
+        </Field>
       </Section>
 
-      <div className="flex justify-end pt-2">
+      <SettingsPanel
+        title="Terminology and rules"
+        description="Exact wording, preferred phrases, and boundaries."
+      >
+        {/* Stacked, not two columns. Half-width tag fields put a growing list
+            of rules in a narrow well beside another one, so each wrapped after
+            two or three words while the sheet had room to spare. */}
+        <Field label="Terminology">
+          <TagInput
+            name="terminology"
+            defaultValue={brand.terminology ?? []}
+            placeholder="e.g. Designally (not Design Ally)"
+          />
+        </Field>
+        <Field label="Always do">
+          <TagInput name="dos" defaultValue={brand.dos ?? []} placeholder="Add a rule" />
+        </Field>
+        <Field label="Never do">
+          <TagInput name="donts" defaultValue={brand.donts ?? []} placeholder="Add a rule" />
+        </Field>
+      </SettingsPanel>
+
+      <div className="flex justify-end pt-1">
         <Button type="submit">
           <Save />
           Save brand
