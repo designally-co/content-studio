@@ -85,36 +85,18 @@ export default async function PipelinePage({
       {/* Offset below the app's mobile header rather than pinned over it — both
           were at 0 in one scroll root, which put the stepper on top of the
           hamburger. The pill itself stays: it is progress, not a title bar. */}
-      {/* ON THE CONTENT'S OWN GUTTER, LEFT, like every other page's header.
-          It floated centred over the full width, so the one horizontal line
-          the eye could follow down the page — heading, panel, table, all
-          starting at the same x — was broken at the top by the only element
-          that started somewhere else. Same max-w-7xl and same gutters as
-          Library, Routines and Settings. */}
-      <div className="sticky top-16 z-(--z-sticky) mx-auto flex w-full max-w-7xl px-5 pt-3 sm:px-8 lg:top-0 lg:px-12 xl:px-16">
-        {/* A floating pill leaves the page exposed either side of it and above
-            it, so content would ride up alongside the steps. The scrim is what
-            makes the form legible: page colour at the very top, fading out
-            below the pill, so anything scrolling under it dissolves rather than
-            colliding with it. Functional, not decoration. */}
-        <div
-          aria-hidden
-          // Solid past the pill's own bottom edge (~68px) before it starts to
-          // fade, so nothing shows through beside the steps themselves.
-          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-28 bg-linear-to-b from-bg from-65% to-transparent"
+      {/* NO ISLAND. The steps sat on a blurred glass pill with an inset ring
+          and a shadow, over a gradient scrim painted to stop the page colliding
+          with it — a floating surface, and the scrim existed only to manage the
+          consequences of floating. On the page itself, on the same gutter as
+          everything else, it needs neither. */}
+      <div className="sticky top-16 z-(--z-sticky) mx-auto w-full max-w-7xl bg-bg px-5 py-3 sm:px-8 lg:top-0 lg:px-12 xl:px-16">
+        <Stepper
+          projectId={id}
+          current={current}
+          reached={reached}
+          finalizeView={finalizeView}
         />
-        {/* Not a full pill. The island already carries the scale's 16px; the
-            `rounded-full` on top of it made a 60px-tall lozenge, which was the
-            roundest thing in the product by a wide margin. */}
-        <header className="cs-island max-w-full overflow-x-auto px-2 py-2">
-          <Stepper
-            projectId={id}
-            current={current}
-            reached={reached}
-            published={published}
-            finalizeView={finalizeView}
-          />
-        </header>
       </div>
 
       <div className="flex-1">
