@@ -221,7 +221,15 @@ export function DraftsStage({
           </div>
         </article>
 
-        <div className="space-y-6 lg:sticky lg:top-6">
+        {/* top-32, the offset Publish already used. At top-6 the rail
+            slid under the sticky stepper before it caught, which reads as
+            the column moving rather than holding. */}
+        {/* 72px: clear of the stepper, which occupies 0–60 when stuck, and
+            still ABOVE where this column naturally starts (108). An offset
+            below that start — top-32 was 128 — makes sticky snap the rail down
+            twenty pixels at rest, so the two columns begin on different lines
+            before anything has been scrolled. */}
+        <div className="space-y-6 lg:sticky lg:top-[4.5rem]">
           <section className="cs-bezel">
             <div className="cs-bezel-core p-5">
               <h3 className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">

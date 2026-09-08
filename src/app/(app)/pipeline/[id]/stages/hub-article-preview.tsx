@@ -60,6 +60,16 @@ export function HubPreviewFrame({ children }: { children: ReactNode }) {
   }, [width]);
 
   return (
+    /* THE CONTAINER EVERY OTHER PANEL HAS. The preview sat straight on the page
+       ground with no surface and no edge, so the one thing on the stage that is
+       a picture OF something else had no frame telling you where it began.
+       White on a 1px --border hairline at 16px, the same as the panels beside
+       it.
+
+       On a WRAPPER, not on the measured box: that box's height is set to the
+       scaled content's exact height, and border-box sizing would then eat two
+       pixels off the bottom of the preview. */
+    <div className="overflow-hidden rounded-2xl border border-line bg-surface">
     <div ref={outerRef} style={{ height }} className="overflow-hidden">
       {/* The stage the card actually occupies on screen: the laid-out width
           times the scale. `transform` leaves layout untouched, so without this
@@ -109,6 +119,7 @@ export function HubPreviewFrame({ children }: { children: ReactNode }) {
           ))}
         </div>
       </div>
+    </div>
     </div>
   );
 }

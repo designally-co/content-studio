@@ -658,24 +658,32 @@ function ImagePanel({
        other stage's. */
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8">
       <div className="flex min-h-[calc(100svh-9rem)] flex-col gap-6">
-        <h2 className="max-w-[46ch] text-balance font-heading text-[length:var(--text-h2)] font-semibold leading-tight tracking-tight text-ink">
-          {title}
-        </h2>
+        {/* A card, so this column STARTS where the rail starts. A bare heading
+            began a few pixels above the panel beside it and the two columns
+            read as slightly out of step — Drafts opens with a card on both
+            sides, and this now does the same. */}
+        <section className="cs-bezel">
+          <div className="cs-bezel-core p-5 sm:p-6">
+            <h2 className="max-w-[46ch] text-balance font-heading text-[length:var(--text-h2)] font-semibold leading-tight tracking-tight text-ink">
+              {title}
+            </h2>
 
-        {/* Only the selected one, and only as big as it can be without pushing
-            the composer off the screen. */}
-        {featured && (
-          <div className="flex justify-center">
-            <GeneratedImage
-              key={featured.id}
-              img={featured}
-              feature
-              selected
-              onSelect={() => chooseCover(featured.id)}
-              onDeleted={() => setImgs((current) => current.filter((item) => item.id !== featured.id))}
-            />
+            {/* Only the selected one, and only as big as it can be without
+                pushing the composer off the screen. */}
+            {featured && (
+              <div className="mt-5 flex justify-center">
+                <GeneratedImage
+                  key={featured.id}
+                  img={featured}
+                  feature
+                  selected
+                  onSelect={() => chooseCover(featured.id)}
+                  onDeleted={() => setImgs((current) => current.filter((item) => item.id !== featured.id))}
+                />
+              </div>
+            )}
           </div>
-        )}
+        </section>
 
       <div className="space-y-2">
         {!anthropicReady && (
@@ -1005,7 +1013,10 @@ function ImagePanel({
       </div>
       </div>
 
-      <div className="space-y-6 lg:sticky lg:top-6">
+      {/* top-32, the offset Publish already used. At top-6 the rail
+            slid under the sticky stepper before it caught, which reads as
+            the column moving rather than holding. */}
+        <div className="space-y-6 lg:sticky lg:top-[4.5rem]">
         <section className="cs-bezel">
           <div className="cs-bezel-core p-5">
             <h3 className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">
@@ -1233,7 +1244,7 @@ function PublishComposer({
 
       {/* Clears the floating pill (68px) and its scrim, which is only fully
           transparent at 112px — top-24 parked the rail behind a partial veil. */}
-      <div className="lg:sticky lg:top-32">
+      <div className="lg:sticky lg:top-[4.5rem]">
         <PublishRail
           projectId={projectId}
           publish={publish}
