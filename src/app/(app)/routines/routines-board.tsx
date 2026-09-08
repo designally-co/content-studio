@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
-import { Clock, MoreHorizontal } from "lucide-react";
-import { IconTrash, IconEdit, IconSpark, IconArrowRight } from "@/components/icons";
+import { Clock, MoreHorizontal, Pencil, Play, Trash2 } from "lucide-react";
+import { IconArrowRight } from "@/components/icons";
 import { Switch } from "./switch";
 import { ConfirmDelete } from "./confirm-delete";
 import { WEEKDAY_NAMES } from "@/lib/autopilot/schedule";
@@ -483,8 +483,16 @@ function RoutineMenu({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  /* THE ICON IS AS DARK AS THE WORD IT SITS BESIDE. Held at `ink-3` it read as
+     a watermark behind the label rather than as part of the item, and the two
+     halves of one row disagreed about how important the row was. The
+     destructive item takes its colour on BOTH halves for the same reason.
+
+     Roomier than a compact menu: 18px icons, a 14px label at normal weight,
+     and a full gutter between them. This is a short list of deliberate acts,
+     not a dense toolbar, and it can afford the room. */
   const item =
-    "flex min-h-11 w-full cursor-default select-none items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium outline-none transition-colors data-highlighted:bg-sunken data-disabled:pointer-events-none data-disabled:opacity-50";
+    "flex min-h-11 w-full cursor-default select-none items-center gap-3.5 rounded-lg px-3 text-base font-normal text-ink outline-none transition-colors data-highlighted:bg-sunken data-disabled:pointer-events-none data-disabled:opacity-50";
 
   return (
     <DropdownMenuPrimitive.Root modal={false}>
@@ -499,27 +507,28 @@ function RoutineMenu({
           align="end"
           sideOffset={6}
           collisionPadding={12}
-          className="z-(--z-dropdown) w-56 rounded-xl border border-line bg-surface p-1.5 text-ink shadow-[var(--shadow-pop)] outline-none duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none"
+          /* No border. The shadow already separates it from the page, and a
+             hairline as well makes a floating layer look like a boxed one. */
+          className="z-(--z-dropdown) w-56 rounded-2xl bg-surface p-2 shadow-[var(--shadow-pop)] outline-none duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none"
         >
           <DropdownMenuPrimitive.Item
             className={item}
             disabled={anyRunning}
             onSelect={() => onRunNow()}
           >
-            <IconSpark width={16} height={16} className="text-ink-3" />
+            <Play aria-hidden className="size-[18px] shrink-0" />
             {running ? "Running…" : broken ? "Run again" : "Run now"}
           </DropdownMenuPrimitive.Item>
           <DropdownMenuPrimitive.Item className={item} onSelect={() => onEdit()}>
-            <IconEdit width={16} height={16} className="text-ink-3" />
-            Edit
+            <Pencil aria-hidden className="size-[18px] shrink-0" />
+            Edit routine
           </DropdownMenuPrimitive.Item>
-          <DropdownMenuPrimitive.Separator className="my-1 h-px bg-line" />
           <DropdownMenuPrimitive.Item
-            className={`${item} text-danger-ink`}
+            className={`${item} text-danger-ink data-highlighted:bg-danger-soft`}
             onSelect={() => onDelete()}
           >
-            <IconTrash width={16} height={16} />
-            Delete
+            <Trash2 aria-hidden className="size-[18px] shrink-0" />
+            Delete routine
           </DropdownMenuPrimitive.Item>
         </DropdownMenuPrimitive.Content>
       </DropdownMenuPrimitive.Portal>
