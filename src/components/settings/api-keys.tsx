@@ -43,7 +43,7 @@ export function ApiKeys({ keys, onSaved }: { keys: SavedApiKey[]; onSaved: () =>
   return (
     <Section
       title="API keys"
-      description="Credentials for image generation. Stored encrypted; the full value is never shown again. Anthropic is configured in the server environment."
+      description="For image generation. Encrypted, and never shown again."
     >
       <div className="space-y-4">
         {keys.length > 0 && (

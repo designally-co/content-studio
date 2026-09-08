@@ -57,7 +57,7 @@ export function ArticleTemplateCard({
   return (
     <Section
       title="Article template"
-      description="The instructions every article is written from. Rarely needs changing."
+      description="The instructions every article is written from."
       action={
         !editing ? (
           <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(true)}>

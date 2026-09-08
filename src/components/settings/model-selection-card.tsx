@@ -34,7 +34,7 @@ export function ModelSelectionCard({
   );
 
   return (
-    <Section title="Model selection" description="Choose the models Content Studio uses for speed-sensitive and quality-sensitive tasks.">
+    <Section title="Model selection" description="Which model runs the fast work, and which the careful work.">
       <div>
         <form action={saveModelSettingsAction} className="grid gap-4 sm:grid-cols-2">
           <input type="hidden" name="research" value={research} />

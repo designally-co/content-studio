@@ -38,7 +38,7 @@ export function Directions({ rows }: { rows: Row[] }) {
   return (
     <Section
       title="Content directions"
-      description="Names are fixed to match the Hub's topics. Switch one off to hide it when starting an article."
+      description="Fixed to match the Hub's topics. Switch one off to hide it."
     >
       {rows.length === 0 ? (
         <p className="text-sm text-ink-3">No directions yet.</p>

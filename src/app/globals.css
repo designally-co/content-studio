@@ -872,6 +872,31 @@
 .cs-dock-input--scrollable:hover::-webkit-scrollbar-thumb {
   background: rgba(36, 31, 28, 0.2);
 }
+
+/* The scrolling column inside a sheet.
+   A BAR, NOT A BAR IN A CHANNEL. The platform default draws a track — a full
+   height groove down the side of the panel — which reads as a piece of the
+   sheet's furniture rather than as a position indicator, and it is on screen
+   whether or not you are scrolling. Only the thumb is drawn here, at the same
+   6px and the same ink as the composer's, so the two places in the product
+   that scroll inside a rounded box scroll the same way. */
+.cs-sheet-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(36, 31, 28, 0.12) transparent;
+}
+.cs-sheet-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.cs-sheet-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.cs-sheet-scroll::-webkit-scrollbar-thumb {
+  background: rgba(36, 31, 28, 0.12);
+  border-radius: var(--radius-pill);
+}
+.cs-sheet-scroll:hover::-webkit-scrollbar-thumb {
+  background: rgba(36, 31, 28, 0.2);
+}
 /* 8px side gutter + 8px of control padding puts control ink on the same 16px
    left edge as the field's text, while the pill and the circle overhang it by
    8px — the optical allowance a rounded edge needs to read as aligned. */

@@ -141,7 +141,7 @@ export function BrandEditor({ brand }: { brand: Brand }) {
       {/* 2 — Writing guidelines */}
       <Section
         title="Writing guidelines"
-        description="Optional brand-specific writing guidance applied alongside tone and terminology."
+        description="Applied alongside tone and terminology."
       >
         <div>
           <Field label="Additional writing guidance" htmlFor="strategy-additional">
@@ -159,7 +159,7 @@ export function BrandEditor({ brand }: { brand: Brand }) {
       {/* 3 — Tone of voice */}
       <Section
         title="Tone of voice"
-        description="The personality and language constraints the model should follow."
+        description="The personality and language the model follows."
       >
         <div className="space-y-5">
           <Field label="Descriptors">
@@ -183,7 +183,7 @@ export function BrandEditor({ brand }: { brand: Brand }) {
       {/* 4 — Terminology & rules */}
       <Section
         title="Terminology and rules"
-        description="Exact wording, preferred phrases, and boundaries for the brand."
+        description="Exact wording, preferred phrases, and boundaries."
       >
         <div className="space-y-5">
           <Field label="Terminology">
@@ -215,7 +215,7 @@ export function BrandEditor({ brand }: { brand: Brand }) {
       {/* 5 — Audience */}
       <Section
         title="Audience"
-        description="Who the articles are written for. Added to every generation."
+        description="Who the articles are written for."
       >
         <div>
           <Field label="Target audience" htmlFor="audience">
