@@ -4,6 +4,7 @@ import { getDb } from "@/db";
 import { projects, categories, images } from "@/db/schema";
 import { createSignedImageUrls } from "@/lib/image/storage";
 import { PageHeading } from "@/components/page-heading";
+import { EmptyState } from "@/components/empty-state";
 import { FilterBar } from "./filter-bar";
 import { IconNew } from "@/components/icons";
 import { LibraryRow } from "./library-row";
@@ -157,17 +158,24 @@ export default async function LibraryPage({
 
       <main className="mx-auto w-full max-w-7xl px-5 pb-24 pt-8 sm:px-8 sm:pt-10 lg:px-12 xl:px-16">
         {rows.length === 0 ? (
-          <div className="grid place-items-center px-6 py-20 text-center">
-            <p className="max-w-md text-balance leading-relaxed text-ink-2">
-              {hasActiveFilters
-                ? "Nothing matches those filters."
-                : "Nothing here yet. The first article you start will land here."}
-            </p>
-            <Link href="/" className="cs-btn-primary mt-6">
-              <IconNew width={16} height={16} />
-              New content
-            </Link>
-          </div>
+          <EmptyState
+            title={hasActiveFilters ? "Nothing matches those filters" : "Nothing here yet"}
+            description={
+              hasActiveFilters
+                ? "Try a different direction or status, or clear them above."
+                : "The first article you start will land here."
+            }
+            /* No button while a filter is on: the useful action then is
+               clearing it, and that control is already in the bar above. */
+            action={
+              hasActiveFilters ? undefined : (
+                <Link href="/" className="cs-btn-primary">
+                  <IconNew width={16} height={16} />
+                  New content
+                </Link>
+              )
+            }
+          />
         ) : (
           /* The table sits on a plate, the way every other list in the product
              does — the rules inside it are the structure, so the container

@@ -12,6 +12,7 @@ import {
 } from "react";
 import { Button } from "@/components/ui/button";
 import { PageHeading } from "@/components/page-heading";
+import { EmptyState } from "@/components/empty-state";
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
 import { Clock, MoreHorizontal, Pencil, Play, Trash2 } from "lucide-react";
 import { IconArrowRight } from "@/components/icons";
@@ -323,20 +324,15 @@ function Readiness({
 
 function Empty({ onCreate }: { onCreate: () => void }) {
   return (
-    <div className="px-5 py-14 text-center">
-      <p className="text-sm font-semibold text-ink">
-        Nothing runs on its own yet
-      </p>
-      {/* The heading says nothing runs yet; the line under it should say what
-          making one involves, not define the word. What it writes and when it
-          runs are the two questions the form asks. */}
-      <p className="mx-auto mt-1.5 max-w-[40ch] text-sm leading-relaxed text-ink-2">
-        Choose what it writes about and when it runs.
-      </p>
-      <Button type="button" className="mt-5" onClick={onCreate}>
-        Create the first one
-      </Button>
-    </div>
+    <EmptyState
+      title="Nothing runs on its own yet"
+      description="Choose what it writes about and when it runs."
+      action={
+        <Button type="button" onClick={onCreate}>
+          Create the first one
+        </Button>
+      }
+    />
   );
 }
 
@@ -357,8 +353,7 @@ function cardSchedule(routine: RoutineView): string {
   const hour = Number(rawHour);
   const clock = `${((hour + 11) % 12) + 1}:${rawMinute ?? "00"} ${hour < 12 ? "am" : "pm"}`;
 
-  if (routine.scheduleKind === "weekdays")
-    return `Monday to Friday at ${clock}`;
+  if (routine.scheduleKind === "weekdays") return `Monday to Friday at ${clock}`;
   if (routine.scheduleKind === "weekly") {
     return `Every ${WEEKDAY_NAMES[routine.weekday] ?? "Monday"} at ${clock}`;
   }
