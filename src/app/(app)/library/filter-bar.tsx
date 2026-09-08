@@ -63,7 +63,7 @@ export function FilterBar({
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by title…"
           aria-label="Search content"
-          className="cs-select !h-9 !w-full pl-9 pr-8 text-sm"
+          className="cs-select cs-field-outline !h-9 !w-full pl-9 pr-8 text-sm"
         />
         {query && (
           <button
@@ -83,7 +83,7 @@ export function FilterBar({
             ariaLabel={f.label}
             searchable={f.searchable}
             allowClear
-            className="w-full text-sm sm:!h-9 sm:w-auto"
+            className="cs-field-outline w-full text-sm sm:!h-9 sm:w-auto"
             value={params.get(f.key) ?? ""}
             options={f.options}
             onChange={(value) => update(f.key, value)}
@@ -104,7 +104,7 @@ export function FilterBar({
         <span className="shrink-0 text-sm font-medium text-ink-2">Sort by</span>
         <MenuSelect
           ariaLabel="Sort articles"
-          className="w-full text-sm sm:!h-9 sm:w-auto"
+          className="cs-field-outline w-full text-sm sm:!h-9 sm:w-auto"
           align="end"
           value={params.get("sort") ?? "updated_desc"}
           options={[

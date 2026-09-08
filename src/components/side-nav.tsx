@@ -172,7 +172,7 @@ function NavLinks({ pathname, isAdmin, onNavigate, collapsed = false }: { pathna
                  sitting on a grey two steps down from the rail. Hover is the
                  step between, so the pointer reads as a preview of selection
                  rather than as a different idea. */
-              className={`flex min-h-12 items-center rounded-xl text-base text-ink transition-colors duration-(--duration-fast) ease-(--ease-out) ${collapsed ? "mx-auto size-12 justify-center px-0" : "gap-3 px-3"} ${
+              className={`flex min-h-12 items-center rounded-xl text-base font-medium text-ink transition-colors duration-(--duration-fast) ease-(--ease-out) ${collapsed ? "mx-auto size-12 justify-center px-0" : "gap-3 px-3"} ${
                 active ? "bg-chrome-active" : "hover:bg-chrome-hover"
               }`}
             >

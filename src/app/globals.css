@@ -492,6 +492,23 @@
   border-color: transparent;
   box-shadow: none;
 }
+/* THE FILL DEPENDS ON WHAT THE FIELD SITS ON.
+ *
+ * On white, a grey fill is what marks the field out as one — an outline there
+ * says the same thing a second time and turns a form into a stack of boxes.
+ * On grey, that fill is the ground's own family and the field disappears into
+ * it, so the line does the work instead and the fill goes.
+ *
+ * The default is filled, because most fields in this product live on a white
+ * plate. `.cs-field-outline` is the exception, and it belongs on the field
+ * rather than on a wrapper so it is stated where it is true. */
+.cs-input.cs-field-outline,
+.cs-textarea.cs-field-outline,
+.cs-select.cs-field-outline {
+  background: transparent;
+  border-color: var(--border-strong);
+}
+
 .cs-input:disabled,
 .cs-textarea:disabled,
 .cs-select:disabled {
