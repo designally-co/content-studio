@@ -82,7 +82,14 @@ export function SideNav({
       </header>
 
       {open && (
-        <div className="fixed inset-0 z-(--z-backdrop) lg:hidden">
+        /* ON THE NAV'S OWN LAYER, NOT THE BACKDROP'S. The drawer is the rail,
+           folded away — and the account menu at its foot is set one step above
+           the rail so it can clear it. At --z-backdrop the drawer outranked
+           its own menu: pressing the account row on a phone lit the trigger
+           and painted the menu underneath the panel, so Brand, Content and
+           Sign out were never reachable from a small screen. Sheets and
+           dialogs sit two steps up and still cover it. */
+        <div className="fixed inset-0 z-(--z-nav) lg:hidden">
           <button
             type="button"
             className="absolute inset-0 bg-ink/20"

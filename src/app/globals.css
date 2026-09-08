@@ -365,7 +365,9 @@
   --z-sticky: 40;
   /* App chrome outranks page chrome: the side navigation and anything that
      straddles its edge must paint over a route's sticky header, which would
-     otherwise clip whatever overhangs into the content area. */
+     otherwise clip whatever overhangs into the content area. The phone drawer
+     is the same navigation and takes the same layer — it must sit BELOW the
+     menu opened from its foot, which a drawer at --z-backdrop did not. */
   --z-nav: 45;
   /* A menu opened FROM the nav, which is the one dropdown that has to clear it.
      At --z-dropdown the account menu painted underneath the rail it hangs off:
