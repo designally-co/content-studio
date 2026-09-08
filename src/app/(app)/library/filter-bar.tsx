@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { MenuSelect } from "@/components/ui/menu-select";
 
@@ -10,6 +10,11 @@ type Option = { value: string; label: string };
 export function FilterBar({ categories }: { categories: Option[] }) {
   const router = useRouter();
   const params = useSearchParams();
+  /* THE PAGE ITSELF, NOT A LITERAL. Every filter pushed to "/" — which was the
+     Library once and is Create now — so choosing a direction navigated away
+     from the table you were filtering. Reading the current path means the bar
+     cannot be separated from its page again by a move. */
+  const pathname = usePathname();
 
   const queryParam = params.get("q") ?? "";
   const [query, setQuery] = useState(queryParam);
@@ -32,7 +37,7 @@ export function FilterBar({ categories }: { categories: Option[] }) {
     const next = new URLSearchParams(params.toString());
     if (value) next.set(key, value);
     else next.delete(key);
-    router.push(next.size ? `/?${next.toString()}` : "/");
+    router.push(next.size ? `${pathname}?${next.toString()}` : pathname);
   }
 
   const filters: {
@@ -103,7 +108,7 @@ export function FilterBar({ categories }: { categories: Option[] }) {
             const next = new URLSearchParams(params.toString());
             filters.forEach((filter) => next.delete(filter.key));
             next.delete("q");
-            router.push(next.size ? `/?${next.toString()}` : "/");
+            router.push(next.size ? `${pathname}?${next.toString()}` : pathname);
           }}
           className="cs-btn col-span-2 text-sm sm:!h-9 sm:ml-1"
         >
