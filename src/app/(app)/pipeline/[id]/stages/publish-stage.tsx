@@ -1482,7 +1482,11 @@ function PublishRail({
             type="button"
             onClick={() => setConfirming(true)}
             disabled={disabled || confirming}
-            className="cs-cta group w-full justify-between"
+            /* `justify-between` and `group` were both for the disc that used
+               to ride this button's right edge. With the disc gone, spacing
+               "between" one child leaves the label at the start — the only
+               left-aligned button in the product. */
+            className="cs-cta w-full"
           >
             {isLive ? "Republish to Hub" : "Publish to Hub"}
           </button>
