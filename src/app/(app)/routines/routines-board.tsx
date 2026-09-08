@@ -406,7 +406,11 @@ function RoutineCard({
       {!live && failure && <Failure message={humanise(failure)} />}
       {!live && !failure && last?.status === "failed" && <LastRun run={last} />}
 
-      <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-3.5">
+      {/* EDGE TO EDGE. The rule was inside the card's padding, so it stopped
+          short of both sides and read as an underline beneath the description
+          rather than as a line dividing the card in two. Pulled out by the
+          card's own padding and given it back as its own, it cuts. */}
+      <div className="-mx-5 mt-4 flex items-center justify-between gap-3 border-t border-line px-5 pt-3.5">
         {/* The icon marks the line as a time rather than as one more sentence
             about the routine — the only thing distinguishing metadata from
             prose once the card is down to two facts. Decorative: the words
