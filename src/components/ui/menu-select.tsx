@@ -89,7 +89,13 @@ export function MenuSelect({
         aria-label={ariaLabel}
         className={`cs-select flex items-center justify-between text-left ${className || "w-full"}`}
       >
-        <span className={`truncate ${selected ? "text-ink" : "text-ink-3"}`}>{label}</span>
+        {/* ONE INK, BECAUSE THESE ARE ALL VALUES. Muting the label until
+            something was picked is right for a field you must fill in, and
+            wrong for a filter: "All directions" is a state the table is
+            genuinely in, not an empty box waiting for input. Beside a sort
+            control that always carries a value, the two greys read as one
+            control being disabled and the other not. */}
+        <span className="truncate text-ink">{label}</span>
         <span className="ml-2 shrink-0 text-ink-3">▾</span>
       </button>
 
