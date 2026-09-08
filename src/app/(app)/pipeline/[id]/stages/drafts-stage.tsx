@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Markdown } from "@/components/markdown";
-import { IconCheck } from "@/components/icons";
 import { streamNdjson } from "@/lib/ndjson-client";
 import { ApiNotReady, StageShell } from "./stage-shell";
 import { goToFinalizeAction, saveDraftContentAction } from "../actions";
@@ -151,13 +150,23 @@ export function DraftsStage({
     }
   }
 
-  function restore(revision: Revision) {
+  /**
+   * Show a version. Not "restore" it.
+   *
+   * Restoring took a snapshot of whatever was on screen first, filed as
+   * "Version before restore", so looking at an older draft ADDED a row to the
+   * list you were looking through — and reading three versions left three
+   * entries nobody wrote. Every version in this list is already saved; moving
+   * between them is a change of view, and needs to record nothing.
+   *
+   * `preservePrevious: false` is what says that: set the draft to this text
+   * and write no new revision.
+   */
+  function showVersion(revision: Revision) {
     if (!draft.id || dirty || pending || !revision.resultMd || revision.resultMd === draft.contentMd) return;
-    const current = draft.contentMd;
-    addLocalRevision("Version before restore", current);
     setDraft((value) => ({ ...value, contentMd: revision.resultMd }));
     editBase.current = revision.resultMd;
-    startTransition(() => saveDraftContentAction(draft.id!, revision.resultMd, true, "Version before restore"));
+    startTransition(() => saveDraftContentAction(draft.id!, revision.resultMd, false));
   }
 
   function regenerate() {
@@ -306,21 +315,35 @@ export function DraftsStage({
               {revisions.length > 0 && (
                 <div className="max-h-[26rem] overflow-y-auto border-t border-line px-5 py-5">
                   <h4 className="text-sm font-semibold text-ink">Version history</h4>
-                  <ol className="mt-3 space-y-1">
-                    {[...revisions].reverse().map((revision) => (
-                      <li key={revision.id} className="group/rev rounded-2xl px-3 py-3 transition-colors duration-(--duration-fast) ease-(--ease-spring) hover:bg-sunken">
-                        <p className="text-sm leading-snug text-ink-2">{revision.userMessage}</p>
+                  {/* CHIPS, LIKE THE SUGGESTIONS ABOVE THEM. Each version was a
+                      block of instruction text with a Restore link that
+                      appeared on hover underneath it — a two-step reveal for a
+                      list whose whole purpose is to be picked from, and a row
+                      three times the height of what it says. They are the same
+                      shape as the suggestion chips now: one press, and the one
+                      you are on is filled. */}
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {[...revisions].reverse().map((revision) => {
+                      const showing = revision.resultMd === draft.contentMd;
+                      return (
                         <button
+                          key={revision.id}
                           type="button"
-                          onClick={() => restore(revision)}
+                          onClick={() => showVersion(revision)}
                           disabled={dirty || pending || !revision.resultMd}
-                          className="mt-1.5 inline-flex min-h-9 items-center gap-1.5 text-xs font-semibold text-accent-ink transition-opacity duration-(--duration-fast) ease-(--ease-spring) hover:underline focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:opacity-40 sm:opacity-0 sm:group-hover/rev:opacity-100 sm:group-focus-within/rev:opacity-100"
+                          aria-pressed={showing}
+                          title={revision.userMessage}
+                          className={`max-w-full truncate rounded-full px-3 py-2 text-left text-xs transition-colors duration-(--duration-fast) ease-(--ease-out) focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:cursor-not-allowed disabled:opacity-40 ${
+                            showing
+                              ? "bg-chrome-active font-medium text-ink"
+                              : "bg-sunken font-medium text-ink-2 hover:bg-deep hover:text-ink"
+                          }`}
                         >
-                          <IconCheck width={13} height={13} />Restore
+                          {revision.userMessage}
                         </button>
-                      </li>
-                    ))}
-                  </ol>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
               {/* Last, and separated: everything above changes the draft you
