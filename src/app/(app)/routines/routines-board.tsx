@@ -184,57 +184,58 @@ export function RoutinesBoard({
         <p className="text-sm text-ink-3">
           {routines.length} {routines.length === 1 ? "routine" : "routines"}
         </p>
-        {!creating && (
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => {
-              setCreating(true);
-              setEditing(null);
-            }}
-          >
-            New routine
-          </Button>
-        )}
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => {
+            setCreating(true);
+            setEditing(null);
+          }}
+        >
+          New routine
+        </Button>
       </div>
 
+      {/* The form opens OVER the list rather than expanding inside it. Editing
+          in place pushed every routine below it down the page and left the one
+          being edited looking deleted; the dialog leaves the list where it is. */}
       {creating && (
-        <div className="rounded-2xl bg-surface p-5 sm:p-6">
-          <RoutineForm
-            directions={directions}
-            submitLabel="Create routine"
-            action={(formData) => {
-              setCreating(false);
-              startTransition(async () => {
-                await createRoutineAction(formData);
-                router.refresh();
-              });
-            }}
-            onCancel={() => setCreating(false)}
-          />
-        </div>
+        <RoutineForm
+          title="New routine"
+          directions={directions}
+          submitLabel="Create routine"
+          /* AWAITED, AND CLOSED AFTERWARDS. Closing first and saving in a
+             transition left the dialog on screen with its fields cleared —
+             React resets a form once its action returns, so an optimistic
+             close reads as "it wiped what I typed" for as long as the write
+             takes. Held open, the submit button carries the wait instead. */
+          action={async (formData) => {
+            await createRoutineAction(formData);
+            setCreating(false);
+            router.refresh();
+          }}
+          onCancel={() => setCreating(false)}
+        />
       )}
 
-      {routines.length === 0 && !creating && <Empty onCreate={() => setCreating(true)} />}
+      {editing && (
+        <RoutineForm
+          title="Edit routine"
+          routine={routines.find((routine) => routine.id === editing)}
+          directions={directions}
+          submitLabel="Save changes"
+          action={async (formData) => {
+            await updateRoutineAction(formData);
+            setEditing(null);
+            router.refresh();
+          }}
+          onCancel={() => setEditing(null)}
+        />
+      )}
 
-      {routines.map((routine) =>
-        editing === routine.id ? (
-          <div key={routine.id} className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
-            <RoutineForm
-              routine={routine}
-              directions={directions}
-              submitLabel="Save changes"
-              action={(formData) => {
-                setEditing(null);
-                startTransition(async () => {
-                  await updateRoutineAction(formData);
-                  router.refresh();
-                });
-              }}
-              onCancel={() => setEditing(null)}
-            />
-          </div>
-        ) : (
+      {routines.length === 0 && <Empty onCreate={() => setCreating(true)} />}
+
+      {routines.map((routine) => (
           <RoutineCard
             key={routine.id}
             routine={routine}
@@ -260,8 +261,7 @@ export function RoutinesBoard({
               })
             }
           />
-        )
-      )}
+      ))}
 
     </div>
   );

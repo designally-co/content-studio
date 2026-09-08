@@ -12,6 +12,11 @@
  * announces "on/off" rather than "checked", and the whole control is one 44px
  * target — the thumb alone is 20px, which is a coarse-pointer miss waiting to
  * happen.
+ *
+ * NO WORD BESIDE IT. A switch that is on already says so by being on, and the
+ * label repeating it competes with the name of the thing being switched. The
+ * state is still announced — `role="switch"` with `aria-checked` is exactly
+ * how a screen reader is told — so nothing is lost by not printing it.
  */
 export function Switch({
   checked,
@@ -33,7 +38,7 @@ export function Switch({
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className="group/switch inline-flex min-h-11 items-center gap-2.5 rounded-lg px-1 text-sm transition-opacity disabled:pointer-events-none disabled:opacity-45"
+      className="group/switch inline-grid min-h-11 min-w-11 place-items-center rounded-lg transition-opacity disabled:pointer-events-none disabled:opacity-45"
     >
       <span
         aria-hidden
@@ -46,9 +51,6 @@ export function Switch({
             checked ? "left-[18px]" : "left-0.5"
           }`}
         />
-      </span>
-      <span className={checked ? "font-semibold text-ink" : "text-ink-2"}>
-        {checked ? "On" : "Off"}
       </span>
     </button>
   );
