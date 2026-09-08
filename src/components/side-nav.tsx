@@ -123,7 +123,7 @@ export function SideNav({ isAdmin = false }: { isAdmin?: boolean }) {
           <FlatMark size={32} />
           {!collapsed && (
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[var(--tracking-caps)] text-accent-ink">
+              <p className="text-xs font-semibold uppercase tracking-[var(--tracking-caps)] text-ink-3">
                 Designally
               </p>
               <p className="font-heading text-base font-semibold tracking-tight text-ink">
@@ -165,14 +165,20 @@ function NavLinks({ pathname, isAdmin, onNavigate, collapsed = false }: { pathna
               title={collapsed ? label : undefined}
               // Collapsed rows are square and centred. A full-width pill behind
               // a lone centred icon reads as a mis-sized target, not a state.
+              /* ORANGE IS FOR THE ACTION, NOT FOR WHERE YOU ARE. The rail
+                 marks the current page by lifting it to the plate white the
+                 rest of the product uses for a working surface, against the
+                 chrome grey of the rail — a change of surface, not of hue. It
+                 leaves the accent free to mean the one thing it should: the
+                 button you are meant to press. */
               className={`flex min-h-11 items-center rounded-lg text-sm transition-colors duration-(--duration-fast) ease-(--ease-out) ${collapsed ? "mx-auto size-11 justify-center px-0" : "gap-2.5 px-3 py-2.5"} ${
                 active
-                  ? "bg-accent-soft font-semibold text-accent-ink"
+                  ? "bg-surface font-semibold text-ink shadow-[0_1px_2px_rgba(26,26,26,0.06)]"
                   : "text-ink-2 hover:bg-sunken hover:text-ink"
               }`}
             >
               <Icon
-                className={active ? "text-accent" : "text-ink-3"}
+                className={active ? "text-ink" : "text-ink-3"}
                 width={collapsed ? 20 : 18}
                 height={collapsed ? 20 : 18}
               />
