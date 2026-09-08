@@ -147,3 +147,22 @@ export async function saveDraftContentAction(
   }
   await db.update(drafts).set({ contentMd }).where(eq(drafts.id, draftId));
 }
+
+/**
+ * Remove one saved version.
+ *
+ * The list fills with rows nobody wrote: a revision persists TWO refinements —
+ * the text before it and the text after — so an article revised three times
+ * carries six entries, several of them holding identical content. Being able
+ * to throw one away is the only thing that makes the list stay readable.
+ *
+ * Silent when the id is not there: versions created in the browser during a
+ * session have no row yet, and deleting one of those should not be an error.
+ */
+export async function deleteRevisionAction(refinementId: string) {
+  await requireUser();
+  if (!refinementId) return;
+  const db = await getDb();
+  const { refinements } = await import("@/db/schema");
+  await db.delete(refinements).where(eq(refinements.id, refinementId));
+}

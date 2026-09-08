@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Markdown } from "@/components/markdown";
 import { streamNdjson } from "@/lib/ndjson-client";
 import { ApiNotReady, StageShell } from "./stage-shell";
-import { goToFinalizeAction, saveDraftContentAction } from "../actions";
+import { X } from "lucide-react";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { deleteRevisionAction, goToFinalizeAction, saveDraftContentAction } from "../actions";
 
 const SUGGESTIONS = [
   "Make the introduction shorter",
@@ -43,6 +45,8 @@ export function DraftsStage({
     error: null,
   });
   const [revisions, setRevisions] = useState(refinements);
+  const [pickedVersionId, setPickedVersionId] = useState<string | null>(null);
+  const [confirmingRegenerate, setConfirmingRegenerate] = useState(false);
   const [editing, setEditing] = useState(false);
   const [input, setInput] = useState("");
   const [dirty, setDirty] = useState(false);
@@ -52,9 +56,60 @@ export function DraftsStage({
   const editSnapshotSaved = useRef(false);
   const editBase = useRef(existing?.contentMd ?? "");
 
+  /**
+   * Add a version, unless we already hold that exact text.
+   *
+   * A revision saves TWO entries — the text before it and the text after — so
+   * revising twice from the same base filed the same "before" content again,
+   * and the list grew faster than the number of versions in it. Identical text
+   * is not another version.
+   */
   function addLocalRevision(label: string, content: string) {
     if (!content.trim()) return;
-    setRevisions((current) => [...current, { id: crypto.randomUUID(), userMessage: label, resultMd: content }]);
+    setRevisions((current) =>
+      current.some((revision) => revision.resultMd === content)
+        ? current
+        : [...current, { id: crypto.randomUUID(), userMessage: label, resultMd: content }]
+    );
+  }
+
+  /* The list as VERSIONS: distinct texts, oldest first, whatever the rows
+     behind them look like. Existing articles already carry duplicate entries
+     from before the dedupe above, and several of them share content — which is
+     what made selecting one chip light four. */
+  const versions = useMemo(() => {
+    const seen = new Set<string>();
+    return revisions.filter((revision) => {
+      if (!revision.resultMd || seen.has(revision.resultMd)) return false;
+      seen.add(revision.resultMd);
+      return true;
+    });
+  }, [revisions]);
+
+  /* Which chip is filled, by IDENTITY. Matching on content lit every version
+     holding the same text — four or five at once on an article with duplicate
+     rows. Falls back to the first version whose text is on screen, so arriving
+     at the stage still shows where you are. */
+  const activeVersionId =
+    pickedVersionId ?? versions.find((revision) => revision.resultMd === draft.contentMd)?.id ?? null;
+
+  /**
+   * Remove a version — every row holding that text, not just the chip's own.
+   *
+   * A chip stands for a distinct TEXT, and the same text can sit behind several
+   * rows: this article has seven refinements carrying two versions between
+   * them. Deleting only the row the chip was built from would let the next
+   * duplicate take its place, so the version would reappear on reload having
+   * been deleted.
+   */
+  function deleteVersion(revision: Revision) {
+    const sameText = revisions.filter((item) => item.resultMd === revision.resultMd);
+    const ids = new Set(sameText.map((item) => item.id));
+    setRevisions((current) => current.filter((item) => !ids.has(item.id)));
+    if (pickedVersionId && ids.has(pickedVersionId)) setPickedVersionId(null);
+    startTransition(async () => {
+      for (const item of sameText) await deleteRevisionAction(item.id);
+    });
   }
 
   async function generateDraft(regenerating = false) {
@@ -121,7 +176,7 @@ export function DraftsStage({
     const instruction = message.trim();
     if (!instruction || revising || draft.streaming || dirty || pending || !draft.id) return;
     const previous = draft.contentMd;
-    addLocalRevision(`Version before AI revision: ${instruction}`, previous);
+    addLocalRevision(revisions.length === 0 ? "Original" : `Before: ${instruction}`, previous);
     setInput("");
     setRevising(true);
     setDraft((current) => ({ ...current, error: null }));
@@ -138,6 +193,7 @@ export function DraftsStage({
           if (event.content != null) content = event.content;
           setDraft((current) => ({ ...current, contentMd: content }));
           addLocalRevision(instruction, content);
+          setPickedVersionId(null);
           editBase.current = content;
         } else if (event.t === "error") {
           setDraft((current) => ({ ...current, contentMd: previous, error: event.m ?? "Revision failed." }));
@@ -164,13 +220,13 @@ export function DraftsStage({
    */
   function showVersion(revision: Revision) {
     if (!draft.id || dirty || pending || !revision.resultMd || revision.resultMd === draft.contentMd) return;
+    setPickedVersionId(revision.id);
     setDraft((value) => ({ ...value, contentMd: revision.resultMd }));
     editBase.current = revision.resultMd;
     startTransition(() => saveDraftContentAction(draft.id!, revision.resultMd, false));
   }
 
   function regenerate() {
-    if (draft.contentMd && !window.confirm("Regenerate this draft? The current version will remain available in revision history.")) return;
     void generateDraft(true);
   }
 
@@ -322,25 +378,43 @@ export function DraftsStage({
                       three times the height of what it says. They are the same
                       shape as the suggestion chips now: one press, and the one
                       you are on is filled. */}
+                  {/* Oldest first, so the original is where you would look for
+                      it and the newest is nearest the work. Each chip carries
+                      its own remove: a list of versions is only readable if the
+                      ones you have finished with can leave it. */}
                   <div className="mt-3 flex flex-wrap gap-1.5">
-                    {[...revisions].reverse().map((revision) => {
-                      const showing = revision.resultMd === draft.contentMd;
+                    {versions.map((revision, index) => {
+                      const showing = revision.id === activeVersionId;
+                      const label = index === 0 ? "Original" : revision.userMessage;
                       return (
-                        <button
+                        <span
                           key={revision.id}
-                          type="button"
-                          onClick={() => showVersion(revision)}
-                          disabled={dirty || pending || !revision.resultMd}
-                          aria-pressed={showing}
-                          title={revision.userMessage}
-                          className={`max-w-full truncate rounded-full px-3 py-2 text-left text-xs transition-colors duration-(--duration-fast) ease-(--ease-out) focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:cursor-not-allowed disabled:opacity-40 ${
+                          className={`inline-flex max-w-full items-center rounded-full text-xs transition-colors duration-(--duration-fast) ease-(--ease-out) ${
                             showing
-                              ? "bg-chrome-active font-medium text-ink"
-                              : "bg-sunken font-medium text-ink-2 hover:bg-deep hover:text-ink"
+                              ? "bg-chrome-active text-ink"
+                              : "bg-sunken text-ink-2 hover:bg-deep"
                           }`}
                         >
-                          {revision.userMessage}
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => showVersion(revision)}
+                            disabled={dirty || pending || !revision.resultMd}
+                            aria-pressed={showing}
+                            title={label}
+                            className="min-w-0 truncate rounded-full py-2 pl-3 pr-1.5 text-left font-medium hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            {label}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteVersion(revision)}
+                            disabled={pending}
+                            aria-label={`Delete version: ${label}`}
+                            className="grid size-6 shrink-0 place-items-center rounded-full text-ink-3 transition-colors hover:text-danger-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:opacity-40 mr-1"
+                          >
+                            <X aria-hidden className="size-3" />
+                          </button>
+                        </span>
                       );
                     })}
                   </div>
@@ -349,15 +423,16 @@ export function DraftsStage({
               {/* Last, and separated: everything above changes the draft you
                   have, and this throws it away for a new one. */}
               <div className="border-t border-line px-5 py-4">
+                {/* RED, BECAUSE IT DESTROYS THE DRAFT. Everything else in this
+                    rail changes the article and leaves the previous text a chip
+                    away; this throws the current draft out and writes a new one
+                    from scratch. It kept the same outline as Apply revision,
+                    which said the two were the same kind of act. */}
                 <button
                   type="button"
-                  onClick={regenerate}
+                  onClick={() => setConfirmingRegenerate(true)}
                   disabled={draft.streaming || revising || dirty || pending}
-                  /* Outlined, like Apply revision above it and Run brand
-                     check on the next stage. A panel's actions look the same;
-                     what marks this one as different in kind is the rule it
-                     sits under, not a lighter button. */
-                  className="cs-btn w-full justify-center"
+                  className="cs-btn w-full justify-center border-danger/30 text-danger-ink hover:bg-danger-soft"
                 >
                   {draft.streaming ? "Writing…" : "Regenerate the draft"}
                 </button>
@@ -365,6 +440,21 @@ export function DraftsStage({
             </div>
           </aside>
         </div>
+
+        {/* A window.confirm was doing this — the browser's own dialog, with the
+            page's title in it and an OK button, for the one action here that
+            cannot be undone. */}
+        <ConfirmDialog
+          title="Regenerate the draft?"
+          description="The current draft is replaced by a new one. Saved versions stay in the history."
+          confirmLabel="Regenerate"
+          open={confirmingRegenerate}
+          onCancel={() => setConfirmingRegenerate(false)}
+          onConfirm={() => {
+            setConfirmingRegenerate(false);
+            regenerate();
+          }}
+        />
       </div>
     </StageShell>
   );
