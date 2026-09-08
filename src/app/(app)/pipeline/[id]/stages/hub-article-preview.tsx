@@ -332,7 +332,14 @@ const HUBPREV_CSS = `
   --hp-ink: #12100d;
   --hp-ink-70: #4a453d;
   --hp-ink-50: #7c766b;
-  --hp-paper: #f9f6f4;
+  /* WHITE ON PURPOSE, AND NOT WHAT THE HUB DOES. The Hub's page is
+     --be-paper #f9f6f4, a soft off-white, and this token mirrored it — so the
+     preview was accurate and looked wrong, because #f9f6f4 inside the white
+     container beside it reads as a tint rather than as a colour anyone chose.
+     Set white by decision, with that trade understood: the preview no longer
+     reproduces the Hub's page colour. If the Hub ever moves to white, this
+     stops being a divergence and can go back to mirroring it. */
+  --hp-paper: #ffffff;
   --hp-tan: #ece1cd;
   --hp-cover: #cfc3b0;
   --hp-hair: rgba(18, 16, 13, 0.1);
