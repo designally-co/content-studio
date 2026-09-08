@@ -9,8 +9,6 @@ import { Switch } from "./switch";
 import {
   TIME_ZONES,
   WEEKDAY_NAMES,
-  describeSchedule,
-  nextRunAt,
   type RoutineScheduleKind,
 } from "@/lib/autopilot/schedule";
 import type { RoutineView } from "@/lib/autopilot/views";
@@ -165,8 +163,6 @@ export function RoutineForm({
     routine?.hubStatus === "published",
   );
 
-  const spec = { kind, runAt, timeZone, weekday };
-  const next = nextRunAt(spec);
   const scheduled = kind !== "manual";
 
   return (
@@ -369,32 +365,7 @@ export function RoutineForm({
                         ))}
                       </select>
                     </SelectShell>
-                    <p className="max-w-[40ch] text-sm leading-relaxed text-(--sheet-ink-2)">
-                      The clock the time above is read on, and the one the card
-                      counts down to.
-                    </p>
                   </Field>
-
-                  {/* The schedule in words, and when it first fires. Computed
-                      with the same function the server stores `next_run_at`
-                      with, so it cannot drift from the behaviour — and kept
-                      here rather than under the row, where it was a paragraph
-                      restating three controls the reader had just set. */}
-                  <p className="max-w-[46ch] border-t border-(--sheet-line) pt-4 text-sm leading-relaxed text-(--sheet-ink-2)">
-                    <span className="font-medium text-(--sheet-ink)">
-                      {describeSchedule(spec)}.
-                    </span>{" "}
-                    {next
-                      ? `First run ${next.toLocaleString(undefined, {
-                          weekday: "long",
-                          day: "numeric",
-                          month: "long",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          timeZone,
-                        })}.`
-                      : "It will not start on its own."}
-                  </p>
                 </div>
               </Collapsible.Content>
             </Collapsible.Root>
