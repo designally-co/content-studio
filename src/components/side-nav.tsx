@@ -52,7 +52,7 @@ export function SideNav({ isAdmin = false }: { isAdmin?: boolean }) {
 
   return (
     <>
-      <header className="sticky top-0 z-(--z-sticky) flex h-16 items-center gap-2 border-b border-line bg-surface px-2 lg:hidden">
+      <header className="sticky top-0 z-(--z-sticky) flex h-16 items-center gap-2 border-b border-line bg-chrome px-2 lg:hidden">
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -76,7 +76,7 @@ export function SideNav({ isAdmin = false }: { isAdmin?: boolean }) {
           />
           <aside
             id="mobile-navigation"
-            className="relative flex h-full w-[min(20rem,88vw)] flex-col border-r border-line bg-surface shadow-[var(--shadow-pop)]"
+            className="relative flex h-full w-[min(20rem,88vw)] flex-col border-r border-line bg-chrome shadow-[var(--shadow-pop)]"
             aria-label="Mobile navigation"
             role="dialog"
             aria-modal="true"
@@ -101,7 +101,7 @@ export function SideNav({ isAdmin = false }: { isAdmin?: boolean }) {
       <aside
         // z-(--z-nav) both lifts the nav over a route's sticky header and gives
         // the overhanging toggle a stacking context of its own to live in.
-        className={`relative z-(--z-nav) hidden min-h-dvh shrink-0 self-stretch border-r border-line bg-surface transition-[width] duration-(--duration-base) ease-(--ease-out) lg:block ${
+        className={`relative z-(--z-nav) hidden min-h-dvh shrink-0 self-stretch border-r border-line bg-chrome transition-[width] duration-(--duration-base) ease-(--ease-out) lg:block ${
           collapsed ? "w-20" : "w-60"
         }`}
       >
@@ -109,7 +109,7 @@ export function SideNav({ isAdmin = false }: { isAdmin?: boolean }) {
         <button
           type="button"
           onClick={() => setCollapsed((value) => !value)}
-          className="absolute -right-4 top-5 z-10 grid size-8 place-items-center rounded-full border border-line bg-surface text-ink-2 shadow-[var(--shadow-card)] transition-colors duration-(--duration-fast) ease-(--ease-out) hover:border-line-strong hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+          className="absolute -right-4 top-5 z-10 grid size-8 place-items-center rounded-full border border-line bg-bg text-ink-2 shadow-[var(--shadow-card)] transition-colors duration-(--duration-fast) ease-(--ease-out) hover:border-line-strong hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >

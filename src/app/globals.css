@@ -81,12 +81,15 @@
      the routine dialog while they were being decided; they are the system now,
      so a modal and a page are made of the same greys instead of two families
      that nearly match. */
-  --bg: #f3f3f3;
+  --bg: #f8f8f7; /* the ground, the same grey the sheets use */
   --surface: var(--white); /* plates: cards, sheets, panels */
   --surface-sunken: #f8f8f7; /* the ground a plate sits on */
   --surface-deep: #f0f0ef; /* a filled field, and any deeper recess */
   --border: #f0f0f0; /* the hairline around a plate */
   --border-strong: #e0e0e0;
+  /* Chrome — the panel a page sits beside, and the dock it types into. One step
+     down from the page so the working surface is the lighter of the two. */
+  --chrome: #f0f0f0;
 
   /* ink — three legible rungs plus a placeholder that is not text */
   --ink: #1a1a1a; /* headings, labels, body */
@@ -267,6 +270,7 @@
   --color-ink-2: var(--ink-secondary);
   --color-ink-3: var(--ink-faint);
   --color-placeholder: var(--placeholder);
+  --color-chrome: var(--chrome);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-press: var(--accent-press);
@@ -757,14 +761,14 @@
    A borderless white working surface lifted from the page by soft depth. */
 .cs-dock {
   position: relative;
-  background: var(--surface);
-  border: 0;
+  background: var(--chrome);
+  border: 1px solid var(--chrome);
   border-radius: var(--radius-xl);
-  box-shadow: 0 10px 30px rgba(36, 31, 28, 0.09);
+  box-shadow: 0 10px 30px rgba(26, 26, 26, 0.06);
   transition: box-shadow var(--duration-fast) var(--ease-out);
 }
 .cs-dock:focus-within {
-  box-shadow: 0 14px 36px rgba(36, 31, 28, 0.13);
+  box-shadow: 0 14px 36px rgba(26, 26, 26, 0.1);
 }
 /* 12px, not 16px: line-height 1.6 already contributes ~6px of half-leading
    above the first cap, so a numerically smaller top inset is what reads as
@@ -836,24 +840,14 @@
    light in the room rather than as an effect applied to a control. Must be a
    sibling before .cs-dock, never a child: a negative-z-index child paints on
    top of the dock's own background instead of behind it. */
-/* Sunset backlight. The element is the dock's own silhouette, sitting directly
-   beneath it, and the light is thrown by layered shadows rather than painted as
-   a background — so the halo follows the dock's shape and rounded corners the
-   way real backlight does, instead of reading as an ellipse placed near it.
-
-   Three layers warming outward through the brand ramp: coral at the rim, peach
-   through the mid, palest at the furthest spread. A sunset is a progression of
-   hues, not one colour dimmed. Kept high-key — nothing here darkens the page,
-   and there is no blur filter, no ring, and no pulse. */
+/* THE BACKLIGHT IS GONE. It was three layers of orange thrown behind the dock
+   to read as light in the room, and it was the one sanctioned glow in the
+   product. Removed on request: the dock now sits on the page as a filled
+   surface rather than a lit one, which is the quieter reading and the one that
+   matches every other control. `.cs-dock-glow` is kept as an empty rule so any
+   markup still asking for it renders nothing rather than an unstyled box. */
 .cs-dock-glow {
-  position: absolute;
-  inset: 0;
-  border-radius: var(--radius-xl);
-  pointer-events: none;
-  box-shadow:
-    0 4px 40px -4px color-mix(in oklab, var(--orange-500) 30%, transparent),
-    0 10px 90px 6px color-mix(in oklab, var(--orange-300) 32%, transparent),
-    0 18px 150px 30px color-mix(in oklab, var(--orange-200) 40%, transparent);
+  display: none;
 }
 
 .cs-dock-controls {
