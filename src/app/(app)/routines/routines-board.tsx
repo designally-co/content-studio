@@ -195,8 +195,12 @@ export function RoutinesBoard({
   // is not a render input, and this one decides what the buttons look like.
   const busy = live.some((run) => !run.finished);
 
+  /* No width cap of its own. The column was held to 3xl while Library's table
+     ran the full container, so the two pages shared a left edge and then
+     disagreed about where the content ended — switching between them moved the
+     right-hand side of the page. The container decides the width for both. */
   return (
-    <div className="w-full max-w-3xl space-y-4">
+    <div className="w-full space-y-4">
       <PageHeading
         title="Routines"
         /* One line. It was three clauses naming every stage of a run — topic,

@@ -26,10 +26,19 @@ export default async function LibraryPage({
     .where(eq(categories.active, true))
     .orderBy(asc(categories.sortOrder), asc(categories.name));
 
+  /* A QUERY STRING IS UNTRUSTED INPUT, and both of these went straight into
+     SQL. `?category=none` reached Postgres as a uuid comparison and took the
+     whole page down with "invalid input syntax for type uuid" — a 500 from a
+     hand-edited URL, or from a bookmark kept after a direction was deleted.
+     A value that is not a real filter is simply not applied. */
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const conds = [];
-  if (sp.category) conds.push(eq(projects.categoryId, sp.category));
-  if (sp.status)
-    conds.push(eq(projects.status, sp.status as "draft" | "published"));
+  if (sp.category && UUID.test(sp.category)) {
+    conds.push(eq(projects.categoryId, sp.category));
+  }
+  if (sp.status === "draft" || sp.status === "published") {
+    conds.push(eq(projects.status, sp.status));
+  }
 
   let rows = await db
     .select({
