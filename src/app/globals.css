@@ -90,6 +90,11 @@
   /* Chrome — the panel a page sits beside, and the dock it types into. One step
      down from the page so the working surface is the lighter of the two. */
   --chrome: #f0f0f0;
+  /* The dock is its own surface: white, on a hairline of the chrome grey. It
+     gets a name so the scroll mask below can reference the same value — the
+     two were hard-coded separately once and the mask became a pale stripe the
+     moment the dock changed colour. */
+  --dock: var(--white);
 
   /* ink — three legible rungs plus a placeholder that is not text */
   --ink: #1a1a1a; /* headings, labels, body */
@@ -761,8 +766,8 @@
    A borderless white working surface lifted from the page by soft depth. */
 .cs-dock {
   position: relative;
-  background: var(--chrome);
-  border: 1px solid var(--chrome);
+  background: var(--dock);
+  border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   box-shadow: 0 10px 30px rgba(26, 26, 26, 0.06);
   transition: box-shadow var(--duration-fast) var(--ease-out);
@@ -779,13 +784,18 @@
   padding-top: 0.75rem;
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
 }
+/* The band that swallows text as it scrolls past the dock's rounded top. It
+   takes `--dock`, the dock's own fill, rather than repeating a colour: hard
+   coded to white it was invisible only for as long as the dock happened to be
+   white, and the moment the dock changed it became a pale stripe across the
+   top of the field. One token, so they cannot come apart again. */
 .cs-dock-input-viewport::before {
   content: "";
   position: absolute;
   inset: 0 0 auto;
   z-index: 1;
   height: 0.75rem;
-  background: var(--surface);
+  background: var(--dock);
   pointer-events: none;
 }
 .cs-dock-input {
