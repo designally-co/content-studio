@@ -637,6 +637,9 @@ function ImagePanel({
   // Blocked for a reason the editor cannot fix by typing — as opposed to simply
   // not having written a prompt yet, which is a resting state, not a fault.
   const generateBlocked = busy !== null || !optionId || referenceMissing;
+  /* Falls back to the first rather than showing nothing: an image exists, so
+     the middle of the stage should have one in it even before a choice. */
+  const featured = imgs.find((img) => img.id === selectedCoverId) ?? imgs[0];
   return (
     // Always as tall as the space below the pipeline header, and a flex column
     // so the composer can be pushed to the end of it. Sticky alone only pins
@@ -644,64 +647,35 @@ function ImagePanel({
     // wherever the content ended and appeared to move between visits.
     // `gap` rather than `space-y`: the composer's `mt-auto` has to win, and a
     // `space-y` margin on the same axis fights it.
-    <div className="flex min-h-[calc(100svh-7rem)] flex-col gap-8 sm:min-h-[calc(100svh-8rem)]">
-      {/* Results lead. Only one of these travels to the Hub, so choosing it is
-          the real decision on this stage — and a decision belongs above the
-          controls that produce more options, not buried under them. */}
-      {/* Title and forward action on one row: they are the same altitude, and a
-          14px count heading beside a 48px button was a label being shouted over.
-          The count sits under the title and only appears when there is actually
-          a choice — with one image the tile's own badge already says it. */}
-      <header className="flex flex-wrap items-center justify-between gap-x-8 gap-y-3">
-        <div className="min-w-0 flex-1">
-          <h2 className="max-w-[46ch] text-balance font-heading text-[length:var(--text-h2)] font-semibold leading-tight tracking-tight text-ink">
-            {title}
-          </h2>
-          {imgs.length > 1 && (
-            <p className="mt-1.5 text-sm text-ink-2">
-              {imgs.length} images — choose the one to publish.
-            </p>
-          )}
-        </div>
-        <button type="button" onClick={onNext} className="cs-cta group shrink-0">
-          Continue to publish
-        </button>
-      </header>
+    /* THE SAME TWO COLUMNS AS DRAFTS AND PUBLISH. This stage was one flex
+       column: title and forward action on a row, then a four-across grid of
+       every image, then the composer. So the picture you had actually CHOSEN
+       was one tile among equals, and the forward action floated at the top of
+       the page attached to nothing.
 
-      {imgs.length > 0 && (
-        <section aria-label="Generated images">
-          {/* Four across at full width. Two made a wall of a page out of six
-              images; the tiles carry their own controls now, so they can be
-              small without losing anything. */}
-          {/* The grid follows the count rather than imposing one shape on it: a
-              single image has nothing to compare against, so it gets the room;
-              a pair reads best side by side. Only past three does a fixed grid
-              beat giving each one space. */}
-          <ul
-            className={`grid gap-4 ${
-              imgs.length === 1
-                ? "grid-cols-1"
-                : imgs.length === 2
-                  ? "grid-cols-2"
-                  : imgs.length === 3
-                    ? "grid-cols-2 lg:grid-cols-3"
-                    : "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-            }`}
-          >
-            {imgs.map((img) => (
-              <li key={img.id}>
-                <GeneratedImage
-                  img={img}
-                  feature={imgs.length === 1}
-                  selected={img.id === selectedCoverId}
-                  onSelect={() => chooseCover(img.id)}
-                  onDeleted={() => setImgs((current) => current.filter((item) => item.id !== img.id))}
-                />
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+       The choice sits in the middle at size, the rest of the set is a rail of
+       thumbnails beside it, and the forward action is in a panel like every
+       other stage's. */
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8">
+      <div className="flex min-h-[calc(100svh-9rem)] flex-col gap-6">
+        <h2 className="max-w-[46ch] text-balance font-heading text-[length:var(--text-h2)] font-semibold leading-tight tracking-tight text-ink">
+          {title}
+        </h2>
+
+        {/* Only the selected one, and only as big as it can be without pushing
+            the composer off the screen. */}
+        {featured && (
+          <div className="flex justify-center">
+            <GeneratedImage
+              key={featured.id}
+              img={featured}
+              feature
+              selected
+              onSelect={() => chooseCover(featured.id)}
+              onDeleted={() => setImgs((current) => current.filter((item) => item.id !== featured.id))}
+            />
+          </div>
+        )}
 
       <div className="space-y-2">
         {!anthropicReady && (
@@ -916,7 +890,10 @@ function ImagePanel({
             white panel on a 12px radius and a hairline that deepens its shadow
             on focus. Two boxes you type an instruction into, built two
             different ways. The controls inside were already the dock's. */}
-        <div className="cs-dock motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:duration-500">
+        {/* Capped at the width Create's dock uses, and for the same reason: a
+            composer stretched to the full column is a very wide, very short
+            box to read a sentence back in. */}
+        <div className="cs-dock w-full max-w-3xl motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:duration-500">
           <label htmlFor="image-prompt" className="sr-only">Image prompt</label>
           <div className="cs-dock-input-viewport">
             <textarea
@@ -1026,7 +1003,49 @@ function ImagePanel({
           </div>
         </div>
       </div>
+      </div>
 
+      <div className="space-y-6 lg:sticky lg:top-6">
+        <section className="cs-bezel">
+          <div className="cs-bezel-core p-5">
+            <h3 className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">
+              Next step
+            </h3>
+            <p className="mt-1 text-sm leading-relaxed text-ink-2">
+              {imgs.length === 0
+                ? "Generate an image, or continue without one."
+                : "This is the image that travels to the Hub."}
+            </p>
+            <button type="button" onClick={onNext} className="cs-cta mt-4 w-full">
+              Continue to publish
+            </button>
+          </div>
+        </section>
+
+        {/* The set, at thumbnail size. Picking one moves it to the middle;
+            nothing else about the page changes. */}
+        {imgs.length > 1 && (
+          <section className="cs-bezel" aria-label="Generated images">
+            <div className="cs-bezel-core p-4">
+              <p className="px-1 pb-3 text-sm text-ink-2">
+                {imgs.length} images — choose the one to publish.
+              </p>
+              <ul className="grid grid-cols-2 gap-3">
+                {imgs.map((img) => (
+                  <li key={img.id}>
+                    <GeneratedImage
+                      img={img}
+                      selected={img.id === featured?.id}
+                      onSelect={() => chooseCover(img.id)}
+                      onDeleted={() => setImgs((current) => current.filter((item) => item.id !== img.id))}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+        )}
+      </div>
     </div>
   );
 }

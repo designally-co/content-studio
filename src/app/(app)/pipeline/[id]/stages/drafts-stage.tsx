@@ -45,7 +45,6 @@ export function DraftsStage({
   });
   const [revisions, setRevisions] = useState(refinements);
   const [editing, setEditing] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [input, setInput] = useState("");
   const [dirty, setDirty] = useState(false);
   const [revising, setRevising] = useState(false);
@@ -196,20 +195,15 @@ export function DraftsStage({
                   {draft.streaming ? "Writing draft…" : revising ? "Applying revision…" : dirty || pending ? "Saving…" : draft.contentMd ? `Saved · Target ${targetLength}` : `Target ${targetLength}`}
                 </p>
               </div>
-              {/* Quiet at rest, tonal while a mode is held open. Three equal
-                  outlines gave a destructive action the same weight as a view
-                  toggle. */}
-              <div className="flex flex-wrap items-center gap-1">
-                <button type="button" onClick={toggleEditing} disabled={!draft.contentMd || draft.streaming || revising} className="cs-tool" aria-pressed={editing}>
-                  {editing ? "Preview" : "Edit"}
-                </button>
-                <button type="button" onClick={() => setDrawerOpen((value) => !value)} disabled={!draft.id || draft.streaming} className="cs-tool" aria-expanded={drawerOpen}>
-                  Revisions{revisions.length ? <span className="text-ink-3">{revisions.length}</span> : null}
-                </button>
-                <button type="button" onClick={regenerate} disabled={draft.streaming || revising || dirty || pending} className="cs-tool">
-                  {draft.streaming ? "Writing…" : "Regenerate"}
-                </button>
-              </div>
+              {/* ONE ACTION ON THE ARTICLE, and it is the one that changes how
+                  you are looking at it. Revisions and Regenerate were sitting
+                  here too, so the panel's toolbar held a view toggle, a drawer
+                  latch and a destructive rewrite at identical weight. Both of
+                  the others act on the DRAFT rather than the view, and both now
+                  live in the rail where the drafting tools are. */}
+              <button type="button" onClick={toggleEditing} disabled={!draft.contentMd || draft.streaming || revising} className="cs-tool" aria-pressed={editing}>
+                {editing ? "Preview" : "Edit"}
+              </button>
             </header>
 
             {draft.error && <p className="mx-5 mb-2 rounded-2xl bg-danger-soft px-4 py-3 text-sm text-danger sm:mx-8" role="alert">{draft.error}</p>}
@@ -258,9 +252,12 @@ export function DraftsStage({
             </div>
           </section>
 
-          {drawerOpen && (
+          {/* SHOWN, NOT LATCHED. Revising is what this stage is FOR — the
+              article is already written by the time you arrive — so the tools
+              for it were behind a toggle that had to be found first, and the
+              rail beside the article sat empty until you did. */}
           <aside
-            className="cs-bezel motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-right-4 motion-safe:duration-500"
+            className="cs-bezel"
             aria-label="AI revisions and version history"
           >
             <div className="cs-bezel-core">
@@ -312,9 +309,20 @@ export function DraftsStage({
                   </ol>
                 </div>
               )}
+              {/* Last, and separated: everything above changes the draft you
+                  have, and this throws it away for a new one. */}
+              <div className="border-t border-line px-5 py-4">
+                <button
+                  type="button"
+                  onClick={regenerate}
+                  disabled={draft.streaming || revising || dirty || pending}
+                  className="cs-tool w-full justify-center"
+                >
+                  {draft.streaming ? "Writing…" : "Regenerate the draft"}
+                </button>
+              </div>
             </div>
           </aside>
-          )}
         </div>
       </div>
     </StageShell>
