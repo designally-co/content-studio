@@ -665,7 +665,6 @@ function ImagePanel({
         </div>
         <button type="button" onClick={onNext} className="cs-cta group shrink-0">
           Continue to publish
-          <span aria-hidden className="cs-cta-disc"><IconCheck width={15} height={15} /></span>
         </button>
       </header>
 
@@ -1489,7 +1488,6 @@ function PublishRail({
             className="cs-cta group w-full justify-between"
           >
             {isLive ? "Republish to Hub" : "Publish to Hub"}
-            <span aria-hidden className="cs-cta-disc"><IconCheck width={15} height={15} /></span>
           </button>
 
           {/* The confirmation opens below the trigger rather than replacing it.

@@ -220,7 +220,6 @@ export function DraftsStage({
             <div className="sticky bottom-0 flex items-center justify-end border-t border-line bg-surface/90 px-5 py-4 backdrop-blur-xl sm:px-8">
               <button type="button" onClick={continueToImages} disabled={!draft.id || !draft.contentMd || draft.streaming || revising || dirty || pending} className="cs-cta group">
                 Continue to images
-                <span aria-hidden className="cs-cta-disc"><IconArrowRight width={15} height={15} /></span>
               </button>
             </div>
           </div>
@@ -256,7 +255,6 @@ export function DraftsStage({
                   <textarea id="revision-instruction" value={input} onChange={(event) => setInput(event.target.value)} className="cs-textarea min-h-24 rounded-2xl text-sm" placeholder="Make the typeface descriptions more specific…" />
                   <button type="submit" disabled={revising || dirty || pending || !input.trim()} className="cs-cta group w-full justify-between">
                     {revising ? "Applying…" : "Apply revision"}
-                    <span aria-hidden className="cs-cta-disc"><IconSpark width={15} height={15} /></span>
                   </button>
                 </form>
               </div>

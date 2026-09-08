@@ -596,7 +596,7 @@
    apart at the corners, the tell that separates this from a card in a card. */
 .cs-bezel {
   --bezel-pad: 0.375rem;
-  --bezel-radius: 1.75rem;
+  --bezel-radius: var(--radius-3xl); /* 20px: on the scale, where 28 was not */
   padding: var(--bezel-pad);
   border-radius: var(--bezel-radius);
   background: var(--surface-sunken);
@@ -669,14 +669,22 @@
 
 /* Primary action with a nested trailing icon: the glyph lives in its own disc
    flush to the button's inner edge, and carries the hover motion on its own. */
+/* The pipeline's primary action.
+
+   FLATTENED ONTO THE HOUSE BUTTON. This was a 48px pill with a translucent
+   disc riding its right edge — a second shape inside the button, holding an
+   arrow or a tick that repeated the word beside it, and the only control in
+   the product built that way. Same 44px, same 8px radius, same padding as
+   every other primary button now; what marks it as the primary action is that
+   it is the orange one, which was always enough. */
 .cs-cta {
   display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
-  height: 3rem;
-  padding-left: 1.5rem;
-  padding-right: 0.375rem;
-  border-radius: var(--radius-4xl);
+  justify-content: center;
+  gap: 0.5rem;
+  height: 44px;
+  padding: 0 1.25rem;
+  border-radius: var(--radius);
   background: var(--accent);
   color: var(--white);
   font-family: var(--font-sans);
@@ -684,9 +692,9 @@
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
-  transition: background var(--duration-base) var(--ease-spring),
-    transform var(--duration-base) var(--ease-spring),
-    opacity var(--duration-base) var(--ease-spring);
+  transition: background var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out),
+    opacity var(--duration-fast) var(--ease-out);
 }
 .cs-cta:hover:not(:disabled) {
   background: var(--accent-hover);
@@ -702,20 +710,6 @@
   opacity: 0.45;
   cursor: not-allowed;
 }
-.cs-cta-disc {
-  display: grid;
-  place-items: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: var(--radius-4xl);
-  background: color-mix(in oklab, var(--white) 18%, transparent);
-  transition: transform var(--duration-slow) var(--ease-spring),
-    background var(--duration-base) var(--ease-spring);
-}
-.cs-cta:hover:not(:disabled) .cs-cta-disc {
-  background: color-mix(in oklab, var(--white) 26%, transparent);
-  transform: translateX(2px) scale(1.04);
-}
 
 /* Quiet toolbar control for a reading surface: no outline at rest, a tonal fill
    when it is holding a mode open. */
@@ -725,7 +719,10 @@
   gap: 0.5rem;
   min-height: 2.25rem;
   padding: 0 0.875rem;
-  border-radius: var(--radius-4xl);
+  /* The scale, not a pill. Every one of these carries a word, and a full-width
+     one ("Save as a Hub draft instead") was a 316px lozenge sitting under a
+     square-cornered primary button. The app's own icon buttons are 8px too. */
+  border-radius: var(--radius);
   font-size: 14px;
   font-weight: 600;
   color: var(--ink-secondary);
