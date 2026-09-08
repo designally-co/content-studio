@@ -10,10 +10,15 @@ export function TagInput({
   name,
   defaultValue = [],
   placeholder,
+  label,
 }: {
   name: string;
   defaultValue?: string[];
   placeholder?: string;
+  /* The visible <Label> sits above the whole control and points at nothing —
+     the thing you actually type into is an input nested two levels down, so a
+     screen reader announced it with no name whatsoever. */
+  label?: string;
 }) {
   const [tags, setTags] = useState<string[]>(defaultValue);
   const [draft, setDraft] = useState("");
@@ -51,6 +56,7 @@ export function TagInput({
           </span>
         ))}
         <input
+          aria-label={label}
           value={draft}
           onChange={(e) => {
             const v = e.target.value;

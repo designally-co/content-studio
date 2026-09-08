@@ -74,15 +74,21 @@ export function BrandEditor({ brand }: { brand: Brand }) {
         title="Writing guidelines"
         description="Applied alongside tone and terminology."
       >
-        <Field label="Additional writing guidance" htmlFor="strategy-additional">
-          <Textarea
-            id="strategy-additional"
-            name="strategyAdditional"
-            defaultValue={strategy.additionalGuidelines || strategy.voice}
-            className="min-h-36"
-            placeholder="Any voice, terminology, or editorial guidance not covered below…"
-          />
-        </Field>
+        {/* NO FIELD LABEL. "Writing guidelines", then "Applied alongside tone
+            and terminology", then "Additional writing guidance" — three lines
+            of naming stacked above ONE textarea, the first and third of them
+            saying the same thing. A section holding a single field is already
+            labelled by its own heading; the label is only carried for screen
+            readers, which would otherwise hear the field announced as nothing
+            at all. */}
+        <Textarea
+          id="strategy-additional"
+          name="strategyAdditional"
+          aria-label="Writing guidelines"
+          defaultValue={strategy.additionalGuidelines || strategy.voice}
+          className="min-h-36"
+          placeholder="Any voice, terminology, or editorial guidance not covered below…"
+        />
       </Section>
 
       <Section
@@ -112,14 +118,14 @@ export function BrandEditor({ brand }: { brand: Brand }) {
         title="Audience"
         description="Who the articles are written for."
       >
-        <Field label="Target audience" htmlFor="audience">
-          <Textarea
-            id="audience"
-            name="audience"
-            defaultValue={brand.audience}
-            placeholder="e.g. SME owners in Thailand evaluating a website refresh"
-          />
-        </Field>
+        {/* "Audience" over "Target audience" was the same word twice. */}
+        <Textarea
+          id="audience"
+          name="audience"
+          aria-label="Audience"
+          defaultValue={brand.audience}
+          placeholder="e.g. SME owners in Thailand evaluating a website refresh"
+        />
       </Section>
 
       <SettingsPanel
@@ -132,15 +138,16 @@ export function BrandEditor({ brand }: { brand: Brand }) {
         <Field label="Terminology">
           <TagInput
             name="terminology"
+            label="Terminology"
             defaultValue={brand.terminology ?? []}
             placeholder="e.g. Designally (not Design Ally)"
           />
         </Field>
         <Field label="Always do">
-          <TagInput name="dos" defaultValue={brand.dos ?? []} placeholder="Add a rule" />
+          <TagInput name="dos" label="Always do" defaultValue={brand.dos ?? []} placeholder="Add a rule" />
         </Field>
         <Field label="Never do">
-          <TagInput name="donts" defaultValue={brand.donts ?? []} placeholder="Add a rule" />
+          <TagInput name="donts" label="Never do" defaultValue={brand.donts ?? []} placeholder="Add a rule" />
         </Field>
       </SettingsPanel>
 
