@@ -67,7 +67,7 @@ function Field({
 }) {
   return (
     <div className="space-y-2">
-      <label htmlFor={htmlFor} className="block text-sm font-semibold text-(--sheet-ink)">
+      <label htmlFor={htmlFor} className="block text-sm font-medium text-(--sheet-ink)">
         {label}
       </label>
       {children}
@@ -125,7 +125,7 @@ export function RoutineForm({
           aria-describedby={undefined}
         >
           <div className="mb-6 flex items-start justify-between gap-4">
-            <Dialog.Title className="font-heading text-[length:var(--text-h2)] font-bold tracking-tight text-(--sheet-ink)">
+            <Dialog.Title className="font-heading text-[length:var(--text-h2)] font-semibold tracking-tight text-(--sheet-ink)">
               {title}
             </Dialog.Title>
             <Dialog.Close
@@ -219,7 +219,7 @@ export function RoutineForm({
                   behaviour. Choosing a schedule IS switching it on; the card's
                   own switch is where a routine is paused later. */}
               <p className="pt-1 text-sm leading-relaxed text-(--sheet-ink-2)">
-                <span className="font-semibold text-(--sheet-ink)">{describeSchedule(spec)}.</span>{" "}
+                <span className="font-medium text-(--sheet-ink)">{describeSchedule(spec)}.</span>{" "}
                 {next
                   ? `First run ${next.toLocaleString(undefined, {
                       weekday: "long",
@@ -236,9 +236,7 @@ export function RoutineForm({
             <Plate>
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="font-heading text-base font-bold text-(--sheet-ink)">
-                    Publish automatically
-                  </p>
+                  <p className="text-base font-semibold text-(--sheet-ink)">Publish automatically</p>
                   <p className="mt-0.5 text-sm leading-relaxed text-(--sheet-ink-2)">
                     {autoPublish
                       ? "The article goes live on the Knowledge Hub with nobody reading it first."
@@ -257,7 +255,7 @@ export function RoutineForm({
             <Collapsible.Root className="rounded-2xl border border-(--sheet-line) bg-(--sheet-plate)">
               <Collapsible.Trigger className="group/adv flex w-full items-start justify-between gap-4 p-4 text-left outline-none focus-visible:shadow-[var(--shadow-focus)] focus-visible:rounded-2xl sm:p-5">
                 <span className="min-w-0">
-                  <span className="block font-heading text-base font-bold text-(--sheet-ink)">
+                  <span className="block text-base font-semibold text-(--sheet-ink)">
                     Advanced settings
                   </span>
                   <span className="mt-0.5 block text-sm leading-relaxed text-(--sheet-ink-2)">
