@@ -113,15 +113,23 @@
   /* type scale */
   /* Canvas display step. A discrete size, not a clamp — the ban on fluid
      display type inside the app shell still holds; this is one more rung. */
-  --text-hero: 40px;
-  --text-h1: 28px;
-  --text-h2: 22px;
-  --text-h3: 18px;
-  --text-h4: 16px;
+  /* A PRODUCT SCALE, NOT A DOCUMENT ONE. Every rung was a step high for an
+     application shell: 16px body and a 28px page title belong to something
+     being read, not to something being operated. Dense tools set body at 14
+     and titles in the low twenties, and the whole ramp moves down with it so
+     the ratios between the steps survive.
+
+     `--text-lg` and `--text-h4` also stop being duplicates of the body size:
+     three rungs holding one value is not a scale. */
+  --text-hero: 32px;
+  --text-h1: 22px;
+  --text-h2: 18px;
+  --text-h3: 16px;
+  --text-h4: 15px;
   --text-lg: 16px;
-  --text-md: 16px;
-  --text-sm: 14px;
-  --text-xs: 12px;
+  --text-md: 14px;
+  --text-sm: 13px;
+  --text-xs: 11px;
   /* Leading, under the system's Thai rule.
 
      Thai stacks four levels vertically — base glyph, upper vowel, tone mark,
@@ -176,7 +184,7 @@
   --duration-base: 200ms;
   --duration-slow: 320ms;
 
-  --radius: 12px;
+  --radius: 8px;
 
   --background: var(--bg);
 
@@ -299,13 +307,28 @@
   --color-background: var(--background);
   /* Draft radii. rounded-lg lands on inputs, rounded-xl on cards,
      rounded-4xl on badges; buttons opt into rounded-full directly. */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-2xl: 24px;
-  --radius-3xl: 24px;
+  /* THE ORDINARY SCALE. Every step used to sit one to two rungs above its own
+     name — `rounded-2xl` rendered 24px where the framework's own value is 16 —
+     so every surface in the product was rounder than the class that asked for
+     it, and a card read as a pill with corners. The pill step stays, because a
+     pill is a shape rather than a radius. */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
   --radius-4xl: 999px;
+
+  /* Tailwind's own text utilities, brought onto the same ramp. Left at their
+     defaults, `text-sm` would render 14px beside a `--text-sm` of 13 — one
+     scale in the stylesheet and another in the markup. */
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 18px;
+  --text-2xl: 22px;
 }
 
 /* semantic z-scale */
