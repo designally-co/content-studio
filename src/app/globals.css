@@ -77,17 +77,25 @@
      The three values are the platform's own: warm white for the page, canvas
      white above it, and the neutral steps below, hued toward charcoal rather
      than this app's warmer cream. */
-  --bg: #f3f3f3; /* --warm-white */
-  --surface: var(--white); /* --canvas: cards, sheets, inputs */
-  --surface-sunken: #eaeaea; /* one step under the page, so a recess recedes */
-  --surface-deep: #e6e8eb; /* --divider, the system's own value */
-  --border: var(--ink-200);
-  --border-strong: var(--ink-300);
+  /* THE SHEET'S OWN VALUES, PROMOTED TO THE WHOLE APP. These were scoped to
+     the routine dialog while they were being decided; they are the system now,
+     so a modal and a page are made of the same greys instead of two families
+     that nearly match. */
+  --bg: #f3f3f3;
+  --surface: var(--white); /* plates: cards, sheets, panels */
+  --surface-sunken: #f8f8f7; /* the ground a plate sits on */
+  --surface-deep: #f0f0ef; /* a filled field, and any deeper recess */
+  --border: #f0f0f0; /* the hairline around a plate */
+  --border-strong: #e0e0e0;
 
-  /* ink */
-  --ink: var(--ink-900);
-  --ink-secondary: var(--ink-700);
-  --ink-faint: var(--ink-500);
+  /* ink — three legible rungs plus a placeholder that is not text */
+  --ink: #1a1a1a; /* headings, labels, body */
+  --ink-secondary: #4a4a4a; /* supporting copy */
+  --ink-faint: #737373; /* sublines and metadata */
+  /* NOT on the text ramp on purpose. #a6a6a6 is 2.1:1 on a filled field, well
+     under AA — legitimate for a hint that disappears on the first keystroke,
+     and never for anything that has to be read. */
+  --placeholder: #a6a6a6;
 
   /* accent — brand orange */
   --accent: var(--orange-500);
@@ -173,7 +181,10 @@
   /* effects */
   --shadow-card: 0 1px 2px rgba(36, 31, 28, 0.05), 0 4px 12px rgba(36, 31, 28, 0.06);
   --shadow-pop: 0 4px 8px rgba(36, 31, 28, 0.08), 0 12px 32px rgba(36, 31, 28, 0.12);
-  --shadow-focus: 0 0 0 3px var(--orange-200);
+  /* THE REAL ORANGE, NOT THE WASH. `--orange-200` read as a smudge around a
+     field rather than a ring somebody drew, and it is the one signal that has
+     to be unmistakable — it says where the keyboard is. */
+  --shadow-focus: 0 0 0 2px var(--orange-500);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   /* Heavier, longer-tailed curve for surfaces that should read as having mass.
      Scoped to the draft stage; the rest of the product stays on --ease-out. */
@@ -255,6 +266,7 @@
   --color-ink: var(--ink);
   --color-ink-2: var(--ink-secondary);
   --color-ink-3: var(--ink-faint);
+  --color-placeholder: var(--placeholder);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-press: var(--accent-press);
@@ -431,8 +443,10 @@
 .cs-textarea,
 .cs-select {
   width: 100%;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  /* FILLED, NOT OUTLINED. The fill is what says "type here"; an outline on a
+     white field says it twice and turns a form into a stack of boxes. */
+  background: var(--surface-deep);
+  border: 1px solid transparent;
   border-radius: var(--radius);
   padding: 0.6rem 1rem;
   font-size: var(--text-md);
@@ -452,14 +466,15 @@
 }
 .cs-input::placeholder,
 .cs-textarea::placeholder {
-  color: var(--ink-faint);
+  color: var(--placeholder);
 }
-.cs-input:focus,
-.cs-textarea:focus,
-.cs-select:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: var(--shadow-focus);
+.cs-input:focus-visible,
+.cs-textarea:focus-visible,
+.cs-select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-color: transparent;
+  box-shadow: none;
 }
 .cs-input:disabled,
 .cs-textarea:disabled,

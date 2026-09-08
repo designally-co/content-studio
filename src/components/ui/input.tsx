@@ -8,7 +8,9 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
       type={type}
       data-slot="input"
       className={cn(
-        "h-11 w-full min-w-0 rounded-lg border border-input bg-surface px-4 py-1 text-base text-ink transition-[box-shadow,border-color] duration-(--duration-fast) ease-(--ease-out) outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-ink-3 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-deep disabled:text-ink-3 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
+        /* Filled, borderless, and focused with the brand orange — the rule the
+           routine sheet settled on, now the rule everywhere. */
+        "h-11 w-full min-w-0 rounded-xl border border-transparent bg-deep px-4 py-1 text-sm text-ink outline-none transition-colors duration-(--duration-fast) ease-(--ease-out) file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-placeholder focus-visible:[outline:2px_solid_var(--accent)] focus-visible:[outline-offset:2px] disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-60 aria-invalid:border-destructive aria-invalid:[outline:2px_solid_var(--destructive)]",
         className
       )}
       {...props}

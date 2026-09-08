@@ -378,7 +378,7 @@ function RoutineCard({
        Settings plate already are. The bordered box this used to be gave four
        routines four competing outlines on a page whose job is to be glanced
        at; the surface change carries the separation on its own. */
-    <section className="rounded-2xl bg-surface p-5 transition-shadow duration-(--duration-base) ease-(--ease-out) hover:shadow-[var(--shadow-card)]">
+    <section className="rounded-2xl border border-line bg-surface p-5 transition-shadow duration-(--duration-base) ease-(--ease-out) hover:shadow-[var(--shadow-card)]">
       <div className="flex items-start justify-between gap-4">
         <h3 className="min-w-0 flex-1 font-heading text-[length:var(--text-h3)] font-semibold leading-snug tracking-tight text-ink">
           {routine.name}
