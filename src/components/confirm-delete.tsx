@@ -5,7 +5,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /**
- * Deleting a routine, asked properly.
+ * Deleting something, asked properly.
  *
  * IT WAS AN INLINE PANEL INSIDE THE CARD, which put a destructive button in
  * the same few hundred pixels as the menu that opens it — one stray click from
@@ -17,8 +17,8 @@ import { Button } from "@/components/ui/button";
  * and Delete is somewhere the pointer has to travel to.
  *
  * THE BODY NAMES THE CONSEQUENCE, not the action. "Are you sure" asks the
- * reader to supply the stakes themselves; the one thing worth knowing here is
- * that the articles survive and only the schedule goes.
+ * reader to supply the stakes themselves, so each caller passes the one thing
+ * worth knowing — what survives this and what does not.
  */
 
 const SHEET = {
@@ -28,12 +28,14 @@ const SHEET = {
 } as React.CSSProperties;
 
 export function ConfirmDelete({
-  name,
+  title,
+  description,
   open,
   onCancel,
   onConfirm,
 }: {
-  name: string;
+  title: string;
+  description: React.ReactNode;
   open: boolean;
   onCancel: () => void;
   onConfirm: () => void;
@@ -48,7 +50,7 @@ export function ConfirmDelete({
         >
           <div className="flex items-start justify-between gap-4">
             <Dialog.Title className="font-heading text-[length:var(--text-h2)] font-semibold tracking-tight text-(--sheet-ink)">
-              Delete this routine?
+              {title}
             </Dialog.Title>
             <Dialog.Close
               aria-label="Close"
@@ -59,8 +61,7 @@ export function ConfirmDelete({
           </div>
 
           <Dialog.Description className="mt-2 text-sm leading-relaxed text-(--sheet-ink-2)">
-            <span className="font-medium text-(--sheet-ink)">{name}</span> stops running. The
-            articles it already wrote stay in the Library — only the schedule goes.
+            {description}
           </Dialog.Description>
 
           <div className="mt-6 flex justify-end gap-2">

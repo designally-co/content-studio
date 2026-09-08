@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { TableCell, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { ProjectStatus } from "@/db/schema";
 import { deleteArticleAction } from "./actions";
 
@@ -29,6 +30,8 @@ export function LibraryRow({
   dateLabel,
   status,
   imageUrl,
+  selected,
+  onSelectedChange,
 }: {
   id: string;
   title: string;
@@ -36,6 +39,8 @@ export function LibraryRow({
   dateLabel: string;
   status: ProjectStatus;
   imageUrl: string | null;
+  selected: boolean;
+  onSelectedChange: (next: boolean) => void;
 }) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
@@ -69,7 +74,19 @@ export function LibraryRow({
      name. Declaring it once for every cell in the row is what stops the two
      drifting again. */
   return (
-    <TableRow className="group relative [&>td]:px-4 hover:bg-sunken">
+    <TableRow
+      data-selected={selected || undefined}
+      className="group relative [&>td]:px-4 hover:bg-sunken data-selected:bg-sunken"
+    >
+      {/* Above the row's stretched link, like the delete button, or the link
+          would swallow the tick and open the article instead. */}
+      <TableCell className="relative z-10 w-px">
+        <Checkbox
+          checked={selected}
+          onCheckedChange={(next) => onSelectedChange(next === true)}
+          aria-label={`Select ${title}`}
+        />
+      </TableCell>
       {/* `w-full max-w-0` is what makes a table cell truncate. A cell sizes to
           its content by default, so a long title widened the whole table and
           pushed the other columns off a phone instead of shortening itself;

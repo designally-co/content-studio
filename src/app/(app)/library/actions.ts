@@ -29,3 +29,20 @@ export async function deleteArticleAction(projectId: string): Promise<void> {
   revalidatePath("/library");
   revalidatePath("/");
 }
+
+/**
+ * Several at once, from the table's selection.
+ *
+ * Sequential, not `Promise.all`. Each delete removes stored image files before
+ * dropping the row and REFUSES the whole article if any file cannot be removed
+ * — running twenty of those concurrently would fan out into the image store all
+ * at once and make a partial failure much harder to read. One at a time, the
+ * first failure stops the run and everything after it is left untouched, which
+ * is the state the message describes.
+ */
+export async function deleteArticlesAction(projectIds: string[]): Promise<void> {
+  await requireUser();
+  for (const projectId of projectIds) {
+    await deleteArticleAction(projectId);
+  }
+}

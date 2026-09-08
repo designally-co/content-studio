@@ -17,8 +17,18 @@ type Row = { id: string; name: string; active: boolean };
  * Which topics are offered when starting an article.
  *
  * Grouped by pillar so thirty-four rows read as four scannable sections rather
- * than one undifferentiated wall. Anything matching no pillar still surfaces,
- * loudly last, so drift is visible instead of silent.
+ * than one undifferentiated wall.
+ *
+ * WHAT MATCHES NO PILLAR IS NOT SHOWN. These eight are the previous taxonomy —
+ * "Design Principles", "Typography & Fonts" and the rest — every one of them
+ * already inactive and none of them ever coming back. Listing them put a shut
+ * drawer of dead names at the foot of the only screen where directions are
+ * managed.
+ *
+ * THE ROWS THEMSELVES STAY IN THE DATABASE, and deliberately: a direction's id
+ * is carried by every project filed under it, so deleting one orphans published
+ * articles rather than tidying anything. Hidden and inactive, they are already
+ * unreachable — from here, and from the picker on Create.
  */
 export function Directions({ rows }: { rows: Row[] }) {
   /* What the switches have changed since the sheet opened, keyed by id. An
@@ -32,9 +42,6 @@ export function Directions({ rows }: { rows: Row[] }) {
     name: pillar.name,
     rows: rows.filter((row) => pillarForDirection(row.name)?.slug === pillar.slug),
   })).filter((group) => group.rows.length > 0);
-  const orphans = rows.filter((row) => !pillarForDirection(row.name));
-  if (orphans.length) groups.push({ name: "Not in any pillar", rows: orphans });
-
   return (
     <Section
       title="Content directions"

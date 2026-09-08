@@ -137,7 +137,12 @@ export function SideNav({
         <button
           type="button"
           onClick={() => setCollapsed((value) => !value)}
-          className="absolute -right-4 top-5 z-10 grid size-8 place-items-center rounded-full border border-line bg-bg text-ink-2 shadow-[var(--shadow-card)] transition-colors duration-(--duration-fast) ease-(--ease-out) hover:border-line-strong hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+          /* The rail's own outline, at rest. This sat on --border, which is the
+             hairline for a plate on white — against the page it is the page,
+             so a control straddling the rail's edge had a visible boundary on
+             one side and nothing on the other. It takes the same
+             --border-strong the rail is drawn with, and darkens on hover. */
+          className="absolute -right-4 top-5 z-10 grid size-8 place-items-center rounded-full border border-line-strong bg-bg text-ink-2 shadow-[var(--shadow-card)] transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
@@ -146,8 +151,14 @@ export function SideNav({
 
         {/* The brandmark holds one position across both states — only the
             wordmark beside it appears and disappears, so collapsing reads as
-            the panel narrowing rather than as the logo jumping. */}
-        <div className={`flex h-16 shrink-0 items-center ${collapsed ? "justify-center px-0" : "gap-3 px-4"}`}>
+            the panel narrowing rather than as the logo jumping.
+
+            ON THE TABS' OWN EDGE. The rail pads its list by 16 and each row
+            pads its icon by another 12, so every destination icon starts at 28
+            — and the logo, padded once at 16, started 12px to their left. One
+            vertical line runs down the panel now instead of two. Collapsed,
+            both were already centred in the same 80px. */}
+        <div className={`flex h-16 shrink-0 items-center ${collapsed ? "justify-center px-0" : "gap-3 pl-7 pr-4"}`}>
           <FlatMark size={32} />
           {!collapsed && (
             <div className="min-w-0">

@@ -7,7 +7,7 @@ import { PageHeading } from "@/components/page-heading";
 import { EmptyState } from "@/components/empty-state";
 import { FilterBar } from "./filter-bar";
 import { IconNew } from "@/components/icons";
-import { LibraryRow } from "./library-row";
+import { ArticleTable } from "./article-table";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Pagination } from "./pagination";
 
@@ -127,7 +127,7 @@ export default async function LibraryPage({
   /* PAGED AFTER SORTING, NOT BEFORE. The sort decides what "first" means, so
      slicing earlier would hand out the first twenty of an arbitrary order and
      call it page one. */
-  const PER_PAGE = 20;
+  const PER_PAGE = 10;
   const total = rows.length;
   const pageCount = Math.max(1, Math.ceil(total / PER_PAGE));
   /* Clamped rather than trusted: `?page=0`, `?page=99` and `?page=abc` all
@@ -210,32 +210,7 @@ export default async function LibraryPage({
             }
           />
         ) : (
-          /* The table sits on a plate, the way every other list in the product
-             does — the rules inside it are the structure, so the container
-             needs nothing but a surface to hold them. */
-          <div className="overflow-hidden rounded-2xl border border-line bg-surface">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="px-4 text-ink-3">Title</TableHead>
-                  <TableHead className="hidden px-4 text-ink-3 sm:table-cell">Direction</TableHead>
-                  <TableHead className="px-4 text-ink-3">Status</TableHead>
-                  <TableHead className="hidden px-4 text-ink-3 md:table-cell">Updated</TableHead>
-                  {/* The delete control's column. Named for assistive
-                      technology, blank on screen: a header that said "Actions"
-                      would be a word wider than the thing beneath it. */}
-                  <TableHead className="w-px px-4">
-                    <span className="sr-only">Actions</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pageRows.map((r) => (
-                  <LibraryRow key={r.id} {...toItemProps(r)} />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <ArticleTable rows={pageRows.map(toItemProps)} />
         )}
 
         {rows.length > 0 && (
