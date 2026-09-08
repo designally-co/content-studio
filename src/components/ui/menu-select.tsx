@@ -95,7 +95,14 @@ export function MenuSelect({
 
       {open && (
         <div
-          className={`absolute z-20 mt-1 min-w-full overflow-hidden rounded-lg border border-line bg-surface shadow-lg ${
+          /* THE LIST IS SIZED BY ITS OPTIONS, NOT BY ITS TRIGGER. `min-w-full`
+             alone tied the popover to the button, and the button is only as
+             wide as the word "All directions" — so every direction longer than
+             that wrapped onto two lines, in a list whose whole job is to be
+             scanned. `w-max` grows it to the longest option, `min-w-full`
+             still keeps it from being narrower than the control it belongs to,
+             and the cap stops a long name pushing it off screen. */
+          className={`absolute z-20 mt-1 w-max min-w-full max-w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-line bg-surface shadow-lg ${
             align === "end" ? "right-0" : "left-0"
           }`}
         >
@@ -123,7 +130,9 @@ export function MenuSelect({
               <li key={o.value}>
                 <Row selected={o.value === value} onClick={() => pick(o.value)}>
                   <span className="flex-1">
-                    {o.label}
+                    {/* The label holds one line; a description below it is
+                        free to wrap, which is the only part that should. */}
+                    <span className="block whitespace-nowrap">{o.label}</span>
                     {o.description && (
                       <span className="mt-0.5 block text-xs font-normal text-ink-3">{o.description}</span>
                     )}
