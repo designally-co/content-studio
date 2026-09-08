@@ -1,30 +1,29 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { Monitor, Smartphone, Tablet } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { stripTitleHeading } from "@/lib/markdown";
 import { pillarForDirection } from "@/lib/content-pillars";
 
 /**
- * The widths the preview can lay out at.
+ * The width the preview lays out at.
  *
- * Real device widths rather than round numbers, and they do genuine work: the
- * Hub's stylesheet sizes in `cqw` against the preview's own box, so changing
- * this width re-runs every clamp and reflows the article exactly as the device
- * would. This is a layout switch, not a crop.
+ * DESKTOP ONLY. There were three — 390, 834, 1240 — behind a switcher floated
+ * over the card's corner. The Hub's stylesheet sizes in `cqw` against this box,
+ * so each was a genuine relayout rather than a crop, and that was the argument
+ * for keeping them. What it did not survive is where the preview now sits: a
+ * 692px column, where even 1240 is already scaled to about a half, and the two
+ * narrower widths render a phone-sized card in the middle of a desktop panel.
+ *
+ * Still a real device width, and still the number every clamp is measured
+ * against — it lands the article on a ~990px column, wide enough for the
+ * contents rail beside a proper prose measure.
  */
-const HUB_VIEWPORTS = [
-  { id: "mobile", label: "Mobile", width: 390, Icon: Smartphone },
-  { id: "tablet", label: "Tablet", width: 834, Icon: Tablet },
-  { id: "desktop", label: "Desktop", width: 1240, Icon: Monitor },
-] as const;
-
-type HubViewport = (typeof HUB_VIEWPORTS)[number]["id"];
+const HUB_WIDTH = 1240;
 
 /**
- * Renders its child at a chosen device width and scales the result to fit the
+ * Renders its child at the Hub's desktop width and scales the result to fit the
  * space available.
  *
  * Laying the preview out at whatever width the rail happens to leave shows a
@@ -35,8 +34,7 @@ type HubViewport = (typeof HUB_VIEWPORTS)[number]["id"];
  * unscaled height as dead space below it.
  */
 export function HubPreviewFrame({ children }: { children: ReactNode }) {
-  const [viewport, setViewport] = useState<HubViewport>("desktop");
-  const width = HUB_VIEWPORTS.find((option) => option.id === viewport)!.width;
+  const width = HUB_WIDTH;
   const outerRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
@@ -87,37 +85,6 @@ export function HubPreviewFrame({ children }: { children: ReactNode }) {
           {children}
         </div>
 
-        {/* Floated over the card's own top corner rather than parked above it:
-            it controls what is inside the frame, so it belongs on the frame.
-            Outside the scaled subtree, so it stays at full size while a desktop
-            layout renders at ~0.6 — chrome that shrank with the page would be
-            unreadable at exactly the width you most need it.
-
-            Icons carry it alone. Three labelled segments run to ~250px, which on
-            the 390px phone card is most of the masthead; the device glyphs are
-            unambiguous and the accessible name and tooltip still spell out the
-            width. */}
-        <div
-          className="absolute right-4 top-4 z-10 inline-flex items-center gap-1 rounded-full bg-surface p-1 shadow-[var(--shadow-pop)]"
-          role="group"
-          aria-label="Preview width"
-        >
-          {HUB_VIEWPORTS.map(({ id, label, width: optionWidth, Icon }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setViewport(id)}
-              aria-pressed={viewport === id}
-              aria-label={label}
-              title={`${label} — ${optionWidth}px`}
-              className={`inline-flex size-8 items-center justify-center rounded-full transition-colors duration-(--duration-fast) ease-(--ease-spring) focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] ${
-                viewport === id ? "bg-sunken text-ink" : "text-ink-3 hover:text-ink"
-              }`}
-            >
-              <Icon aria-hidden className="size-4" strokeWidth={1.8} />
-            </button>
-          ))}
-        </div>
       </div>
     </div>
     </div>
