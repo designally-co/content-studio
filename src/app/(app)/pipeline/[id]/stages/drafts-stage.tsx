@@ -176,7 +176,15 @@ export function DraftsStage({
 
   return (
     <StageShell title="Draft & edit" wide>
-      <div className={`grid items-start gap-6 ${drawerOpen ? "xl:grid-cols-[minmax(0,1fr)_22rem]" : ""}`}>
+      {/* THE SAME TWO COLUMNS AS PUBLISH — minmax(0,1fr) and a 360px rail — so
+          the action sits in one place across the pipeline instead of moving
+          from a bar under the article to a panel beside it between stages.
+
+          The rail is permanent. It used to appear only when the revisions
+          drawer opened, which meant asking to see revisions reflowed the whole
+          page and narrowed the article you were reading. Revisions drop INTO
+          the rail now; the layout does not move. */}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8">
         {/* Tray and plate. The article is the product on this screen, so it is
             seated as an object rather than boxed by a header and footer strip. */}
         <article className="cs-bezel motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:duration-500">
@@ -216,18 +224,43 @@ export function DraftsStage({
                 {(draft.streaming || revising) && <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded-full bg-accent align-text-bottom motion-reduce:animate-none" />}
               </div>
             )}
-
-            <div className="sticky bottom-0 flex items-center justify-end border-t border-line bg-surface/90 px-5 py-4 backdrop-blur-xl sm:px-8">
-              <button type="button" onClick={continueToImages} disabled={!draft.id || !draft.contentMd || draft.streaming || revising || dirty || pending} className="cs-cta group">
-                Continue to images
-              </button>
-            </div>
           </div>
         </article>
 
-        {drawerOpen && (
+        <div className="space-y-6 lg:sticky lg:top-6">
+          <section className="cs-bezel">
+            <div className="cs-bezel-core p-5">
+              <h3 className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">
+                Next step
+              </h3>
+              {/* Says why it is unavailable rather than just being grey. The
+                  sticky bar could only sit there disabled, which reads as
+                  broken when you cannot see that a save is still in flight. */}
+              <p className="mt-1 text-sm leading-relaxed text-ink-2">
+                {draft.streaming
+                  ? "Waiting for the draft to finish writing."
+                  : revising
+                    ? "Waiting for the revision to apply."
+                    : dirty || pending
+                      ? "Saving your edits."
+                      : !draft.contentMd
+                        ? "There is no draft to carry forward yet."
+                        : "Images come next. The draft is saved."}
+              </p>
+              <button
+                type="button"
+                onClick={continueToImages}
+                disabled={!draft.id || !draft.contentMd || draft.streaming || revising || dirty || pending}
+                className="cs-cta mt-4 w-full"
+              >
+                Continue to images
+              </button>
+            </div>
+          </section>
+
+          {drawerOpen && (
           <aside
-            className="cs-bezel motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-right-4 motion-safe:duration-500 xl:sticky xl:top-6"
+            className="cs-bezel motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-right-4 motion-safe:duration-500"
             aria-label="AI revisions and version history"
           >
             <div className="cs-bezel-core">
@@ -281,7 +314,8 @@ export function DraftsStage({
               )}
             </div>
           </aside>
-        )}
+          )}
+        </div>
       </div>
     </StageShell>
   );

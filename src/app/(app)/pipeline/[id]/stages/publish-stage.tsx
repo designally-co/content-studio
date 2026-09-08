@@ -910,8 +910,13 @@ function ImagePanel({
           </section>
         )}
 
-        <div className="cs-bezel motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:duration-500">
-        <div className="cs-bezel-core relative">
+        {/* THE DOCK'S OWN SURFACE, like the one on Create. This was the only
+            composer in the product dressed as a bezel — a sunken tray around a
+            plate, 20px, with a resting shadow — while the Create dock is a
+            white panel on a 12px radius and a hairline that deepens its shadow
+            on focus. Two boxes you type an instruction into, built two
+            different ways. The controls inside were already the dock's. */}
+        <div className="cs-dock motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:duration-500">
           <label htmlFor="image-prompt" className="sr-only">Image prompt</label>
           <div className="cs-dock-input-viewport">
             <textarea
@@ -1054,7 +1059,6 @@ function ImagePanel({
               </button>
             </div>
           </div>
-        </div>
         </div>
       </div>
 
