@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ExternalLink, ImagePlus, LoaderCircle, Maximize2, Minimize2, Send, Sparkles, X } from "lucide-react";
+import { ExternalLink, LoaderCircle, Maximize2, Minimize2, Send, X } from "lucide-react";
 import { Markdown } from "@/components/markdown";
 import { CopyButton } from "@/components/copy-button";
 import { StageShell } from "./stage-shell";

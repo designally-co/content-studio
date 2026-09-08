@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Markdown } from "@/components/markdown";
-import { IconArrowRight, IconCheck, IconSpark } from "@/components/icons";
+import { IconCheck } from "@/components/icons";
 import { streamNdjson } from "@/lib/ndjson-client";
 import { ApiNotReady, StageShell } from "./stage-shell";
 import { goToFinalizeAction, saveDraftContentAction } from "../actions";
