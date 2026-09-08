@@ -1,7 +1,7 @@
 "use client";
 
 import { DropdownMenu } from "radix-ui";
-import { LogOut, Palette, FileText, KeyRound, ChevronsUpDown } from "lucide-react";
+import { LogOut, Fingerprint, FileText, KeyRound, ChevronsUpDown } from "lucide-react";
 import { logoutAction } from "@/app/actions";
 import { SECTION_LABELS, type SettingsSection } from "./settings/sections";
 
@@ -31,8 +31,14 @@ export function AccountMenu({
   collapsed?: boolean;
   onOpenSettings: (section: SettingsSection) => void;
 }) {
-  const sections: { key: SettingsSection; icon: typeof Palette }[] = [
-    { key: "brand", icon: Palette },
+  /* NOT A PALETTE. That icon means colour, artwork, a design tool — and this
+     section holds none of it: a name, a tone of voice, terminology, rules, and
+     who the writing is for. Nothing in it is visual, and the logo upload that
+     was its only visual thing is gone. A fingerprint is the identity itself,
+     which is what "brand" means here, and it does not collide with the
+     document or the key beside it. */
+  const sections: { key: SettingsSection; icon: typeof Fingerprint }[] = [
+    { key: "brand", icon: Fingerprint },
     { key: "content", icon: FileText },
     ...(isAdmin ? [{ key: "api" as const, icon: KeyRound }] : []),
   ];
