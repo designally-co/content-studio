@@ -3,9 +3,8 @@ import { getDb } from "@/db";
 import { categories } from "@/db/schema";
 import { getArticleRules } from "@/lib/article-template";
 import { CONTENT_PILLARS, pillarForDirection } from "@/lib/content-pillars";
-import { toggleCategoryAction } from "../actions";
+import { CategoryToggle } from "../category-toggle";
 import { ArticleTemplateCard } from "../article-template-card";
-import { Button } from "@/components/ui/button";
 import {
   Accordion,
   AccordionContent,
@@ -68,21 +67,27 @@ function DirectionsCard({ categoriesList }: { categoriesList: CategoryRow[] }) {
                   </span>
                 </AccordionTrigger>
                 <AccordionContent className="px-4 pb-2">
+                  {/* No "Inactive" word beside an off switch. The switch is
+                      already off, and printing it competes with the name of
+                      the direction — the same rule the routine toggles follow.
+                      Dimming the name is what carries it instead. */}
                   {group.rows.map((category) => (
-                    <div key={category.id} className="flex items-center gap-3 py-1.5">
-                      <div className="min-w-0 flex-1">
-                        <span className="text-sm">{category.name}</span>
-                        {!category.active && (
-                          <span className="ml-2 text-xs text-ink-faint">Inactive</span>
-                        )}
-                      </div>
-                      <form action={toggleCategoryAction}>
-                        <input type="hidden" name="id" value={category.id} />
-                        <input type="hidden" name="active" value={String(category.active)} />
-                        <Button type="submit" variant="ghost" size="sm">
-                          {category.active ? "Deactivate" : "Activate"}
-                        </Button>
-                      </form>
+                    <div
+                      key={category.id}
+                      className="flex items-center justify-between gap-3 border-b border-line py-1 last:border-b-0"
+                    >
+                      <span
+                        className={`min-w-0 flex-1 truncate text-sm ${
+                          category.active ? "text-ink" : "text-ink-3"
+                        }`}
+                      >
+                        {category.name}
+                      </span>
+                      <CategoryToggle
+                        id={category.id}
+                        name={category.name}
+                        active={category.active}
+                      />
                     </div>
                   ))}
                 </AccordionContent>

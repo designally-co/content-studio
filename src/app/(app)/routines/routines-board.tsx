@@ -16,7 +16,7 @@ import { EmptyState } from "@/components/empty-state";
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
 import { Clock, MoreHorizontal, Pencil, Play, Trash2 } from "lucide-react";
 import { IconArrowRight } from "@/components/icons";
-import { Switch } from "./switch";
+import { Switch } from "@/components/switch";
 import { ConfirmDelete } from "./confirm-delete";
 import { WEEKDAY_NAMES } from "@/lib/autopilot/schedule";
 import {

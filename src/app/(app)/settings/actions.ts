@@ -47,7 +47,7 @@ export async function toggleCategoryAction(formData: FormData) {
   const id = String(formData.get("id"));
   const active = formData.get("active") === "true";
   await db.update(categories).set({ active: !active }).where(eq(categories.id, id));
-  revalidatePath("/settings");
+  revalidatePath("/settings", "layout");
 }
 
 // ---- article template ----
@@ -61,7 +61,7 @@ export async function saveArticleTemplateAction(formData: FormData) {
       .values({ key, value })
       .onConflictDoUpdate({ target: appSettings.key, set: { value } });
   }
-  revalidatePath("/settings");
+  revalidatePath("/settings", "layout");
 }
 
 // ---- models ----
@@ -81,7 +81,7 @@ export async function saveModelSettingsAction(formData: FormData) {
       .values({ key, value })
       .onConflictDoUpdate({ target: appSettings.key, set: { value } });
   }
-  revalidatePath("/settings");
+  revalidatePath("/settings", "layout");
 }
 
 // ---- api keys ----
@@ -92,7 +92,7 @@ export async function saveApiKeyAction(formData: FormData) {
   const apiKey = String(formData.get("apiKey") ?? "").trim();
   if (!API_KEY_PROVIDERS.includes(provider as ApiKeyProvider) || !apiKey) return;
   await addApiKey(provider as ApiKeyProvider, apiKey);
-  revalidatePath("/settings");
+  revalidatePath("/settings", "layout");
 }
 
 export async function deleteApiKeyAction(formData: FormData) {
@@ -100,7 +100,7 @@ export async function deleteApiKeyAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   await deleteApiKey(id);
-  revalidatePath("/settings");
+  revalidatePath("/settings", "layout");
 }
 
 // ---- brand (singleton) ----
@@ -137,7 +137,7 @@ export async function saveBrandAction(formData: FormData) {
   const id = String(formData.get("id") ?? "").trim() || (await getBrand()).id;
   const name = String(formData.get("name") ?? "").trim();
   if (!name) {
-    revalidatePath("/settings");
+    revalidatePath("/settings", "layout");
     return;
   }
 
@@ -169,5 +169,5 @@ export async function saveBrandAction(formData: FormData) {
     })
     .where(eq(brandProfiles.id, id));
 
-  revalidatePath("/settings");
+  revalidatePath("/settings", "layout");
 }

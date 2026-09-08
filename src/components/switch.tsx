@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * On or off, for a routine that publishes without anybody reading it.
+ * On or off, wherever the switching IS the change.
  *
  * A NATIVE CHECKBOX WAS DOING THIS JOB, and a checkbox is a form field — it
  * reads as something you tick on the way to pressing Save. There is no Save
@@ -26,7 +26,7 @@ export function Switch({
 }: {
   checked: boolean;
   onChange: (next: boolean) => void;
-  /** Names the routine, so a screen reader hears which one this switches. */
+  /** Names the thing, so a screen reader hears which one this switches. */
   label: string;
   disabled?: boolean;
 }) {

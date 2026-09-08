@@ -5,7 +5,7 @@ import { useFormStatus } from "react-dom";
 import { Dialog, Collapsible } from "radix-ui";
 import { ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Switch } from "./switch";
+import { Switch } from "@/components/switch";
 import {
   TIME_ZONES,
   WEEKDAY_NAMES,

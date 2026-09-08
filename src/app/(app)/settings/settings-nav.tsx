@@ -14,8 +14,25 @@ import { usePathname } from "next/navigation";
  *
  * These are real routes now, so each section is linkable, survives the back
  * button, and no longer resets to Brand on every visit.
+ *
+ * NAVIGATION IS GREY, LIKE THE SIDEBAR. The selected section used to be a warm
+ * orange pill, which made the quietest control on the page the loudest thing on
+ * it — and put a second, differently-coloured "you are here" next to the
+ * sidebar's grey one, so two navigations disagreed about what selection looks
+ * like. Orange is reserved for the thing you are meant to press. Knowing which
+ * page you are already on is not that.
+ *
+ * The two steps mirror the sidebar's: hover moves one shade off the ground,
+ * selection moves two, and weight carries the rest.
  */
 type Section = { href: string; label: string; adminOnly?: boolean };
+
+/** Shared so the phone row and the desktop rail cannot drift apart again. */
+function tone(active: boolean) {
+  return active
+    ? "bg-chrome-hover font-medium text-ink"
+    : "text-ink-2 hover:bg-chrome hover:text-ink";
+}
 
 const SECTIONS: Section[] = [
   { href: "/settings/brand", label: "Brand" },
@@ -45,11 +62,7 @@ export function SettingsNav({ isAdmin }: { isAdmin: boolean }) {
                 key={section.href}
                 href={section.href}
                 aria-current={active ? "page" : undefined}
-                className={`inline-flex min-h-11 shrink-0 items-center rounded-full px-4 text-sm whitespace-nowrap transition-colors duration-(--duration-fast) ease-(--ease-out) ${
-                  active
-                    ? "bg-accent-soft font-semibold text-accent-ink"
-                    : "text-ink-2 hover:bg-sunken hover:text-ink"
-                }`}
+                className={`inline-flex min-h-10 shrink-0 items-center rounded-lg px-3.5 text-sm whitespace-nowrap transition-colors duration-(--duration-fast) ease-(--ease-out) ${tone(active)}`}
               >
                 {section.label}
               </Link>
@@ -73,11 +86,7 @@ export function SettingsNav({ isAdmin }: { isAdmin: boolean }) {
                 key={section.href}
                 href={section.href}
                 aria-current={active ? "page" : undefined}
-                className={`flex min-h-10 items-center rounded-lg px-3 text-sm transition-colors duration-(--duration-fast) ease-(--ease-out) ${
-                  active
-                    ? "bg-accent-soft font-semibold text-accent-ink"
-                    : "text-ink-2 hover:bg-sunken hover:text-ink"
-                }`}
+                className={`flex min-h-10 items-center rounded-lg px-3 text-sm transition-colors duration-(--duration-fast) ease-(--ease-out) ${tone(active)}`}
               >
                 {section.label}
               </Link>
