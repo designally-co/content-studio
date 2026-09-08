@@ -330,7 +330,11 @@ export function DraftsStage({
                   type="button"
                   onClick={regenerate}
                   disabled={draft.streaming || revising || dirty || pending}
-                  className="cs-tool w-full justify-center"
+                  /* Outlined, like Apply revision above it and Run brand
+                     check on the next stage. A panel's actions look the same;
+                     what marks this one as different in kind is the rule it
+                     sits under, not a lighter button. */
+                  className="cs-btn w-full justify-center"
                 >
                   {draft.streaming ? "Writing…" : "Regenerate the draft"}
                 </button>
