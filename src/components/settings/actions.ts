@@ -19,6 +19,11 @@ import {
   type SavedApiKey,
 } from "@/lib/secrets";
 import { getBrand } from "@/lib/brand";
+import {
+  TEXT_MODELS,
+  DEFAULT_RESEARCH_MODEL,
+  DEFAULT_DRAFTING_MODEL,
+} from "@/lib/models";
 import { DEFAULT_ARTICLE_PROMPT, getArticleRules } from "@/lib/article-template";
 import { serializeBrandStrategy } from "@/lib/designally-strategy";
 import type { BrandForEditor } from "./brand-editor";
@@ -257,12 +262,20 @@ export async function loadSettingsAction(section: SettingsSection): Promise<Sett
     db.select().from(appSettings),
     listApiKeys("fal"),
   ]);
-  return {
-    section,
-    keys: savedKeys,
-    textModels: Array.from(
-      new Set(prices.filter((price) => price.provider === "anthropic").map((price) => price.model))
-    ),
-    settings: Object.fromEntries(settingsRows.map((row) => [row.key, row.value])),
-  };
+  const settings = Object.fromEntries(settingsRows.map((row) => [row.key, row.value]));
+
+  /* The supported list first, then anything the pricing table knows about, then
+     whatever is actually configured. The last one matters: a model set by hand
+     or left over from an older list must still be SHOWN, or the dropdown reads
+     as empty while quietly holding a value. */
+  const textModels = Array.from(
+    new Set([
+      ...TEXT_MODELS,
+      ...prices.filter((price) => price.provider === "anthropic").map((price) => price.model),
+      settings["model.research"] ?? DEFAULT_RESEARCH_MODEL,
+      settings["model.drafting"] ?? DEFAULT_DRAFTING_MODEL,
+    ])
+  );
+
+  return { section, keys: savedKeys, textModels, settings };
 }

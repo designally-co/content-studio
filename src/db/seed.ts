@@ -43,6 +43,8 @@ export async function seedIfEmpty(db: DB) {
       // Sonnet 5 introductory pricing through 2026-08-31 ($3/$15 after)
       { provider: "anthropic", model: "claude-sonnet-5", unit: "mtok_in", priceUsd: "2" },
       { provider: "anthropic", model: "claude-sonnet-5", unit: "mtok_out", priceUsd: "10" },
+      { provider: "anthropic", model: "claude-opus-5", unit: "mtok_in", priceUsd: "5" },
+      { provider: "anthropic", model: "claude-opus-5", unit: "mtok_out", priceUsd: "25" },
       { provider: "anthropic", model: "claude-opus-4-8", unit: "mtok_in", priceUsd: "5" },
       { provider: "anthropic", model: "claude-opus-4-8", unit: "mtok_out", priceUsd: "25" },
       { provider: "fal", model: "fal-ai/bytedance/seedream/v5/lite/text-to-image", unit: "image", priceUsd: "0.035" },

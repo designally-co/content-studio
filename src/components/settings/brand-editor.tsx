@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Save, Upload, X } from "lucide-react";
+import { useMemo } from "react";
+import { Save } from "lucide-react";
 import { TagInput, ChipSelect } from "@/components/tag-input";
 import { saveBrandAction } from "./actions";
 import type { InferSelectModel } from "drizzle-orm";
 import type { brandProfiles } from "@/db/schema";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Section } from "./section";
 import { Input } from "@/components/ui/input";
@@ -22,8 +21,6 @@ export type BrandForEditor = Omit<
 
 type Brand = BrandForEditor;
 
-const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // keep in sync with actions.ts
-
 const TONE_PRESETS = [
   "professional",
   "friendly",
@@ -38,95 +35,21 @@ const TONE_PRESETS = [
 ];
 
 export function BrandEditor({ brand }: { brand: Brand }) {
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [removeLogo, setRemoveLogo] = useState(false);
-  const [logoError, setLogoError] = useState<string | null>(null);
-  const logoInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!logoPreview) return;
-    return () => URL.revokeObjectURL(logoPreview);
-  }, [logoPreview]);
-
-  const storedLogo = brand.hasLogo ? "/api/brand-logo" : "";
-  const logoSrc = logoPreview ? logoPreview : removeLogo ? "" : storedLogo;
   const strategy = useMemo(() => parseBrandStrategy(brand.guidelineText), [brand.guidelineText]);
-
-  function onLogoChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setLogoError("That file isn't an image.");
-      event.target.value = "";
-      return;
-    }
-    if (file.size > MAX_IMAGE_BYTES) {
-      setLogoError("Logo is larger than 2 MB. Please choose a smaller file.");
-      event.target.value = "";
-      return;
-    }
-    setLogoError(null);
-    setRemoveLogo(false);
-    setLogoPreview(URL.createObjectURL(file));
-  }
-
-  function onClearLogo() {
-    setLogoPreview(null);
-    setLogoError(null);
-    setRemoveLogo(brand.hasLogo);
-    if (logoInputRef.current) logoInputRef.current.value = "";
-  }
-
-  const initials = useMemo(() => {
-    const source = brand.name || "Brand";
-    return source
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase())
-      .join("");
-  }, [brand.name]);
-
 
   return (
     <form action={saveBrandAction} className="space-y-14">
       <input type="hidden" name="id" value={brand.id} />
-      <input type="hidden" name="removeLogo" value={removeLogo ? "1" : ""} />
 
       {/* 1 — Identity */}
       <Section
         title="Brand identity"
         description="How the brand is identified across the app."
       >
-        <div className="space-y-6">
-          <div className="flex flex-wrap items-center gap-5">
-            <Avatar className="size-20 rounded-2xl bg-sunken">
-              {logoSrc ? <AvatarImage src={logoSrc} alt={`${brand.name} logo`} className="object-contain p-2.5" /> : null}
-              <AvatarFallback className="rounded-2xl bg-sunken text-2xl font-semibold text-ink-3">{initials}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 space-y-2.5">
-              <div>
-                <p className="text-sm font-medium text-ink">Brand logo</p>
-                <p className="mt-0.5 max-w-[46ch] text-sm text-ink-3">
-                  Shown across the app. Transparent PNG works best.
-                </p>
-              </div>
-              <input ref={logoInputRef} id="brand-logo-file" type="file" name="logo" accept="image/*" className="sr-only" onChange={onLogoChange} />
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => logoInputRef.current?.click()}>
-                  <Upload />{logoSrc ? "Replace" : "Upload logo"}
-                </Button>
-                {logoSrc ? <Button type="button" variant="ghost" size="sm" onClick={onClearLogo}><X />Remove</Button> : null}
-              </div>
-              {logoError ? <p className="text-xs font-medium text-danger-ink">{logoError}</p> : null}
-            </div>
-          </div>
-
-          <div className="grid gap-5 border-t border-line pt-6 sm:grid-cols-2">
-            <Field label="Name" htmlFor="brand-name" required>
-              <Input id="brand-name" name="name" defaultValue={brand.name} required placeholder="e.g. Designally" />
-            </Field>
-          </div>
+        <div className="space-y-5">
+          <Field label="Name" htmlFor="brand-name" required>
+            <Input id="brand-name" name="name" defaultValue={brand.name} required placeholder="e.g. Designally" />
+          </Field>
           <Field label="Description" htmlFor="brand-description">
             <Textarea
               id="brand-description"

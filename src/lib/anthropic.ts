@@ -1,6 +1,7 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { getDb } from "@/db";
+import { DEFAULT_RESEARCH_MODEL, DEFAULT_DRAFTING_MODEL } from "@/lib/models";
 import { appSettings } from "@/db/schema";
 import type { InferSelectModel } from "drizzle-orm";
 import type {
@@ -66,8 +67,8 @@ export async function getModels(): Promise<{ research: string; drafting: string 
   const rows = await db.select().from(appSettings);
   const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
   return {
-    research: map["model.research"] ?? "claude-haiku-4-5",
-    drafting: map["model.drafting"] ?? "claude-sonnet-5",
+    research: map["model.research"] ?? DEFAULT_RESEARCH_MODEL,
+    drafting: map["model.drafting"] ?? DEFAULT_DRAFTING_MODEL,
   };
 }
 

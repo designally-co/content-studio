@@ -80,20 +80,20 @@ export function SettingsSheet({
     <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-(--z-backdrop) bg-ink/25 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 motion-reduce:animate-none" />
-        {/* THE FRAME DOES NOT SCROLL; THE COLUMN INSIDE IT DOES. With the
-            scroll on the rounded box itself the bar rode the sheet's outer edge
-            and cut across both corner curves; held out by the full text gutter
-            it sat 28px in, adrift in the middle of the margin. The frame keeps
-            8px — enough to clear the corner radius, close enough to read as the
-            sheet's edge — and the column inside carries the rest of the gutter,
-            so the text still lands on the same 20/28px margin it always did.
-            Same 92svh ceiling and 46rem measure as the routine sheet. */}
+        {/* THE FRAME DOES NOT SCROLL; THE COLUMN INSIDE IT DOES, and with no
+            scrollbar drawn the column is the full width of the frame — so the
+            gutter is stated once and is the same on both sides. Every attempt
+            to keep a visible bar cost that symmetry: on the frame's edge it cut
+            the corner curves, held off them it sat adrift mid-margin, and
+            either way it was laid out inside the padding box and stole from the
+            right margin alone. Same 92svh ceiling and 46rem measure as the
+            routine sheet. */}
         <Dialog.Content
           style={SHEET}
-          className="fixed left-1/2 top-1/2 z-(--z-modal) flex max-h-[92svh] w-[min(46rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl bg-(--sheet-bg) p-2 shadow-[var(--shadow-pop)] outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none"
+          className="fixed left-1/2 top-1/2 z-(--z-modal) flex max-h-[92svh] w-[min(46rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl bg-(--sheet-bg) shadow-[var(--shadow-pop)] outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none"
           aria-describedby={undefined}
         >
-        <div className="cs-sheet-scroll min-h-0 flex-1 overflow-y-auto p-3 sm:p-5">
+        <div className="cs-sheet-scroll min-h-0 flex-1 overflow-y-auto p-5 sm:p-7">
           {/* NOT DRAWN, BUT STILL SAID. A dialog has to have a name — it is what
               a screen reader announces on open, and Radix warns without one —
               so the section still titles the sheet, just not twice. The content

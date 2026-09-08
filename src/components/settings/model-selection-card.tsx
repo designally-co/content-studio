@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { saveModelSettingsAction } from "./actions";
+import { DEFAULT_RESEARCH_MODEL, DEFAULT_DRAFTING_MODEL } from "@/lib/models";
 import { Button } from "@/components/ui/button";
 import { Section } from "./section";
 import { Label } from "@/components/ui/label";
@@ -26,17 +27,20 @@ export function ModelSelectionCard({
   textModels: string[];
   settings: Record<string, string>;
 }) {
+  /* Falling back to `textModels[0]` put BOTH fields on the same model whenever
+     nothing was saved — the first name alphabetically, for two jobs chosen for
+     being different. The product's own defaults are the honest fallback. */
   const [research, setResearch] = useState(
-    settings["model.research"] ?? textModels[0] ?? ""
+    settings["model.research"] ?? DEFAULT_RESEARCH_MODEL
   );
   const [drafting, setDrafting] = useState(
-    settings["model.drafting"] ?? textModels[0] ?? ""
+    settings["model.drafting"] ?? DEFAULT_DRAFTING_MODEL
   );
 
   return (
     <Section title="Model selection" description="Which model runs the fast work, and which the careful work.">
       <div>
-        <form action={saveModelSettingsAction} className="grid gap-4 sm:grid-cols-2">
+        <form action={saveModelSettingsAction} className="grid max-w-md gap-5">
           <input type="hidden" name="research" value={research} />
           <input type="hidden" name="drafting" value={drafting} />
 
@@ -72,7 +76,7 @@ export function ModelSelectionCard({
             </Select>
           </div>
 
-          <div className="sm:col-span-2">
+          <div>
             <Button type="submit">Save models</Button>
           </div>
         </form>

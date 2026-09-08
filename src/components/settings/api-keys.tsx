@@ -95,6 +95,14 @@ export function ApiKeys({ keys, onSaved }: { keys: SavedApiKey[]; onSaved: () =>
             <Button type="submit" variant="outline" disabled={pending}>
               <Plus data-icon="inline-start" /> {pending ? "Saving…" : "Save key"}
             </Button>
+            {/* Beside the one key field, because this is where the question is
+                actually asked: why is there nowhere to put the Anthropic key?
+                It was a third sentence in the section subline, where it made
+                the heading three lines deep to answer something nobody had
+                thought to wonder yet. */}
+            <p className="text-xs text-ink-3 sm:col-span-2">
+              Anthropic is configured in the server environment, not here.
+            </p>
           </form>
         </div>
       </div>
