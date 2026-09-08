@@ -1537,7 +1537,16 @@ function PublishRail({
               href={result.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full bg-ok-soft px-4 text-sm font-semibold text-ok-ink transition-colors duration-(--duration-fast) ease-(--ease-spring) hover:bg-ok-soft/70 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+              /* THE SAME BUTTON AS THE REST OF THE RAIL — 44px, the scale's
+                 8px, full width — instead of a 40px pill, which was the last
+                 rounded-full control on the stage.
+
+                 Washed accent rather than green. Green was carrying "it
+                 worked", which the badge above already says; this is the way
+                 THERE, and the accent wash is what the product uses for an
+                 action offered without claiming the primary slot — the same
+                 treatment as Generate and Auto-draft in the dock. */
+              className="cs-btn w-full justify-center gap-2 border-[var(--orange-200)] bg-accent-soft text-accent-press hover:border-[var(--orange-300)] hover:bg-[var(--orange-200)]"
             >
               {isLive ? "Open on the Hub" : "Review the Hub draft"}
               <ExternalLink aria-hidden className="size-4" strokeWidth={1.8} />
