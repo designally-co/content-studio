@@ -9,6 +9,7 @@ import { FilterBar } from "./filter-bar";
 import { IconNew } from "@/components/icons";
 import { LibraryRow } from "./library-row";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Pagination } from "./pagination";
 
 export const dynamic = "force-dynamic";
 
@@ -122,6 +123,29 @@ export default async function LibraryPage({
     return b.updatedAt.getTime() - a.updatedAt.getTime();
   });
   const hasActiveFilters = Boolean(sp.category || sp.status || query);
+
+  /* PAGED AFTER SORTING, NOT BEFORE. The sort decides what "first" means, so
+     slicing earlier would hand out the first twenty of an arbitrary order and
+     call it page one. */
+  const PER_PAGE = 20;
+  const total = rows.length;
+  const pageCount = Math.max(1, Math.ceil(total / PER_PAGE));
+  /* Clamped rather than trusted: `?page=0`, `?page=99` and `?page=abc` all
+     resolve to a page that exists instead of an empty table. */
+  const requested = Number.parseInt(sp.page ?? "1", 10);
+  const page = Math.min(Math.max(Number.isFinite(requested) ? requested : 1, 1), pageCount);
+  const start = (page - 1) * PER_PAGE;
+  const pageRows = rows.slice(start, start + PER_PAGE);
+
+  const hrefForPage = (n: number) => {
+    const next = new URLSearchParams();
+    if (sp.q) next.set("q", sp.q);
+    if (sp.category) next.set("category", sp.category);
+    if (sp.status) next.set("status", sp.status);
+    if (sp.sort) next.set("sort", sp.sort);
+    if (n > 1) next.set("page", String(n));
+    return next.size ? `/library?${next.toString()}` : "/library";
+  };
   const publishedCount = rows.filter(
     (row) => row.status === "published",
   ).length;
@@ -206,12 +230,26 @@ export default async function LibraryPage({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map((r) => (
+                {pageRows.map((r) => (
                   <LibraryRow key={r.id} {...toItemProps(r)} />
                 ))}
               </TableBody>
             </Table>
           </div>
+        )}
+
+        {rows.length > 0 && (
+          <Pagination
+            page={page}
+            pageCount={pageCount}
+            total={total}
+            from={start + 1}
+            to={start + pageRows.length}
+            hrefFor={{
+              previous: page > 1 ? hrefForPage(page - 1) : null,
+              next: page < pageCount ? hrefForPage(page + 1) : null,
+            }}
+          />
         )}
       </main>
     </div>

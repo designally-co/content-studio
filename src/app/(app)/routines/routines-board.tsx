@@ -437,7 +437,7 @@ function RoutineCard({
            four lines deep and a list of five was twenty lines of text to scan.
            The schedule moved to the footer, where one line of metadata belongs;
            when a routine last wrote something is the Library's question. */
-        <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-ink-2">
+        <p className="mt-1 line-clamp-2 max-w-[68ch] text-sm leading-relaxed text-ink-2">
           {routine.description}
         </p>
       )}

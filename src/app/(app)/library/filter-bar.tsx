@@ -37,6 +37,9 @@ export function FilterBar({ categories }: { categories: Option[] }) {
     const next = new URLSearchParams(params.toString());
     if (value) next.set(key, value);
     else next.delete(key);
+    /* Back to the first page. Narrowing a list while standing on page four
+       leaves you on a page the new result set may not have. */
+    next.delete("page");
     router.push(next.size ? `${pathname}?${next.toString()}` : pathname);
   }
 
@@ -108,6 +111,7 @@ export function FilterBar({ categories }: { categories: Option[] }) {
             const next = new URLSearchParams(params.toString());
             filters.forEach((filter) => next.delete(filter.key));
             next.delete("q");
+            next.delete("page");
             router.push(next.size ? `${pathname}?${next.toString()}` : pathname);
           }}
           className="cs-btn col-span-2 text-sm sm:!h-9 sm:ml-1"
