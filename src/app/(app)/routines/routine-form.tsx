@@ -33,12 +33,28 @@ import type { RoutineView } from "@/lib/autopilot/views";
  * because there is no time at which it happens.
  */
 
+/*
+ * THE SHEET CARRIES ITS OWN PALETTE, and it is a neutral grey rather than the
+ * app's warm one. Specified value by value, and scoped to this element so it
+ * stays a decision about this sheet instead of drifting into the rest of the
+ * product: the cards behind it are still on the warm ramp.
+ */
+const SHEET = {
+  "--sheet-bg": "#f8f8f7",
+  "--sheet-field": "#f0f0ef",
+  "--sheet-plate": "#ffffff",
+  "--sheet-line": "#f0f0f0",
+  "--sheet-placeholder": "#a6a6a6",
+  "--sheet-ink": "#1a1a1a",
+  "--sheet-ink-2": "#737373",
+} as React.CSSProperties;
+
 /** A filled control on the dialog's own ground: no border, the fill is the field. */
 const FIELD =
-  "h-11 w-full min-w-0 rounded-xl border-0 bg-deep px-4 text-sm text-ink outline-none transition-shadow focus-visible:shadow-[var(--shadow-focus)]";
+  "h-11 w-full min-w-0 rounded-xl border-0 bg-(--sheet-field) px-4 text-sm text-(--sheet-ink) placeholder:text-(--sheet-placeholder) outline-none transition-shadow focus-visible:shadow-[var(--shadow-focus)]";
 
 /** The same, for a `select`, which needs room for its own chevron. */
-const SELECT = `${FIELD} appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%237a6e66%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22m6 9 6 6 6-6%22/%3E%3C/svg%3E')] bg-[length:18px] bg-[position:right_0.75rem_center] bg-no-repeat pr-10`;
+const SELECT = `${FIELD} appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23737373%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22m6 9 6 6 6-6%22/%3E%3C/svg%3E')] bg-[length:18px] bg-[position:right_0.75rem_center] bg-no-repeat pr-10`;
 
 function Field({
   label,
@@ -51,7 +67,7 @@ function Field({
 }) {
   return (
     <div className="space-y-2">
-      <label htmlFor={htmlFor} className="block text-sm font-semibold text-ink">
+      <label htmlFor={htmlFor} className="block text-sm font-semibold text-(--sheet-ink)">
         {label}
       </label>
       {children}
@@ -64,7 +80,11 @@ function Field({
  * dialog's ground, its consequence spelled out under its name.
  */
 function Plate({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-2xl bg-surface p-4 sm:p-5">{children}</div>;
+  return (
+    <div className="rounded-2xl border border-(--sheet-line) bg-(--sheet-plate) p-4 sm:p-5">
+      {children}
+    </div>
+  );
 }
 
 export function RoutineForm({
@@ -100,16 +120,17 @@ export function RoutineForm({
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-(--z-backdrop) bg-ink/25 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 motion-reduce:animate-none" />
         <Dialog.Content
-          className="fixed left-1/2 top-1/2 z-(--z-modal) max-h-[92svh] w-[min(46rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-3xl bg-sunken p-5 shadow-[var(--shadow-pop)] outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none sm:p-7"
+          style={SHEET}
+          className="fixed left-1/2 top-1/2 z-(--z-modal) max-h-[92svh] w-[min(46rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-3xl bg-(--sheet-bg) p-5 shadow-[var(--shadow-pop)] outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none sm:p-7"
           aria-describedby={undefined}
         >
           <div className="mb-6 flex items-start justify-between gap-4">
-            <Dialog.Title className="font-heading text-[length:var(--text-h2)] font-bold tracking-tight text-ink">
+            <Dialog.Title className="font-heading text-[length:var(--text-h2)] font-bold tracking-tight text-(--sheet-ink)">
               {title}
             </Dialog.Title>
             <Dialog.Close
               aria-label="Close"
-              className="-mr-1 -mt-1 grid size-9 shrink-0 place-items-center rounded-lg text-ink-2 transition-colors duration-(--duration-fast) hover:bg-deep hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+              className="-mr-1 -mt-1 grid size-9 shrink-0 place-items-center rounded-lg text-(--sheet-ink-2) transition-colors duration-(--duration-fast) hover:bg-(--sheet-field) hover:text-(--sheet-ink) focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
             >
               <X aria-hidden className="size-5" />
             </Dialog.Close>
@@ -197,8 +218,8 @@ export function RoutineForm({
                   `next_run_at` with, so the sentence cannot drift from the
                   behaviour. Choosing a schedule IS switching it on; the card's
                   own switch is where a routine is paused later. */}
-              <p className="pt-1 text-sm leading-relaxed text-ink-3">
-                <span className="font-semibold text-ink-2">{describeSchedule(spec)}.</span>{" "}
+              <p className="pt-1 text-sm leading-relaxed text-(--sheet-ink-2)">
+                <span className="font-semibold text-(--sheet-ink)">{describeSchedule(spec)}.</span>{" "}
                 {next
                   ? `First run ${next.toLocaleString(undefined, {
                       weekday: "long",
@@ -215,8 +236,10 @@ export function RoutineForm({
             <Plate>
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="font-heading text-base font-bold text-ink">Publish automatically</p>
-                  <p className="mt-0.5 text-sm leading-relaxed text-ink-2">
+                  <p className="font-heading text-base font-bold text-(--sheet-ink)">
+                    Publish automatically
+                  </p>
+                  <p className="mt-0.5 text-sm leading-relaxed text-(--sheet-ink-2)">
                     {autoPublish
                       ? "The article goes live on the Knowledge Hub with nobody reading it first."
                       : "The article waits in the Knowledge Hub as a draft for you to read and publish."}
@@ -231,24 +254,24 @@ export function RoutineForm({
               <input type="hidden" name="hubStatus" value={autoPublish ? "published" : "draft"} />
             </Plate>
 
-            <Collapsible.Root className="rounded-2xl bg-surface">
+            <Collapsible.Root className="rounded-2xl border border-(--sheet-line) bg-(--sheet-plate)">
               <Collapsible.Trigger className="group/adv flex w-full items-start justify-between gap-4 p-4 text-left outline-none focus-visible:shadow-[var(--shadow-focus)] focus-visible:rounded-2xl sm:p-5">
                 <span className="min-w-0">
-                  <span className="block font-heading text-base font-bold text-ink">
+                  <span className="block font-heading text-base font-bold text-(--sheet-ink)">
                     Advanced settings
                   </span>
-                  <span className="mt-0.5 block text-sm leading-relaxed text-ink-2">
+                  <span className="mt-0.5 block text-sm leading-relaxed text-(--sheet-ink-2)">
                     Which part of the territory it writes about, and the clock its schedule is read
                     on.
                   </span>
                 </span>
                 <ChevronDown
                   aria-hidden
-                  className="mt-0.5 size-5 shrink-0 text-ink-3 transition-transform duration-(--duration-fast) ease-(--ease-out) group-data-open/adv:rotate-180"
+                  className="mt-0.5 size-5 shrink-0 text-(--sheet-ink-2) transition-transform duration-(--duration-fast) ease-(--ease-out) group-data-open/adv:rotate-180"
                 />
               </Collapsible.Trigger>
               <Collapsible.Content className="overflow-hidden data-open:animate-in data-open:slide-in-from-top-1 data-closed:animate-out data-closed:slide-out-to-top-1 motion-reduce:animate-none">
-                <div className="space-y-5 border-t border-line p-4 sm:p-5">
+                <div className="space-y-5 border-t border-(--sheet-line) p-4 sm:p-5">
                   <Field label="Content direction" htmlFor="categoryId">
                     <select
                       id="categoryId"
@@ -282,7 +305,7 @@ export function RoutineForm({
                         </option>
                       ))}
                     </select>
-                    <p className="text-sm leading-relaxed text-ink-3">
+                    <p className="text-sm leading-relaxed text-(--sheet-ink-2)">
                       The clock the time above is read on, and the one the card counts down to.
                     </p>
                   </Field>
