@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
-import { MoreHorizontal } from "lucide-react";
+import { Clock, MoreHorizontal } from "lucide-react";
 import { IconTrash, IconEdit, IconSpark, IconArrowRight } from "@/components/icons";
 import { Switch } from "./switch";
+import { ConfirmDelete } from "./confirm-delete";
 import { WEEKDAY_NAMES } from "@/lib/autopilot/schedule";
 import {
   STEP_LABELS,
@@ -406,7 +407,14 @@ function RoutineCard({
       {!live && !failure && last?.status === "failed" && <LastRun run={last} />}
 
       <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-3.5">
-        <p className="min-w-0 truncate text-sm text-ink-3">{cardSchedule(routine)}</p>
+        {/* The icon marks the line as a time rather than as one more sentence
+            about the routine — the only thing distinguishing metadata from
+            prose once the card is down to two facts. Decorative: the words
+            beside it already say what it is. */}
+        <p className="flex min-w-0 items-center gap-2 text-sm text-ink-3">
+          <Clock aria-hidden className="size-4 shrink-0" />
+          <span className="truncate">{cardSchedule(routine)}</span>
+        </p>
         <RoutineMenu
           name={routine.name}
           running={running}
@@ -418,24 +426,16 @@ function RoutineCard({
         />
       </div>
 
-      {confirming && (
-        /* Not a dialog. The question is one line and the answer is two buttons;
-           a modal for that is ceremony, and it hides the thing being deleted. */
-        <div className="mt-4 border-t border-line pt-4">
-          <p className="text-sm leading-relaxed text-ink-2">
-            Delete <strong className="font-semibold text-ink">{routine.name}</strong>? The articles
-            it wrote stay in the Library — only the schedule goes.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button type="button" size="sm" variant="destructive" onClick={onDelete}>
-              Delete for good
-            </Button>
-            <Button type="button" size="sm" variant="ghost" onClick={() => setConfirming(false)}>
-              Keep it
-            </Button>
-          </div>
-        </div>
-      )}
+      <ConfirmDelete
+        name={routine.name}
+        open={confirming}
+        onCancel={() => setConfirming(false)}
+        onConfirm={() => {
+          setConfirming(false);
+          onDelete();
+        }}
+      />
+
     </section>
   );
 }
