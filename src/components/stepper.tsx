@@ -51,14 +51,24 @@ export function Stepper({
        weight; everything else is quiet, and the ones you cannot reach yet are
        quieter still. No orange — that belongs to the thing you press — and no
        green, which was the only place in the product using it as chrome. */
-    <nav aria-label="Content pipeline">
-      <ol className="flex items-center gap-1 overflow-x-auto">
+    /* CENTRED, AND IT SURVIVES OVERFLOW. `justify-center` on the scrolling
+       element itself is the obvious way and the broken one: once the steps are
+       wider than the phone, centring pushes the first one off the left edge
+       into a region the scroll cannot reach. A `w-fit` list with auto margins
+       centres while there is room and collapses those margins to nothing when
+       there is not, so a narrow screen scrolls from the beginning. */
+    <nav aria-label="Content pipeline" className="overflow-x-auto">
+      <ol className="mx-auto flex w-fit items-center gap-1">
         {STAGES.map((s, i) => {
           const active = s.n === currentVisible;
           const navigable = s.n <= reachedVisible;
+          /* 44px, WHICH IS THE POINT. These were 36 tall and padded by 10 —
+             fine for a pointer, under every platform's minimum for a thumb,
+             and this is the control you use to move between stages on a phone.
+             The label did not change size; the target around it did. */
           const content = (
             <span
-              className={`flex min-h-9 items-center whitespace-nowrap rounded-lg px-2.5 text-sm transition-colors duration-(--duration-fast) ease-(--ease-out) ${
+              className={`flex min-h-11 items-center whitespace-nowrap rounded-lg px-4 text-sm transition-colors duration-(--duration-fast) ease-(--ease-out) ${
                 active
                   ? "font-medium text-ink"
                   : navigable
@@ -74,7 +84,10 @@ export function Stepper({
               {navigable && !active ? (
                 <Link
                   href={`/pipeline/${projectId}?stage=${s.target}${s.n === 2 ? "&view=images" : s.n === 3 ? "&view=complete" : ""}`}
-                  className="rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+                  /* `block`, so the anchor is the size of the padded span
+                     inside it. An inline anchor gives the browser a line box to
+                     hit-test instead, which is shorter than what is drawn. */
+                  className="block rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
                 >
                   {content}
                 </Link>
