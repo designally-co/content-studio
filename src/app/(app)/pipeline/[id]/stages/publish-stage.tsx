@@ -685,9 +685,16 @@ function ImagePanel({
               preview, so both say what you are working on simply by showing
               it; here the subject is a picture, and without the headline there
               was nothing on the plate to say which article the picture is FOR.
-              It is a caption, not a heading — the stepper already says what
-              stage this is, so this only has to name the thing. */}
-          <p className="px-5 pt-5 text-sm font-medium text-ink-2 sm:px-6 sm:pt-6">{title}</p>
+              THE SAME TYPE AS THE DRAFT'S OWN HEADLINE — --text-h2, semibold,
+              tracked in, in full ink. It was set as a small grey caption, on
+              the reasoning that the stepper already names the stage, which
+              confused two different jobs: the stage is named up there, but the
+              ARTICLE is named nowhere, and it is the article that carries over
+              from the screen before. Matching that screen's h1 is what makes it
+              read as the same piece rather than as a note about one. */}
+          <p className="px-5 pt-5 font-heading text-[length:var(--text-h2)] font-semibold leading-tight tracking-tight text-ink sm:px-6 sm:pt-6">
+            {title}
+          </p>
 
           {/* The picture takes the room that is left, centred in it, so the
               dock stays on the floor of the plate whether there is one image or
