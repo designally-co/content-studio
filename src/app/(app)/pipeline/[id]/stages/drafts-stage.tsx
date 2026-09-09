@@ -359,22 +359,31 @@ export function DraftsStage({
         <div className="space-y-6 lg:sticky lg:top-[4.5rem]">
           <section className="cs-bezel">
             <div className="cs-bezel-core p-5">
+              {/* "NEXT STEP" NAMED THE PANEL, NOT THE STEP. It was the heading
+                  on this stage and the one after it, so the most prominent
+                  words in the rail were the same on both and told you nothing
+                  either time. This says which step. */}
               <h3 className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">
-                Next step
+                Images come next
               </h3>
-              {/* Says why it is unavailable rather than just being grey. The
-                  sticky bar could only sit there disabled, which reads as
-                  broken when you cannot see that a save is still in flight. */}
+              {/* Says why the button is unavailable rather than just being grey:
+                  a disabled control with no explanation reads as broken when you
+                  cannot see that a save is still in flight.
+
+                  And when it IS available it answers the question people
+                  actually have with a hand over that button — whether moving on
+                  closes the draft for editing. It does not. The old line spent
+                  itself repeating the heading instead. */}
               <p className="mt-1 text-sm leading-relaxed text-ink-2">
                 {draft.streaming
-                  ? "Waiting for the draft to finish writing."
+                  ? "The draft is still being written."
                   : revising
-                    ? "Waiting for the revision to apply."
+                    ? "The revision is still being applied."
                     : dirty || pending
                       ? "Saving your edits."
                       : !draft.contentMd
                         ? "There is no draft to carry forward yet."
-                        : "Images come next. The draft is saved."}
+                        : "Saved. You can come back and edit it later."}
               </p>
               <button
                 type="button"

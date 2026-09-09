@@ -1039,13 +1039,20 @@ function ImagePanel({
         <div className="space-y-6 lg:sticky lg:top-[4.5rem]">
         <section className="cs-bezel">
           <div className="cs-bezel-core p-5">
+            {/* Names the step rather than the panel — see the matching note on
+                the draft stage, where the same heading appeared. */}
             <h3 className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">
-              Next step
+              Publishing comes next
             </h3>
+            {/* "Generate an image, or continue without one" restated the two
+                buttons already on screen, and "the image that travels to the
+                Hub" made a picture the subject of a journey. Say which one is
+                chosen, and that skipping is allowed — the two things you cannot
+                work out by looking. */}
             <p className="mt-1 text-sm leading-relaxed text-ink-2">
               {imgs.length === 0
-                ? "Generate an image, or continue without one."
-                : "This is the image that travels to the Hub."}
+                ? "You can publish without an image."
+                : "The image in the middle is the one that publishes."}
             </p>
             <button type="button" onClick={onNext} className="cs-cta mt-4 w-full">
               Continue to publish
