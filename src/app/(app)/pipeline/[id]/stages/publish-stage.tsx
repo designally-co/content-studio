@@ -1512,6 +1512,19 @@ function PublishRail({
               </span>
             )}
           </div>
+          {/* THE SUBLINE EVERY OTHER PANEL HAS. This one went without, so the
+              rail's most consequential panel — the one that puts an article in
+              front of the public — was the only heading with nothing under it
+              saying what pressing would do.
+
+              It says the thing the two buttons below cannot: which of them is
+              irreversible in the way that matters. A Hub draft can be read and
+              withdrawn; a publish is a public URL from the moment it lands. */}
+          <p className="mt-1 text-sm leading-relaxed text-ink-2">
+            {isLive
+              ? "This article is live. Republishing replaces what readers see now."
+              : "Publishing puts it on the public site. A Hub draft keeps it private."}
+          </p>
           {/* The pillar + tag are deliberately not shown here. The Hub owns the
               taxonomy (and it has changed — pillars merged/renamed), so echoing a
               category/tag on the CG side only risks contradicting what the editor
