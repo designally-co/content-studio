@@ -9,6 +9,7 @@ import { Switch } from "@/components/switch";
 import {
   TIME_ZONES,
   WEEKDAY_NAMES,
+  ordinal,
   type RoutineScheduleKind,
 } from "@/lib/autopilot/schedule";
 import type { RoutineView } from "@/lib/autopilot/views";
@@ -81,26 +82,6 @@ function SelectShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-/**
- * Every half hour, plus whatever this routine is already set to.
- *
- * A `<input type="time">` was the honest control and the wrong one HERE: it
- * brings its own clock button, which is a different affordance from the two
- * selects beside it, and the row read as two dropdowns and a gadget. The list
- * keeps a stored value that is not on the half hour rather than rounding it
- * away — 06:47 stays 06:47 once it exists.
- */
-function timeOptions(current: string): string[] {
-  const times: string[] = [];
-  for (let minutes = 0; minutes < 24 * 60; minutes += 30) {
-    times.push(
-      `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`,
-    );
-  }
-  if (current && !times.includes(current)) times.push(current);
-  return times.sort();
-}
-
 function Field({
   label,
   htmlFor,
@@ -166,6 +147,7 @@ export function RoutineForm({
   const [runAt, setRunAt] = useState(routine?.runAt ?? "09:00");
   const [timeZone, setTimeZone] = useState(routine?.timeZone ?? "Asia/Bangkok");
   const [weekday, setWeekday] = useState(routine?.weekday ?? 1);
+  const [dayOfMonth, setDayOfMonth] = useState(routine?.dayOfMonth ?? 1);
   /* A toggle, not a two-option select. Publishing live is the consequential
      choice on this form and it deserves a control that looks like a decision,
      with what OFF means written next to it rather than left to be inferred. */
@@ -251,6 +233,7 @@ export function RoutineForm({
                   >
                     <option value="daily">Every day</option>
                     <option value="weekly">Once a week</option>
+                    <option value="monthly">Once a month</option>
                     <option value="manual">Only when I press Run now</option>
                     {/* Not offered any more, but a routine already set to it keeps
                       it rather than being silently changed by opening its form. */}
@@ -283,23 +266,44 @@ export function RoutineForm({
                   <input type="hidden" name="weekday" value={weekday} />
                 )}
 
+                {kind === "monthly" && (
+                  <SelectShell>
+                    <select
+                      name="dayOfMonth"
+                      aria-label="Day of the month"
+                      value={dayOfMonth}
+                      onChange={(event) => setDayOfMonth(Number(event.target.value))}
+                      className={SELECT}
+                    >
+                      {Array.from({ length: 31 }, (_, index) => index + 1).map((day) => (
+                        <option key={day} value={day}>
+                          {ordinal(day)}
+                        </option>
+                      ))}
+                    </select>
+                  </SelectShell>
+                )}
+                {kind !== "monthly" && (
+                  <input type="hidden" name="dayOfMonth" value={dayOfMonth} />
+                )}
+
                 {scheduled && (
+                  /* ANY MINUTE, NOT EVERY THIRTIETH. This was a list of the 48
+                     half-hours, on the reasoning that a native time input
+                     brings its own clock button and reads as a gadget beside
+                     two dropdowns. That was a judgement about the row's looks,
+                     and it was quietly deciding that 09:15 was not a time you
+                     were allowed to pick. The affordance is worth less than
+                     the minute. */
                   <div className="sm:w-40 sm:shrink-0">
-                    <SelectShell>
-                      <select
-                        name="runAt"
-                        aria-label="Time of day"
-                        value={runAt}
-                        onChange={(event) => setRunAt(event.target.value)}
-                        className={SELECT}
-                      >
-                        {timeOptions(runAt).map((time) => (
-                          <option key={time} value={time}>
-                            {time}
-                          </option>
-                        ))}
-                      </select>
-                    </SelectShell>
+                    <input
+                      type="time"
+                      name="runAt"
+                      aria-label="Time of day"
+                      value={runAt}
+                      onChange={(event) => setRunAt(event.target.value || "09:00")}
+                      className={`${FIELD} cursor-pointer`}
+                    />
                   </div>
                 )}
                 {!scheduled && (
@@ -343,7 +347,7 @@ export function RoutineForm({
                     Advanced settings
                   </span>
                   <span className="mt-0.5 block text-sm leading-relaxed text-(--sheet-ink-2)">
-                    Content direction, time zone, and the daily ceiling.
+                    Content direction and time zone.
                   </span>
                 </span>
                 <ChevronDown
@@ -392,33 +396,6 @@ export function RoutineForm({
                     </SelectShell>
                   </Field>
 
-                  {/* A CEILING, NOT A TARGET. A daily routine comes due once a
-                      day and writes one article whatever this says; the number
-                      only matters when something goes wrong with the clock, and
-                      it is what stops that turning into an article every five
-                      minutes until midnight. It was fixed at one and unaskable,
-                      which was fine until a routine needed testing on a day it
-                      had already run. */}
-                  <Field label="Most articles in a day" htmlFor="maxPerDay">
-                    <SelectShell>
-                      <select
-                        id="maxPerDay"
-                        name="maxPerDay"
-                        defaultValue={String(routine?.maxPerDay ?? 1)}
-                        className={SELECT}
-                      >
-                        {[1, 2, 3, 4, 5].map((count) => (
-                          <option key={count} value={count}>
-                            {count === 1 ? "One article" : `${count} articles`}
-                          </option>
-                        ))}
-                      </select>
-                    </SelectShell>
-                    <p className="text-xs leading-relaxed text-(--sheet-ink-2)">
-                      Counts only what the schedule starts. Run now is never
-                      counted against it.
-                    </p>
-                  </Field>
                 </div>
               </Collapsible.Content>
             </Collapsible.Root>

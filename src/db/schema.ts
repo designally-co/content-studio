@@ -306,11 +306,19 @@ export const routines = pgTable("routines", {
    */
   hubStatus: text("hub_status").$type<RoutineHubStatus>().notNull().default("draft"),
   imagesPerRun: integer("images_per_run").notNull().default(1),
-  /** A ceiling a bug cannot spend past. */
+  /**
+   * NO LONGER READ. It was a ceiling on articles per day, and it said no to
+   * routines their owner had just asked to run — a schedule is an instruction,
+   * not a request. What it was really guarding against is now `isWriting` in
+   * the runner, which refuses a second article only while the first is still
+   * being written. The column stays rather than being dropped: a migration
+   * that deletes data buys nothing here, and a NOT NULL default keeps writing
+   * itself without anyone's help.
+   */
   maxPerDay: integer("max_per_day").notNull().default(1),
 
   /* When it runs. The external timer knows none of this — it only says "tick",
-     and these five columns decide whether anything happens. See
+     and these six columns decide whether anything happens. See
      `src/lib/autopilot/schedule.ts`. */
   scheduleKind: text("schedule_kind").$type<RoutineScheduleKind>().notNull().default("manual"),
   /** `HH:MM` on a 24-hour clock, read in `timeZone`. */
@@ -318,6 +326,8 @@ export const routines = pgTable("routines", {
   timeZone: text("time_zone").notNull().default("Asia/Bangkok"),
   /** 0–6, Sunday first. Only read by a weekly schedule. */
   weekday: integer("weekday").notNull().default(1),
+  /** 1–31, clamped to the end of a short month. Only read by a monthly one. */
+  dayOfMonth: integer("day_of_month").notNull().default(1),
   /** The answer, stored: a tick asks which routines are past theirs. */
   nextRunAt: timestamp("next_run_at", { withTimezone: true }),
 

@@ -42,11 +42,11 @@ export default async function RoutinesPage() {
     directionName: row.categoryId ? (directionName.get(row.categoryId) ?? null) : null,
     hubStatus: row.hubStatus,
     imagesPerRun: row.imagesPerRun,
-    maxPerDay: row.maxPerDay,
     scheduleKind: row.scheduleKind,
     runAt: row.runAt,
     timeZone: row.timeZone,
     weekday: row.weekday,
+    dayOfMonth: row.dayOfMonth,
     nextRunAt: row.nextRunAt ? row.nextRunAt.toISOString() : null,
     lastRunAt: row.lastRunAt ? row.lastRunAt.toISOString() : null,
   }));

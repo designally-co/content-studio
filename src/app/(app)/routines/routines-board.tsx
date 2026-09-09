@@ -18,7 +18,7 @@ import { Clock, MoreHorizontal, Pencil, Play, Trash2 } from "lucide-react";
 import { IconArrowRight } from "@/components/icons";
 import { Switch } from "@/components/switch";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { WEEKDAY_NAMES } from "@/lib/autopilot/schedule";
+import { WEEKDAY_NAMES, ordinal } from "@/lib/autopilot/schedule";
 import {
   STEP_LABELS,
   STEP_ORDER,
@@ -360,6 +360,9 @@ function cardSchedule(routine: RoutineView): string {
   if (routine.scheduleKind === "weekdays") return `Monday to Friday at ${clock}`;
   if (routine.scheduleKind === "weekly") {
     return `Every ${WEEKDAY_NAMES[routine.weekday] ?? "Monday"} at ${clock}`;
+  }
+  if (routine.scheduleKind === "monthly") {
+    return `The ${ordinal(routine.dayOfMonth)} of every month at ${clock}`;
   }
   return `Every day at ${clock}`;
 }

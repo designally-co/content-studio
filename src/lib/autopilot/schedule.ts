@@ -10,7 +10,7 @@
  * the whole of what this feature needs from it.
  */
 
-export type RoutineScheduleKind = "manual" | "daily" | "weekdays" | "weekly";
+export type RoutineScheduleKind = "manual" | "daily" | "weekdays" | "weekly" | "monthly";
 
 /** Sunday-first, matching `Date.prototype.getDay()`. */
 export const WEEKDAY_NAMES = [
@@ -111,7 +111,21 @@ export type ScheduleSpec = {
   timeZone: string;
   /** 0–6, Sunday first. Only read when `kind` is `weekly`. */
   weekday: number;
+  /** 1–31. Only read when `kind` is `monthly`. */
+  dayOfMonth: number;
 };
+
+/** How many days that month has, so February can answer for itself. */
+function daysInMonth(year: number, month: number): number {
+  // Day 0 of the next month is the last day of this one.
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+/** "1st", "2nd", "23rd" — for the one line a person reads. */
+export function ordinal(day: number): string {
+  if (day % 100 >= 11 && day % 100 <= 13) return `${day}th`;
+  return `${day}${["th", "st", "nd", "rd"][day % 10] ?? "th"}`;
+}
 
 /**
  * The next instant this schedule is due after `from`.
@@ -123,6 +137,28 @@ export function nextRunAt(spec: ScheduleSpec, from: Date = new Date()): Date | n
   if (spec.kind === "manual") return null;
   const { hour, minute } = readClock(spec.runAt);
   const zone = spec.timeZone || "UTC";
+
+  /* MONTHLY WALKS MONTHS, not days. The loop below is bounded at eight days
+     because that is all a weekly schedule can ever need; a monthly one would
+     need sixty-two, and each step of that loop asks Intl to format a date
+     several times. Two candidates answer it exactly: this month's date if it is
+     still ahead, otherwise next month's. */
+  if (spec.kind === "monthly") {
+    const here = dateIn(zone, from);
+    for (let ahead = 0; ahead <= 1; ahead++) {
+      const months = here.month - 1 + ahead;
+      const year = here.year + Math.floor(months / 12);
+      const month = (months % 12) + 1;
+      /* THE 31ST OF FEBRUARY IS THE 28TH. Clamping to the end of a short month
+         is what "the 31st" is understood to mean by anyone who sets it — the
+         alternative, skipping the month entirely, makes a monthly routine run
+         seven times a year and look broken while doing it. */
+      const day = Math.min(Math.max(spec.dayOfMonth, 1), daysInMonth(year, month));
+      const candidate = instantOf(zone, year, month, day, hour, minute);
+      if (candidate.getTime() > from.getTime()) return candidate;
+    }
+    return null;
+  }
 
   // Up to eight days ahead: enough to pass a whole week plus the day the search
   // starts on, so a weekly schedule always finds its day.
@@ -158,5 +194,7 @@ export function describeSchedule(spec: ScheduleSpec): string {
       return `Monday to Friday at ${clock} (${zone})`;
     case "weekly":
       return `Every ${WEEKDAY_NAMES[spec.weekday] ?? "Monday"} at ${clock} (${zone})`;
+    case "monthly":
+      return `The ${ordinal(spec.dayOfMonth)} of every month at ${clock} (${zone})`;
   }
 }

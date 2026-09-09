@@ -19,11 +19,11 @@ export type RoutineView = {
   directionName: string | null;
   hubStatus: RoutineHubStatus;
   imagesPerRun: number;
-  maxPerDay: number;
   scheduleKind: RoutineScheduleKind;
   runAt: string;
   timeZone: string;
   weekday: number;
+  dayOfMonth: number;
   nextRunAt: string | null;
   lastRunAt: string | null;
 };

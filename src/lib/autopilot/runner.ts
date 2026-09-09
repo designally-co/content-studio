@@ -134,6 +134,7 @@ export async function rescheduleRoutine(routine: Routine): Promise<Date | null> 
         runAt: routine.runAt,
         timeZone: routine.timeZone,
         weekday: routine.weekday,
+        dayOfMonth: routine.dayOfMonth,
       })
     : null;
   await db
@@ -151,44 +152,45 @@ function startOfDay(): Date {
 }
 
 /**
- * Articles the SCHEDULE opened today — what `maxPerDay` is counted against.
+ * Is this routine already writing something?
  *
- * Only runs that got as far as a project. A run that died before one existed
- * never cost anything but a failed topic request, and counting those here would
- * mean a provider hiccup at one minute past midnight silently costs the whole
- * day's publishing. The `failedStartsToday` ceiling below is what stops those
- * from retrying forever instead.
+ * WHAT REPLACED THE DAILY CEILING. `maxPerDay` was a count of articles opened
+ * since UTC midnight, and it answered the wrong question: it said no to a
+ * routine its owner had just asked to run, on the grounds that an earlier one
+ * had already happened. A schedule is an instruction, and the answer to "run at
+ * half past twelve" is an article at half past twelve.
  *
- * And only runs the schedule started. `maxPerDay` is a limit on what a routine
- * may spend WHILE NOBODY IS WATCHING; a person pressing Run now is watching by
- * definition, and is already allowed past the check. Counting their run
- * afterwards made testing a routine by hand the way to stop it running on
- * time — which is precisely the thing you would press the button to check.
+ * The runaway it was really guarding against is narrower, and this is the shape
+ * of it: the clock moves after a start succeeds, so a worker killed in that gap
+ * leaves the routine still due — and the next tick would open a second article
+ * on top of the first. Asking whether one is already in flight refuses exactly
+ * that, and refuses nothing a person asked for.
  */
-async function runsToday(routineId: string): Promise<number> {
+async function isWriting(routineId: string): Promise<boolean> {
   const db = await getDb();
   const [row] = await db
-    .select({ n: sql<number>`count(*)::int` })
+    .select({ id: routineRuns.id })
     .from(routineRuns)
     .where(
       and(
         eq(routineRuns.routineId, routineId),
-        gte(routineRuns.startedAt, startOfDay()),
-        eq(routineRuns.trigger, "schedule"),
-        isNotNull(routineRuns.projectId)
+        eq(routineRuns.status, "running"),
+        /* The schedule's own work only. A manual run in flight is somebody
+           watching an article being written; it does not stand in for the
+           scheduled one, and letting it block the schedule would put back the
+           very thing the ceiling used to do. */
+        eq(routineRuns.trigger, "schedule")
       )
-    );
-  return row?.n ?? 0;
+    )
+    .limit(1);
+  return Boolean(row);
 }
 
 /**
  * Every article this routine opened today, however it was started.
  *
- * Separate from `runsToday` because it answers a different question: that one
- * is a ceiling and deliberately blind to manual runs, this one only turns the
- * direction rotation, which wants to know how many articles exist so the next
- * one is about something else. Sharing the ceiling's count would have handed
- * three Run nows in a row the same direction three times.
+ * Turns the direction rotation, which wants to know how many articles exist so
+ * that the next one is about something else.
  */
 async function articlesToday(routineId: string): Promise<number> {
   const db = await getDb();
@@ -649,14 +651,12 @@ export async function tick(): Promise<TickReport> {
        FAILED_STARTS_PER_DAY — five retries, for exactly the case of a provider
        being briefly unwell — could never reach two. One blip cost the day. */
 
-    const total = await runsToday(routine.id);
-    if (total >= routine.maxPerDay) {
-      report.note = await skipRoutine(
-        routine,
-        total === 1
-          ? "Already wrote an article today."
-          : `Already wrote ${total} articles today.`
-      );
+    if (await isWriting(routine.id)) {
+      /* Due, and already writing. The only way to reach this is a clock that
+         failed to move after the start that is still running — so the article
+         for this slot exists, and moving it now is the repair. Not a skip:
+         nothing was refused, and there is nothing for a person to read. */
+      await rescheduleRoutine(routine);
       continue;
     }
     if ((await failedStartsToday(routine.id)) >= FAILED_STARTS_PER_DAY) {
@@ -740,13 +740,13 @@ function notIdleNote(all: Routine[]): string {
  * worst thing this file can do, because it sends whoever is watching to debug
  * infrastructure that is working perfectly.
  *
- * So a skip is a row now. It carries no project, so it counts against neither
- * `maxPerDay` nor the failed-start ceiling; it exists to be read.
+ * So a skip is a row now. It carries no project and it is not a failure, so it
+ * counts against the failed-start ceiling not at all; it exists to be read.
  *
- * The clock still moves, because every reason that reaches here is one that
- * will still be true five minutes from now — the day's quota is spent, or the
- * Hub is not configured. Leaving it due would re-skip, and re-record, on every
- * tick until midnight.
+ * The clock still moves, because both reasons that reach here will still be
+ * true five minutes from now — the day's starts have all failed, or the Hub is
+ * not configured. Leaving it due would re-skip, and re-record, on every tick
+ * until midnight.
  */
 async function skipRoutine(routine: Routine, reason: string): Promise<string> {
   const db = await getDb();
@@ -775,15 +775,12 @@ async function recordStartFailure(routineId: string, cause: unknown) {
 /**
  * Start a routine now, because somebody pressed the button.
  *
- * Deliberately not subject to `maxPerDay`. That ceiling exists so a mistake in
- * a schedule cannot spend all day; a person clicking Run now is not a mistake
- * in a schedule, and being refused by a limit they set for the unattended case
- * would be the wrong kind of safe. The schedule's own clock is left alone.
+ * Subject to no ceiling at all, and the schedule's own clock is left alone: a
+ * run started here is an extra article, not the scheduled one arriving early.
  *
- * The run is marked `manual`, which is what makes that exemption hold up. It
- * used to be true only at the moment of pressing: the run was allowed, and then
- * counted, so a routine tested by hand in the morning found its own schedule
- * disqualified by the test.
+ * The run is marked `manual`, which is what keeps those two apart. A tick asks
+ * whether the SCHEDULE is already writing before it starts anything, and a
+ * person watching a manual run must not answer that question for it.
  */
 export async function runRoutineNow(routineId: string): Promise<{ runId: string }> {
   const routine = await getRoutineById(routineId);
