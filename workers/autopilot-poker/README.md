@@ -17,10 +17,18 @@ Two secrets, then ship it:
 
 ```bash
 cd workers/autopilot-poker
+wrangler login
+wrangler deploy                        # creates the Worker
 wrangler secret put AUTOPILOT_URL      # https://<your-app>/api/cron/autopilot
 wrangler secret put AUTOPILOT_SECRET   # same value as CRON_SECRET in Vercel
-wrangler deploy
 ```
+
+Deploy first so the Worker exists before secrets are attached to it, and run
+all of it from this folder — wrangler reads `wrangler.toml` from the directory
+you are standing in, which is where the name comes from.
+
+`workers_dev = false` is why it never asks to register a `*.workers.dev`
+subdomain: this Worker serves no HTTP routes, so it needs no hostname.
 
 `wrangler tail` shows each poke's reply. A quiet one looks like:
 

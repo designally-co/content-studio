@@ -21,6 +21,13 @@ name = "autopilot-poker"
 main = "src/index.ts"
 compatibility_date = "2026-09-09"
 
+# NO PUBLIC URL. This Worker only ever runs on the schedule below — it serves no
+# HTTP routes, so it needs no hostname. Left at the default, wrangler asks to
+# register a *.workers.dev subdomain for the whole account on first deploy,
+# which is a shared, permanent thing to create for something that would never
+# answer a request.
+workers_dev = false
+
 # Every five minutes, so a seven-step article finishes about 35 minutes after it
 # becomes due. Cheap to run constantly: a poke with nothing to do costs one
 # database query and returns `idle`. 288 requests a day against a free tier of
