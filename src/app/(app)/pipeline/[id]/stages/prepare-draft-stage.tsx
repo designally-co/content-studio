@@ -56,7 +56,12 @@ function DraftProgress({ title }: { title: string }) {
   const clock = `${mins}:${String(elapsed % 60).padStart(2, "0")}`;
 
   return (
-    <div className="cs-bezel max-w-2xl">
+    /* CENTRED, BECAUSE NOTHING SITS BESIDE IT. Every other stage is a content
+       column with an action rail to its right, and this card inherited the
+       column's left edge from them — but there is no rail here, nothing to act
+       on yet, so it read as a panel shoved to one side of an empty page waiting
+       for a second one that never arrives. */
+    <div className="cs-bezel mx-auto max-w-2xl">
       <div className="cs-bezel-core px-6 py-7 sm:px-8 sm:py-9">
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-3">Preparing</p>
         <h3 className="mt-3 font-heading text-[length:var(--text-h3)] font-semibold leading-snug tracking-tight text-ink">
@@ -212,7 +217,7 @@ export function PrepareDraftStage({
   if (error) {
     return (
       <StageShell title="Draft" wide>
-        <div className="cs-bezel max-w-2xl">
+        <div className="cs-bezel mx-auto max-w-2xl">
           <div className="cs-bezel-core px-6 py-7 sm:px-8 sm:py-9">
             <h3 className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">
               The draft did not start
