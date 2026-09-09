@@ -67,7 +67,19 @@ export function SideNav({
 
   return (
     <>
-      <header className="sticky top-0 z-(--z-sticky) flex h-16 items-center gap-2 border-b border-line-strong bg-chrome px-2 lg:hidden">
+      {/* NOT A HEADER ANY MORE — A BUTTON THAT STAYS PUT.
+          This was a 64px bar in the chrome grey with a bottom rule, carrying
+          the mark and "Content Studio" beside the hamburger. It named the app
+          to somebody already inside it, on the smallest screen the app has,
+          above every page whose first line is its own title — so the top of a
+          phone read "Content Studio / Everything on the desk."
+
+          What is left is the one thing the bar existed to hold. It still sits
+          in the flow and still sticks, because a menu button you have to
+          scroll back up to find is a menu button you cannot reach; but it is
+          on the page's own ground with no rule under it, so there is no second
+          surface up there, just a control. */}
+      <div className="sticky top-0 z-(--z-sticky) flex h-12 shrink-0 items-center bg-bg px-2 lg:hidden">
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -78,8 +90,7 @@ export function SideNav({
         >
           <Menu className="size-5" />
         </button>
-        <MobileBrand />
-      </header>
+      </div>
 
       {open && (
         /* ON THE NAV'S OWN LAYER, NOT THE BACKDROP'S. The drawer is the rail,

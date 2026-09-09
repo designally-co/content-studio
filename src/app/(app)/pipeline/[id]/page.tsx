@@ -90,7 +90,10 @@ export default async function PipelinePage({
           with it — a floating surface, and the scrim existed only to manage the
           consequences of floating. On the page itself, on the same gutter as
           everything else, it needs neither. */}
-      <div className="sticky top-16 z-(--z-sticky) mx-auto w-full max-w-7xl bg-bg px-5 py-3 sm:px-8 lg:top-0 lg:px-12 xl:px-16">
+      {/* top-12 tracks the height of the menu-button strip the rail leaves on a
+          phone — 64 when that was a full header, 48 now that it is one control
+          on the page's own ground. */}
+      <div className="sticky top-12 z-(--z-sticky) mx-auto w-full max-w-7xl bg-bg px-5 py-3 sm:px-8 lg:top-0 lg:px-12 xl:px-16">
         <Stepper
           projectId={id}
           current={current}
