@@ -262,12 +262,14 @@ export function DraftsStage({
                 Draft — the same fact, twice, in the two places you look first.
                 What is left is the one control, so the header is the control.
 
-                AND IT IS OUT OF THE FLOW. As a row above the article it was a
-                64px band of nothing across the top of the plate, which is what
-                stopped the text ever starting at the same distance from the top
-                as it does from the left. Lifted into the corner, the article
-                begins where the plate begins; the body keeps a wider right
-                margin so no line ever runs under it. */}
+                AND IT OVERLAYS, TAKING NO WIDTH AT ALL. Out of the flow it
+                stopped being a 64px band across the top of the plate, but the
+                body was still holding a wider right margin so no line could run
+                under it — which is the same reservation moved sideways, and it
+                showed as a permanent empty gutter down the right of every
+                article. The column is symmetric now and the button floats over
+                it, with a fill of its own so it stays legible above whatever
+                passes beneath. */}
             <header className="absolute right-4 top-4 z-10 sm:right-6 sm:top-6">
               {/* ONE ACTION ON THE ARTICLE, and it is the one that changes how
                   you are looking at it. Revisions and Regenerate were sitting
@@ -286,7 +288,13 @@ export function DraftsStage({
                 type="button"
                 onClick={toggleEditing}
                 disabled={!draft.contentMd || draft.streaming || revising}
-                className="cs-tool !w-9 justify-center !px-0"
+                /* A DISC, like the rail's collapse toggle and the phone's menu
+                   button — the shape this product gives a control that floats
+                   over something rather than sitting in a row with others. It
+                   carries its own fill and hairline because it now has article
+                   text passing beneath it; `cs-tool` is drawn for a toolbar,
+                   where the surface behind it is known to be empty. */
+                className="grid size-9 shrink-0 place-items-center rounded-full border border-line-strong bg-surface/90 text-ink-2 shadow-[var(--shadow-card)] backdrop-blur-sm transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:cursor-not-allowed disabled:opacity-40 aria-pressed:bg-sunken aria-pressed:text-ink"
                 aria-pressed={editing}
                 aria-label="Edit the Markdown"
                 title={editing ? "Preview the article" : "Edit the Markdown"}
@@ -295,13 +303,13 @@ export function DraftsStage({
               </button>
             </header>
 
-            {draft.error && <p className="mb-2 ml-5 mr-14 rounded-2xl bg-danger-soft px-4 py-3 text-sm text-danger sm:ml-8 sm:mr-20" role="alert">{draft.error}</p>}
+            {draft.error && <p className="mb-2 mx-5 rounded-2xl bg-danger-soft px-4 py-3 text-sm text-danger sm:mx-8" role="alert">{draft.error}</p>}
 
             {editing ? (
               /* The editor takes the same right margin as the article, so the
                  textarea stops short of the button rather than running under a
                  control you cannot click through. */
-              <div className="pb-8 pl-5 pr-14 pt-5 sm:pl-8 sm:pr-20 sm:pt-8">
+              <div className="px-5 pb-8 pt-5 sm:px-8 sm:pt-8">
                 <textarea value={draft.contentMd} onChange={(event) => { setDraft((current) => ({ ...current, contentMd: event.target.value })); setDirty(true); }} className="cs-textarea min-h-[38rem] rounded-2xl text-sm leading-relaxed" aria-label="Article Markdown" />
               </div>
             ) : (
@@ -314,7 +322,7 @@ export function DraftsStage({
                  Separate `pl`/`pr` rather than `px` plus an override: two
                  utilities setting the same side resolve by emission order, not
                  by the order they are written in. */
-              <div className="min-h-[38rem] max-w-[74ch] pb-16 pl-5 pr-14 pt-5 sm:pb-24 sm:pl-8 sm:pr-20 sm:pt-8">
+              <div className="min-h-[38rem] max-w-[74ch] px-5 pb-16 pt-5 sm:px-8 sm:pb-24 sm:pt-8">
                 {draft.contentMd ? <Markdown>{draft.contentMd}</Markdown> : <p className="py-20 text-center text-sm text-ink-2">Preparing the article…</p>}
                 {(draft.streaming || revising) && <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded-full bg-accent align-text-bottom motion-reduce:animate-none" />}
               </div>
