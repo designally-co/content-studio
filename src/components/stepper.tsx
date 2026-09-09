@@ -7,9 +7,14 @@ import { useEffect, useRef } from "react";
  *  pipeline — there is nothing here to return to. The research-and-outline
  *  pause (stages 2–3) folds into Draft & edit, since it is automatic and brief.
  */
+/* ONE WORD EACH. "Draft & edit" and "Generate images" were describing the work
+   rather than naming the place, which is the job of a step in a progress row:
+   the stage you are on explains itself in its own body, at length, immediately
+   below. Three short nouns also fit a phone without scrolling, which no
+   arrangement of the longer ones did. */
 const STAGES = [
-  { n: 1, label: "Draft & edit", target: 4 },
-  { n: 2, label: "Generate images", target: 6 },
+  { n: 1, label: "Draft", target: 4 },
+  { n: 2, label: "Image", target: 6 },
   { n: 3, label: "Publish", target: 6 },
 ];
 
@@ -66,8 +71,16 @@ export function Stepper({
       const list = nav?.firstElementChild;
       if (!nav || !item || !(list instanceof HTMLElement)) return;
 
+      /* BELOW `lg` THE PADDING IS UNCONDITIONAL, not a response to overflow.
+         It was the latter until the labels shortened to Draft / Image /
+         Publish, at which point all three fitted, the padding stopped being
+         added, and `mx-auto` centred the ROW instead of the step — which put
+         "Draft" at x=67 against a menu button whose right edge is 68, half
+         inside the fade meant for steps scrolling away. Below `lg` the current
+         step is always the thing in the middle of the screen, whether or not
+         its neighbours happen to fit around it. */
       list.style.paddingInline = "";
-      if (nav.scrollWidth <= nav.clientWidth) {
+      if (window.matchMedia("(min-width: 1024px)").matches) {
         nav.scrollLeft = 0;
         return;
       }
