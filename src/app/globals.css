@@ -100,6 +100,16 @@
      two were hard-coded separately once and the mask became a pale stripe the
      moment the dock changed colour. */
   --dock: var(--white);
+  /* THE DOCK'S OWN EDGE, darker than every other hairline in the product and
+     deliberately so. `--border` is drawn for a plate resting on the page: it
+     only has to separate two surfaces that already differ. The dock is white
+     on white — inside the images plate it is white ON white — and it is the one
+     thing on the screen you are meant to type into, so its edge is doing a
+     different job. It is not on the `--border` / `--border-strong` ramp
+     because those belong to containers, and a container must not darken when
+     this does. */
+  --dock-border: #dcdcdc;
+  --dock-border-focus: #bdbdbd;
 
   /* ink — three legible rungs plus a placeholder that is not text */
   --ink: #1a1a1a; /* headings, labels, body */
@@ -821,12 +831,12 @@
 .cs-dock {
   position: relative;
   background: var(--dock);
-  border: 1px solid var(--border);
+  border: 1px solid var(--dock-border);
   border-radius: var(--radius-xl);
   transition: border-color var(--duration-fast) var(--ease-out);
 }
 .cs-dock:focus-within {
-  border-color: var(--border-strong);
+  border-color: var(--dock-border-focus);
 }
 /* 12px, not 16px: line-height 1.6 already contributes ~6px of half-leading
    above the first cap, so a numerically smaller top inset is what reads as
