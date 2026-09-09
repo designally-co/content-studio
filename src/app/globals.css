@@ -389,6 +389,14 @@
     line-height: 1.7;
     text-wrap: pretty;
   }
+/* The first block sets the column's top edge, so its own leading margin has
+   nothing above it to be leading from — it just adds to the container's
+   padding, and the article ends up sitting further from the top of its plate
+   than from the side. Every rule below states a top margin; this one takes it
+   back exactly where it is meaningless. */
+.prose-draft > :first-child {
+  margin-top: 0;
+}
 .prose-draft h1 {
   font-size: var(--text-h2);
   margin: 1.5em 0 0.5em;

@@ -256,12 +256,19 @@ export function DraftsStage({
             article rather than in its header. */}
         <div className="min-w-0">
         <article className="cs-bezel motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:duration-500">
-          <div className="cs-bezel-core">
+          <div className="cs-bezel-core relative">
             {/* NO TITLE HERE. "Article draft" sat in 20px semibold at the top of
                 the plate, directly under a progress row whose current step says
                 Draft — the same fact, twice, in the two places you look first.
-                What is left is the one control, so the header is the control. */}
-            <header className="flex items-center justify-end px-5 pb-2 pt-5 sm:px-8 sm:pt-6">
+                What is left is the one control, so the header is the control.
+
+                AND IT IS OUT OF THE FLOW. As a row above the article it was a
+                64px band of nothing across the top of the plate, which is what
+                stopped the text ever starting at the same distance from the top
+                as it does from the left. Lifted into the corner, the article
+                begins where the plate begins; the body keeps a wider right
+                margin so no line ever runs under it. */}
+            <header className="absolute right-4 top-4 z-10 sm:right-6 sm:top-6">
               {/* ONE ACTION ON THE ARTICLE, and it is the one that changes how
                   you are looking at it. Revisions and Regenerate were sitting
                   here too, so the panel's toolbar held a view toggle, a drawer
@@ -288,14 +295,26 @@ export function DraftsStage({
               </button>
             </header>
 
-            {draft.error && <p className="mx-5 mb-2 rounded-2xl bg-danger-soft px-4 py-3 text-sm text-danger sm:mx-8" role="alert">{draft.error}</p>}
+            {draft.error && <p className="mb-2 ml-5 mr-14 rounded-2xl bg-danger-soft px-4 py-3 text-sm text-danger sm:ml-8 sm:mr-20" role="alert">{draft.error}</p>}
 
             {editing ? (
-              <div className="px-5 pb-8 sm:px-8">
+              /* The editor takes the same right margin as the article, so the
+                 textarea stops short of the button rather than running under a
+                 control you cannot click through. */
+              <div className="pb-8 pl-5 pr-14 pt-5 sm:pl-8 sm:pr-20 sm:pt-8">
                 <textarea value={draft.contentMd} onChange={(event) => { setDraft((current) => ({ ...current, contentMd: event.target.value })); setDirty(true); }} className="cs-textarea min-h-[38rem] rounded-2xl text-sm leading-relaxed" aria-label="Article Markdown" />
               </div>
             ) : (
-              <div className="mx-auto min-h-[38rem] max-w-[74ch] px-5 pb-16 pt-6 sm:px-8 sm:pb-24 sm:pt-10">
+              /* LEFT, NOT CENTRED. `mx-auto` split the leftover width evenly, so
+                 on a wide plate the first word sat a long way in from an edge
+                 the article is otherwise aligned to — and nowhere near the
+                 distance it sits from the top. It begins at the plate's own
+                 margin now, the same 20 (32 above `sm`) in both directions, and
+                 keeps `max-w` for the line length rather than for the position.
+                 Separate `pl`/`pr` rather than `px` plus an override: two
+                 utilities setting the same side resolve by emission order, not
+                 by the order they are written in. */
+              <div className="min-h-[38rem] max-w-[74ch] pb-16 pl-5 pr-14 pt-5 sm:pb-24 sm:pl-8 sm:pr-20 sm:pt-8">
                 {draft.contentMd ? <Markdown>{draft.contentMd}</Markdown> : <p className="py-20 text-center text-sm text-ink-2">Preparing the article…</p>}
                 {(draft.streaming || revising) && <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded-full bg-accent align-text-bottom motion-reduce:animate-none" />}
               </div>
