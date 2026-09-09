@@ -226,18 +226,18 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                   <ChevronDown aria-hidden className={`size-3.5 shrink-0 transition-transform ${pickerOpen ? "rotate-180" : ""}`} />
                 </button>
               </PillarDirectionPicker>
-              {/* At rest both actions sit at the same weight — two outlines, no
-                  fill — so neither pulls ahead. Writing something makes submit
-                  the live action, and it takes the fill at that moment.
-                  `disabled:opacity-100` holds it level with generate until then,
-                  rather than letting the global disabled fade weaken it. */}
+              {/* ONE ACTION AT A TIME, and the field decides which. Both used to
+                  sit here at once, the inapplicable one greyed and held at full
+                  strength so it would not look broken — a lot of machinery to
+                  keep a control on screen that could not be pressed. With
+                  nothing written, the only thing to do is ask for ideas; the
+                  moment there is a topic, the only thing to do is send it. */}
               <div className="flex shrink-0 items-center gap-2">
+                {!hasInput ? (
                 <button
                   type="button"
                   onClick={() => void generateTopics()}
-                  // Writing something takes the ideas path off the table, so the
-                  // control goes properly unavailable rather than merely quiet.
-                  disabled={ideasBusy || hasInput}
+                  disabled={ideasBusy}
                   // Markup Wash, not the saturated fill: a middle weight that
                   // gives the orb a ground to sit on, so the two read as one
                   // object. The outline is tinted one ramp step past its own
@@ -245,39 +245,21 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                   // a grey hairline around an orange wash reads as dirt, not as
                   // a rule. Hover is gated on `enabled:` because a disabled
                   // button still matches :hover in CSS.
-                  // On a narrow screen the two actions trade the label rather
-                  // than both shrinking: at rest this is the only live control
-                  // and submit is not rendered, so it earns the words.
-                  className={`cs-btn cs-dock-btn shrink-0 border-[var(--orange-200)] bg-accent-soft text-accent-press enabled:hover:border-[var(--orange-300)] enabled:hover:bg-[var(--orange-200)] ${
-                    hasInput ? "" : "cs-dock-btn--wide"
-                  }`}
+                  // It is the only control here when it shows, so it always
+                  // carries its label — the responsive swap that traded words
+                  // for room existed because a submit sat beside it.
+                  className="cs-btn cs-dock-btn cs-dock-btn--wide shrink-0 border-[var(--orange-200)] bg-accent-soft text-accent-press enabled:hover:border-[var(--orange-300)] enabled:hover:bg-[var(--orange-200)]"
                   aria-label="Generate ideas"
                   title="Generate ideas"
                 >
-                  {/* Always running — the button's disabled state, not the orb,
-                      is what reports that the ideas path is off the table. */}
                   <AccentOrb />
-                  <span className="cs-swap cs-swap--sm-open" data-show={!hasInput}>
-                    {/* The 8px sits inside the clipped track, so it collapses
-                        with the label instead of holding the orb off centre. */}
-                    <span className="whitespace-nowrap pl-2">Generate</span>
-                  </span>
+                  <span className="whitespace-nowrap pl-2">Generate</span>
                 </button>
-                {/* Below sm there is no room for a labelled generate and a
-                    submit at once, and an inert submit is the one worth
-                    dropping — nothing can be sent yet. It widens away rather
-                    than disappearing; its own margin collapses with it. */}
+                ) : (
                 <button
                   type="submit"
-                  data-hidden={!hasInput}
-                  disabled={!hasInput || pending}
-                  // The full-strength-while-disabled utility is scoped to sm and
-                  // up. Unscoped it also fought the hidden state below sm —
-                  // utilities outrank @layer components — and held a collapsed
-                  // button visible as a hairline.
-                  className={`cs-dock-btn-icon shrink-0 ${
-                    hasInput ? "cs-btn-primary disabled:opacity-100" : "cs-btn sm:disabled:opacity-100"
-                  }`}
+                  disabled={pending}
+                  className="cs-dock-btn-icon cs-btn-primary shrink-0"
                   aria-label={pending ? "Creating article" : "Continue to draft"}
                   title={pending ? undefined : "Continue to draft"}
                 >
@@ -285,6 +267,7 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                     ? <LoaderCircle aria-hidden className="size-4 animate-spin motion-reduce:animate-none" />
                     : <Send aria-hidden className="size-4" />}
                 </button>
+                )}
               </div>
             </div>
           </div>

@@ -990,42 +990,41 @@ function ImagePanel({
               }
             />
 
-            {/* The same pair as the home composer, carrying the same handoff:
-                with nothing written, asking the system to write it is the live
-                action; once there is a prompt, sending it is. */}
+            {/* ONE ACTION AT A TIME, and the prompt decides which. The two used
+                to sit side by side with the inapplicable one greyed — a dock
+                that always showed a control you could not use, and made you
+                read both to find the live one. With nothing written, asking the
+                system to write it is the only thing to do; once there is a
+                prompt, sending it is. */}
             <div className="ml-auto flex items-center gap-2">
-              <button
-                type="button"
-                onClick={draftPrompt}
-                /* Blocked while the field holds words the editor wrote, which
-                   is what this rule was always for — not while it holds the
-                   draft this button itself produced. Re-drafting then overwrites
-                   nothing of theirs, and it is the only way to get a fuller set
-                   of concepts after raising the image count. */
-                disabled={busy !== null || !anthropicReady || (hasPrompt && prompt !== draftedPrompt)}
-                aria-describedby={!anthropicReady ? "auto-draft-requirement" : undefined}
-                className="cs-btn cs-dock-btn cs-dock-btn--wide shrink-0 border-[var(--orange-200)] bg-accent-soft text-accent-press enabled:hover:border-[var(--orange-300)] enabled:hover:bg-[var(--orange-200)]"
-              >
-                <AccentOrb />
-                <span className="whitespace-nowrap pl-2">
-                  {busy === "prompt" ? "Drafting…" : "Auto-draft"}
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={generate}
-                disabled={generateBlocked || !hasPrompt}
-                aria-describedby={referenceMissing ? "generate-requirement" : undefined}
-                // Held level while it is merely waiting for a prompt; allowed to
-                // fade once it is genuinely blocked by something else.
-                className={`cs-dock-btn-icon shrink-0 ${hasPrompt ? "cs-btn-primary" : "cs-btn disabled:opacity-100"}`}
-                aria-label={busy === "gen" ? "Generating images" : `Generate ${count} image${count > 1 ? "s" : ""}`}
-                title={busy === "gen" ? undefined : `Generate ${count} image${count > 1 ? "s" : ""}`}
-              >
-                {busy === "gen"
-                  ? <LoaderCircle aria-hidden className="size-4 animate-spin motion-reduce:animate-none" />
-                  : <Send aria-hidden className="size-4" />}
-              </button>
+              {!hasPrompt ? (
+                <button
+                  type="button"
+                  onClick={draftPrompt}
+                  disabled={busy !== null || !anthropicReady}
+                  aria-describedby={!anthropicReady ? "auto-draft-requirement" : undefined}
+                  className="cs-btn cs-dock-btn cs-dock-btn--wide shrink-0 border-[var(--orange-200)] bg-accent-soft text-accent-press enabled:hover:border-[var(--orange-300)] enabled:hover:bg-[var(--orange-200)]"
+                >
+                  <AccentOrb />
+                  <span className="whitespace-nowrap pl-2">
+                    {busy === "prompt" ? "Drafting…" : "Auto-draft"}
+                  </span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={generate}
+                  disabled={generateBlocked}
+                  aria-describedby={referenceMissing ? "generate-requirement" : undefined}
+                  className="cs-dock-btn-icon cs-btn-primary shrink-0"
+                  aria-label={busy === "gen" ? "Generating images" : `Generate ${count} image${count > 1 ? "s" : ""}`}
+                  title={busy === "gen" ? undefined : `Generate ${count} image${count > 1 ? "s" : ""}`}
+                >
+                  {busy === "gen"
+                    ? <LoaderCircle aria-hidden className="size-4 animate-spin motion-reduce:animate-none" />
+                    : <Send aria-hidden className="size-4" />}
+                </button>
+              )}
             </div>
           </div>
         </div>
