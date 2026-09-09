@@ -101,7 +101,32 @@ export default async function PipelinePage({
           the top, so a disagreement here would show as a step of background
           against the button while scrolling. Above `lg` the rail is a sidebar,
           there is no button, and the row goes back to its own line. */}
-      <div className="sticky top-0 z-(--z-sticky) mx-auto -mt-12 w-full max-w-7xl bg-bg px-5 py-2 sm:px-8 lg:mt-0 lg:px-12 lg:py-3 xl:px-16">
+      <div className="sticky top-0 z-(--z-sticky) mx-auto -mt-12 w-full max-w-7xl px-5 py-2 sm:px-8 lg:mt-0 lg:px-12 lg:py-3 xl:px-16">
+        {/* PROGRESSIVE BLUR, NOT A LID. This was `bg-bg` — an opaque band the
+            width of the page, so the article did not pass under the stepper so
+            much as get chopped off by it, and the bar read as a second surface
+            floating over the page rather than as part of it.
+
+            Three stacked layers, each blurring harder and stopping sooner: at
+            the top all three apply, a third of the way down only the softest
+            still does, and by the bottom edge there is none. That gradient is
+            what makes it read as depth — the text is visibly still there,
+            going out of focus as it slides underneath, instead of vanishing at
+            a hard line.
+
+            Blur alone would leave the type legible enough to compete with the
+            steps, so each layer carries a wash of the page's own ground with
+            it. `-z-10` keeps the whole stack behind the steps while staying
+            inside this element's own stacking context, which `sticky` plus a
+            z-index has already created. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[calc(100%+1.25rem)]"
+        >
+          <div className="absolute inset-0 bg-bg/40 backdrop-blur-[2px] [mask-image:linear-gradient(to_bottom,#000_0,#000_55%,transparent_100%)]" />
+          <div className="absolute inset-0 bg-bg/40 backdrop-blur-[6px] [mask-image:linear-gradient(to_bottom,#000_0,#000_30%,transparent_66%)]" />
+          <div className="absolute inset-0 bg-bg/40 backdrop-blur-[12px] [mask-image:linear-gradient(to_bottom,#000_0,#000_10%,transparent_36%)]" />
+        </div>
         <Stepper
           projectId={id}
           current={current}

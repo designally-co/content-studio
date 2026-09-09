@@ -85,10 +85,12 @@ export function SideNav({
           that line for whatever the page wants to put there. The pipeline puts
           its stepper there, pulled up alongside.
 
-          It also sits a layer above that content and carries the page's own
-          background, so a step scrolling past slides out of sight behind the
-          button instead of over it. */}
-      <div className="sticky top-0 z-(--z-nav) flex h-12 w-fit shrink-0 items-center bg-bg px-3 lg:hidden">
+          NO FILL OF ITS OWN. It had one, to hide a step scrolling past behind
+          it — but the row now fades to nothing at that end on its own, and an
+          opaque 64px block sitting in a bar that blurs whatever passes under it
+          was the one square of the design where the page stopped showing
+          through. The button's own disc is what keeps the icon legible. */}
+      <div className="sticky top-0 z-(--z-nav) flex h-12 w-fit shrink-0 items-center px-3 lg:hidden">
         <button
           type="button"
           onClick={() => setOpen(true)}
