@@ -343,7 +343,7 @@ export function RoutineForm({
                     Advanced settings
                   </span>
                   <span className="mt-0.5 block text-sm leading-relaxed text-(--sheet-ink-2)">
-                    Content direction and time zone.
+                    Content direction, time zone, and the daily ceiling.
                   </span>
                 </span>
                 <ChevronDown
@@ -390,6 +390,34 @@ export function RoutineForm({
                         ))}
                       </select>
                     </SelectShell>
+                  </Field>
+
+                  {/* A CEILING, NOT A TARGET. A daily routine comes due once a
+                      day and writes one article whatever this says; the number
+                      only matters when something goes wrong with the clock, and
+                      it is what stops that turning into an article every five
+                      minutes until midnight. It was fixed at one and unaskable,
+                      which was fine until a routine needed testing on a day it
+                      had already run. */}
+                  <Field label="Most articles in a day" htmlFor="maxPerDay">
+                    <SelectShell>
+                      <select
+                        id="maxPerDay"
+                        name="maxPerDay"
+                        defaultValue={String(routine?.maxPerDay ?? 1)}
+                        className={SELECT}
+                      >
+                        {[1, 2, 3, 4, 5].map((count) => (
+                          <option key={count} value={count}>
+                            {count === 1 ? "One article" : `${count} articles`}
+                          </option>
+                        ))}
+                      </select>
+                    </SelectShell>
+                    <p className="text-xs leading-relaxed text-(--sheet-ink-2)">
+                      Counts only what the schedule starts. Run now is never
+                      counted against it.
+                    </p>
                   </Field>
                 </div>
               </Collapsible.Content>

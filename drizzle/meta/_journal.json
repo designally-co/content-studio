@@ -169,6 +169,13 @@
       "when": 1787464060704,
       "tag": "0023_remove_legacy_directions",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1787464120704,
+      "tag": "0024_routine_run_trigger",
+      "breakpoints": true
     }
   ]
 }

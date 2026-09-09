@@ -2,7 +2,13 @@ import "server-only";
 import { and, asc, desc, eq, gte, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { categories, projects, routineRuns, routines } from "@/db/schema";
-import type { ProjectInputs, Routine, RoutineRunStatus, RoutineStep } from "@/db/schema";
+import type {
+  ProjectInputs,
+  Routine,
+  RoutineRunStatus,
+  RoutineRunTrigger,
+  RoutineStep,
+} from "@/db/schema";
 import { nextRunAt } from "@/lib/autopilot/schedule";
 import { generateTopicIdeas } from "@/lib/pipeline/topics";
 import { preparePlanCore } from "@/lib/pipeline/plan";
@@ -145,15 +151,46 @@ function startOfDay(): Date {
 }
 
 /**
- * Articles opened today — what `maxPerDay` is counted against.
+ * Articles the SCHEDULE opened today — what `maxPerDay` is counted against.
  *
  * Only runs that got as far as a project. A run that died before one existed
  * never cost anything but a failed topic request, and counting those here would
  * mean a provider hiccup at one minute past midnight silently costs the whole
  * day's publishing. The `failedStartsToday` ceiling below is what stops those
  * from retrying forever instead.
+ *
+ * And only runs the schedule started. `maxPerDay` is a limit on what a routine
+ * may spend WHILE NOBODY IS WATCHING; a person pressing Run now is watching by
+ * definition, and is already allowed past the check. Counting their run
+ * afterwards made testing a routine by hand the way to stop it running on
+ * time — which is precisely the thing you would press the button to check.
  */
 async function runsToday(routineId: string): Promise<number> {
+  const db = await getDb();
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(routineRuns)
+    .where(
+      and(
+        eq(routineRuns.routineId, routineId),
+        gte(routineRuns.startedAt, startOfDay()),
+        eq(routineRuns.trigger, "schedule"),
+        isNotNull(routineRuns.projectId)
+      )
+    );
+  return row?.n ?? 0;
+}
+
+/**
+ * Every article this routine opened today, however it was started.
+ *
+ * Separate from `runsToday` because it answers a different question: that one
+ * is a ceiling and deliberately blind to manual runs, this one only turns the
+ * direction rotation, which wants to know how many articles exist so the next
+ * one is about something else. Sharing the ceiling's count would have handed
+ * three Run nows in a row the same direction three times.
+ */
+async function articlesToday(routineId: string): Promise<number> {
   const db = await getDb();
   const [row] = await db
     .select({ n: sql<number>`count(*)::int` })
@@ -279,9 +316,9 @@ async function pickCategory(routineCategoryId: string | null, runCount: number) 
  * first one. Creating the project here rather than in the `topic` step keeps
  * every later step addressable by `projectId` alone.
  */
-async function startRun(routine: Routine) {
+async function startRun(routine: Routine, trigger: RoutineRunTrigger = "schedule") {
   const db = await getDb();
-  const total = await runsToday(routine.id);
+  const total = await articlesToday(routine.id);
   const category = await pickCategory(routine.categoryId, total);
   if (!category) throw new Error("No active content direction to write about.");
 
@@ -321,7 +358,7 @@ async function startRun(routine: Routine) {
 
   const [run] = await db
     .insert(routineRuns)
-    .values({ routineId: routine.id, projectId: project.id, step: "plan", status: "running" })
+    .values({ routineId: routine.id, projectId: project.id, step: "plan", status: "running", trigger })
     .returning();
   await db.update(routines).set({ lastRunAt: new Date() }).where(eq(routines.id, routine.id));
   return run;
@@ -742,6 +779,11 @@ async function recordStartFailure(routineId: string, cause: unknown) {
  * a schedule cannot spend all day; a person clicking Run now is not a mistake
  * in a schedule, and being refused by a limit they set for the unattended case
  * would be the wrong kind of safe. The schedule's own clock is left alone.
+ *
+ * The run is marked `manual`, which is what makes that exemption hold up. It
+ * used to be true only at the moment of pressing: the run was allowed, and then
+ * counted, so a routine tested by hand in the morning found its own schedule
+ * disqualified by the test.
  */
 export async function runRoutineNow(routineId: string): Promise<{ runId: string }> {
   const routine = await getRoutineById(routineId);
@@ -749,7 +791,7 @@ export async function runRoutineNow(routineId: string): Promise<{ runId: string 
   if (!(await isAnthropicConfigured())) {
     throw new Error("The Anthropic API key is not configured, so nothing can be written.");
   }
-  const run = await withDeadline(startRun(routine), STEP_DEADLINE_MS, "topic");
+  const run = await withDeadline(startRun(routine, "manual"), STEP_DEADLINE_MS, "topic");
   return { runId: run.id };
 }
 

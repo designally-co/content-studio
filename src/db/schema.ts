@@ -361,6 +361,16 @@ export type RoutineStep =
  */
 export type RoutineRunStatus = "running" | "done" | "failed" | "skipped";
 
+/**
+ * What started a run.
+ *
+ * The daily ceiling is a limit on what a SCHEDULE may spend unattended, so it
+ * counts `schedule` rows and ignores `manual` ones. Pressing Run now was
+ * already exempt from the check at the moment of pressing; without this column
+ * it was not exempt afterwards, and one test by hand quietly used up the day.
+ */
+export type RoutineRunTrigger = "schedule" | "manual";
+
 export const routineRuns = pgTable("routine_runs", {
   id: uuid("id").primaryKey().defaultRandom(),
   routineId: uuid("routine_id")
@@ -373,6 +383,7 @@ export const routineRuns = pgTable("routine_runs", {
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
   step: text("step").$type<RoutineStep>().notNull().default("topic"),
   status: text("status").$type<RoutineRunStatus>().notNull().default("running"),
+  trigger: text("trigger").$type<RoutineRunTrigger>().notNull().default("schedule"),
   error: text("error"),
   attempts: integer("attempts").notNull().default(0),
   /** Concurrency guard — see migration 0020. */

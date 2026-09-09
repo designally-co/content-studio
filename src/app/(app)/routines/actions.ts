@@ -50,13 +50,17 @@ function readForm(formData: FormData) {
     runAt: /^\d{1,2}:\d{2}$/.test(runAt) ? runAt : "09:00",
     timeZone: (TIME_ZONES as readonly string[]).includes(zone) ? zone : "Asia/Bangkok",
     weekday: clamp(formData.get("weekday"), 0, 6, 1),
-    /* One article, one cover, once. Both were settings; neither earned being a
-       question on every form. A run that produces two articles is a run nobody
-       asked for, and the second image was only ever a variation to choose
-       between — which is an editor's job, and there is no editor here. The
-       columns stay, so the runner still honours anything already stored. */
+    /* One cover. It was a setting and never earned being a question: the second
+       image was only ever a variation to choose between, which is an editor's
+       job, and there is no editor here. The column stays, so the runner still
+       honours anything already stored. */
     imagesPerRun: 1,
-    maxPerDay: 1,
+    /* THIS ONE CAME BACK. It was pinned at 1 here on the same reasoning, and
+       the pin quietly outranked the column — every save reset it, so the value
+       could not be changed even in the database. Anything above 1 is unusual,
+       but a routine being tested on a day it has already run needs it, and the
+       ceiling had become impossible to raise. */
+    maxPerDay: clamp(formData.get("maxPerDay"), 1, 5, 1),
   };
 }
 
