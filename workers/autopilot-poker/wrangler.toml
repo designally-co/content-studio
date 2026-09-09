@@ -1,0 +1,29 @@
+# The autopilot's clock.
+#
+# WHY THIS EXISTS AT ALL. One poke of /api/cron/autopilot advances a run by
+# exactly one step — the runner keeps its own budget under Vercel's 60s function
+# cap and stops cleanly rather than being cut off mid-step — so an article needs
+# five to seven pokes. Something has to make that request on a timer.
+#
+# WHY NOT GITHUB ACTIONS, WHICH THIS REPLACES. It shipped a workflow set to
+# `0,30 * * * *`. Measured over two days in September 2026, GitHub delivered it
+# every TWO TO FOUR HOURS: 00:27, 08:59, 13:29, 17:25, 20:06, 22:53, 01:04 UTC.
+# GitHub throttles frequent schedules on shared runners and drops most fires, so
+# a routine due at 09:00 sat until the next delivery happened to land on it —
+# hours later, or whenever somebody opened the app, since an open tab steps a
+# run too. A short cron there is a wish, not a guarantee.
+#
+# WHY CLOUDFLARE. The bearer token below can spend Anthropic and Fal credit and
+# publish to a live site. On a third-party cron service that credential lives
+# with another vendor; here it is an encrypted secret in an account this team
+# already owns. Cron Triggers also actually fire on the interval they are given.
+name = "autopilot-poker"
+main = "src/index.ts"
+compatibility_date = "2026-09-09"
+
+# Every five minutes, so a seven-step article finishes about 35 minutes after it
+# becomes due. Cheap to run constantly: a poke with nothing to do costs one
+# database query and returns `idle`. 288 requests a day against a free tier of
+# 100,000.
+[triggers]
+crons = ["*/5 * * * *"]

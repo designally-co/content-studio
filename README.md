@@ -166,13 +166,15 @@ routines are due. Two things have to be set once for that to happen:
 
 1. `CRON_SECRET` in the deployment environment (`openssl rand -hex 32`). The
    endpoint refuses to run without it — a 503, deliberately.
-2. Two GitHub repository secrets so the shipped workflow can call it every five
-   minutes: `AUTOPILOT_URL` (`https://<your-app>/api/cron/autopilot`) and
-   `AUTOPILOT_SECRET` (the same value as `CRON_SECRET`). Without them the
-   workflow exits quietly instead of failing.
+2. The Cloudflare Worker in `workers/autopilot-poker`, deployed once, which
+   calls the endpoint every five minutes. It takes two secrets of its own:
+   `AUTOPILOT_URL` (`https://<your-app>/api/cron/autopilot`) and
+   `AUTOPILOT_SECRET` (the same value as `CRON_SECRET`). See that folder's
+   README.
 
 Nothing else is configured outside the app. Changing a routine's day, hour or
-time zone never means editing the workflow.
+time zone never means touching the Worker — it only decides how often the app
+is ASKED whether anything is due, never what runs.
 
 **Why a poke and not one long job.** A full article is seven model-and-provider
 steps taking three to four minutes; a serverless function gets sixty seconds. So

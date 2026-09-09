@@ -25,12 +25,14 @@ export const maxDuration = 60;
  * four lines.
  *
  * WHY AN EXTERNAL POKE. Vercel's own cron on the Hobby plan fires roughly once
- * a day, and one article needs five steps. A schedule that granular would take
- * most of a week to finish one. Anything that can make an HTTPS request on a
- * timer works instead — the repository ships a GitHub Actions workflow that
- * does it every ten minutes, which is free and needs no plan change. The
- * endpoint is idempotent: a poke with nothing to do returns `idle` and costs
- * one database query.
+ * a day, and one article needs five to seven steps — one per poke, since the
+ * runner keeps its budget under this function's 60s cap. A schedule that
+ * granular would take most of a week to finish one. Anything that can make an
+ * HTTPS request on a timer works instead, PROVIDED IT KEEPS THE INTERVAL: the
+ * GitHub Actions workflow that used to do this was set to every thirty minutes
+ * and delivered every two to four hours. `workers/autopilot-poker` is a
+ * Cloudflare Cron Trigger that does it every five. The endpoint is idempotent:
+ * a poke with nothing to do returns `idle` and costs one database query.
  */
 export async function POST(req: Request) {
   const secret = process.env.CRON_SECRET;

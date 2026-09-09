@@ -378,7 +378,9 @@ On boot, `getDb()` runs the migrator and seeder automatically **unless `SKIP_DB_
 
 **Vercel** — push to `main`. Region `sin1`. Set every variable from §9.
 
-**The autopilot's scheduler.** Nothing in Vercel drives it usefully: Hobby cron fires roughly once a day and one article takes seven steps, so a run would take most of a week. `.github/workflows/autopilot.yml` pokes the endpoint every five minutes instead — it carries no schedule of its own, only the interval at which the app is asked whether anything is due — free, and no plan change. It needs two **repository secrets**: `AUTOPILOT_URL` (`https://<your-app>/api/cron/autopilot`) and `AUTOPILOT_SECRET` (the same value as `CRON_SECRET`). With either missing the workflow exits 0 without calling anything, so a fork or a clone does not fail CI over a feature it has not configured. `vercel.json` keeps a daily cron as a backstop. Anything that can make an HTTPS request on a timer works equally well.
+**The autopilot's scheduler.** Nothing in Vercel drives it usefully: Hobby cron fires roughly once a day and one article takes five to seven steps, so a run would take most of a week. The Cloudflare Worker in `workers/autopilot-poker` pokes the endpoint every five minutes instead — it carries no schedule of its own, only the interval at which the app is asked whether anything is due. It needs two **Worker secrets**: `AUTOPILOT_URL` (`https://<your-app>/api/cron/autopilot`) and `AUTOPILOT_SECRET` (the same value as `CRON_SECRET`). `vercel.json` keeps a daily cron as a backstop.
+
+This replaced a GitHub Actions workflow set to `0,30 * * * *`. Measured over two days, GitHub delivered it every TWO TO FOUR HOURS — 00:27, 08:59, 13:29, 17:25, 20:06, 22:53, 01:04 UTC — because it throttles frequent schedules on shared runners and drops most fires. A routine due at 09:00 therefore sat until a delivery happened to land on it, and the article often appeared only once somebody opened the app, since an open tab steps a run too. Anything that can make an HTTPS request on a timer works here, but it has to actually keep the interval.
 
 **Docker** — multi-stage build to `.next/standalone`, runs as non-root `nextjs` (uid 1001), exposes 3000, mounts `/app/data` for PGlite/local images/secrets:
 
@@ -425,7 +427,7 @@ Things that will cost you time if you do not know them.
 | Publish destination or payload | `lib/hub.ts` + `pipeline/[id]/publish-actions.ts` |
 | Image providers | `lib/image/fal.ts`, registered in `lib/image/registry.ts` |
 | Adding an inbound API | See §8.2 Option A |
-| What a routine does, or how often | The Routines tab. The machine is `lib/autopilot/runner.ts`, the schedule maths `lib/autopilot/schedule.ts`; `.github/workflows/autopilot.yml` only decides how often the app is asked, not what runs |
+| What a routine does, or how often | The Routines tab. The machine is `lib/autopilot/runner.ts`, the schedule maths `lib/autopilot/schedule.ts`; `workers/autopilot-poker` only decides how often the app is asked, not what runs |
 
 ---
 
