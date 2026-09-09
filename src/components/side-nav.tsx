@@ -98,12 +98,16 @@ export function SideNav({
              straddles the sidebar edge on a desktop and is drawn exactly this
              way — --border-strong, the page's ground, a card's shadow. This is
              the same job on a smaller screen, so it is not a second design. */
-          className="grid size-10 place-items-center rounded-full border border-line-strong bg-bg text-ink-2 shadow-[var(--shadow-card)] transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+          /* 44px, unlike the steps beside it. That was the right call to refuse
+             for a progress indicator you rarely press; this is the only way to
+             reach the rest of the app from a phone, it is pressed constantly,
+             and it sits in the top corner where a thumb is least accurate. */
+          className="grid size-11 place-items-center rounded-full border border-line-strong bg-bg text-ink-2 shadow-[var(--shadow-card)] transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
           aria-label="Open navigation"
           aria-expanded={open}
           aria-controls="mobile-navigation"
         >
-          <Menu aria-hidden className="size-[18px]" />
+          <Menu aria-hidden className="size-5" />
         </button>
       </div>
 

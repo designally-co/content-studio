@@ -155,7 +155,7 @@ export function Stepper({
             <span
               className={`flex min-h-8 items-center whitespace-nowrap rounded-full px-3 text-sm transition-colors duration-(--duration-fast) ease-(--ease-out) ${
                 active
-                  ? "bg-chrome-active font-medium text-ink"
+                  ? "bg-surface font-medium text-ink shadow-[var(--shadow-card)]"
                   : navigable
                     ? "text-ink-3 hover:bg-chrome-hover hover:text-ink"
                     : "text-ink-3 opacity-60"
@@ -179,13 +179,16 @@ export function Stepper({
               ) : (
                 <span aria-current={active ? "step" : undefined}>{content}</span>
               )}
-              {/* THE STRONGER RULE, NOT THE HAIRLINE. --border is drawn for a
-                  plate sitting on white, where it has a whole card's edge to
-                  register along; as a 16px stub between two words it was faint
-                  enough to read as a rendering artefact. This connects the
-                  steps, so it has to be visible enough to be seen doing it. */}
+              {/* SHORT, AND DARK ENOUGH TO SEE. Two separate corrections that
+                  pull opposite ways and both hold: --border is drawn for a
+                  plate on white, where a whole card's edge gives it room to
+                  register, and as a stub between two words it read as a
+                  rendering artefact — so this takes --border-strong. But length
+                  is not what makes it legible, it is what makes the row wide,
+                  and on a phone every pixel here pushes the next step further
+                  off the screen. 12px, in the stronger ink. */}
               {i < STAGES.length - 1 && (
-                <span aria-hidden className="mx-1 h-px w-5 shrink-0 bg-line-strong sm:w-6" />
+                <span aria-hidden className="mx-1 h-px w-3 shrink-0 bg-line-strong sm:w-4" />
               )}
             </li>
           );
