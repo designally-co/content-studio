@@ -19,10 +19,24 @@ export function FilterBar({ categories }: { categories: Option[] }) {
   const queryParam = params.get("q") ?? "";
   const [query, setQuery] = useState(queryParam);
 
-  // Keep local input in sync when the URL changes externally (e.g. Clear filters).
-  useEffect(() => {
-    setQuery(queryParam);
-  }, [queryParam]);
+  /* Keep the box in step with a URL that changed underneath it — Clear
+     filters, the back button, a shared link.
+
+     ADJUSTED DURING RENDER, NOT IN AN EFFECT. As an effect this committed the
+     stale value first and the corrected one on a second pass, which is a
+     visible flash on the one control the reader is typing into, and is what
+     `react-hooks/set-state-in-effect` is pointing at. Setting state during
+     render is React's documented answer for exactly this shape: the work is
+     thrown away and re-run before anything paints. */
+  const [lastParam, setLastParam] = useState(queryParam);
+  if (queryParam !== lastParam) {
+    setLastParam(queryParam);
+    /* Only a value we did not cause. Our own debounced push lands back here a
+       moment later, and adopting it would overwrite the box with what was
+       typed 300ms ago — losing every character typed while the navigation was
+       in flight. */
+    if (queryParam !== query.trim()) setQuery(queryParam);
+  }
 
   // Debounce pushing the search term into the URL.
   const debounce = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
