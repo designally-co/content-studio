@@ -359,12 +359,19 @@ export function DraftsStage({
         <div className="space-y-6 lg:sticky lg:top-[4.5rem]">
           <section className="cs-bezel">
             <div className="cs-bezel-core p-5">
-              {/* "NEXT STEP" NAMED THE PANEL, NOT THE STEP. It was the heading
-                  on this stage and the one after it, so the most prominent
-                  words in the rail were the same on both and told you nothing
-                  either time. This says which step. */}
+              {/* NAME THE WORK, IN THE VERB THE READER WOULD USE. "Next step"
+                  named the panel rather than the step, and was the heading on
+                  this stage AND the one after it — the most prominent words in
+                  the rail, identical on both, saying nothing either time.
+                  "Images come next" fixed the second half and not the first: it
+                  still announced a sequence instead of handing you a job.
+
+                  Every panel in this rail is titled by what you do in it —
+                  Revise, Brand check — so this one is too. It names the next
+                  stage's WORK rather than repeating the button underneath it,
+                  which already says where the button goes. */}
               <h3 className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">
-                Images come next
+                Add a cover image
               </h3>
               {/* Says why the button is unavailable rather than just being grey:
                   a disabled control with no explanation reads as broken when you

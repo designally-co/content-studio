@@ -214,7 +214,7 @@ function ArticlePanel({
     return (
       <section className="cs-card overflow-hidden">
         <div className="border-b border-line px-5 py-3">
-          <h3 className="font-semibold tracking-tight text-ink">Final content</h3>
+          <h3 className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">Final content</h3>
         </div>
         <div className="px-6 py-5">
           <p className="text-sm text-ink-3">No draft was selected.</p>
@@ -1039,10 +1039,11 @@ function ImagePanel({
         <div className="space-y-6 lg:sticky lg:top-[4.5rem]">
         <section className="cs-bezel">
           <div className="cs-bezel-core p-5">
-            {/* Names the step rather than the panel — see the matching note on
-                the draft stage, where the same heading appeared. */}
+            {/* Named by the work you do next, like every other panel in the
+                rail — see the fuller note on the draft stage, where this same
+                heading appeared word for word. */}
             <h3 className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">
-              Publishing comes next
+              Review and publish
             </h3>
             {/* "Generate an image, or continue without one" restated the two
                 buttons already on screen, and "the image that travels to the
@@ -1497,9 +1498,9 @@ function PublishRail({
           public and the draft save is not, so the two stop being full-width
           buttons that differ only by fill. */}
       <section className="cs-bezel">
-        <div className="cs-bezel-core p-4">
+        <div className="cs-bezel-core p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 id="publish-heading" className="text-sm font-semibold text-ink">Publish to the Hub</h2>
+            <h2 id="publish-heading" className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">Publish to the Hub</h2>
             {isLive ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-ok-soft px-2.5 py-1 text-xs font-semibold text-ok-ink">
                 <span className="size-1.5 rounded-full bg-ok" aria-hidden="true" />
@@ -1627,7 +1628,7 @@ function PublishRail({
           against the brand profile; running it before publishing is still the
           useful order, so its findings stay open above the fold once run. */}
       <section className="cs-bezel">
-        <div className="cs-bezel-core p-4">
+        <div className="cs-bezel-core p-5">
           {/* THE ACTION IS UNDER THE TEXT, not opposite the heading. "Run" was
               a small control floated to the right of a title, so the sentence
               explaining what it does sat BELOW the button that does it — you
@@ -1635,11 +1636,11 @@ function PublishRail({
               panel's only action at a different width and altitude from every
               other panel in the rail. Full width at the foot, like Regenerate
               in the Revise panel. */}
-          <h3 className="text-sm font-semibold text-ink">Brand check</h3>
+          <h3 className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">Brand check</h3>
           {!anthropicReady && <p className="mt-2 text-sm text-ink-2">Configure Anthropic to run the review.</p>}
           {reviewError && <p className="mt-2 text-sm text-danger" role="alert">{reviewError}</p>}
           {!review && anthropicReady && !reviewing && (
-            <p className="mt-2 text-sm leading-relaxed text-ink-2">
+            <p className="mt-1 text-sm leading-relaxed text-ink-2">
               Reads the finished article against the brand profile before it goes out.
             </p>
           )}
