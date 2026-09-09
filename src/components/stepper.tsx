@@ -176,12 +176,26 @@ export function Stepper({
              apart: the bar, the hover, and the one you are on. */
           const content = (
             <span
-              className={`flex min-h-8 items-center whitespace-nowrap rounded-full px-3 text-sm transition-colors duration-(--duration-fast) ease-(--ease-out) ${
+              /* Every step carries the border WIDTH, so the current pill is not
+                 2px wider than its neighbours and the row does not shift
+                 sideways each time you change stage. The COLOUR is stated once
+                 per branch and never in the base: two border-colour utilities
+                 on one element are the same specificity, so which of them wins
+                 is decided by the order Tailwind happens to emit them in, not
+                 by the order they are written here — `border-transparent` in
+                 the base silently beat the active `border-line-strong`, and the
+                 pill came out with no edge at all. */
+              className={`flex min-h-8 items-center whitespace-nowrap rounded-full border px-3 text-sm transition-colors duration-(--duration-fast) ease-(--ease-out) ${
                 active
-                  ? "bg-surface font-medium text-ink"
+                  ? /* THE BORDER IS DOING THE SHADOW'S OLD JOB. White on the
+                       page's #f8f8f7 ground is a five-value difference — at the
+                       top of a page, before anything has scrolled under the
+                       blur, the pill had no edge at all once the shadow came
+                       off. A hairline states it flatly instead of lifting it. */
+                    "border-line-strong bg-surface font-medium text-ink"
                   : navigable
-                    ? "text-ink-3 hover:bg-chrome-hover hover:text-ink"
-                    : "text-ink-3 opacity-60"
+                    ? "border-transparent text-ink-3 hover:bg-chrome-hover hover:text-ink"
+                    : "border-transparent text-ink-3 opacity-60"
               }`}
             >
               {s.label}

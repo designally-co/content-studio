@@ -24,7 +24,7 @@ import {
   setCoverImageAction,
   uploadImageReferenceAction,
 } from "../image-actions";
-import { IconDownload, IconCheck, IconTrash } from "@/components/icons";
+import { IconDownload, IconTrash } from "@/components/icons";
 import { ImageSettingsMenu, ReferenceMenu } from "./image-dock-menus";
 import { AccentOrb } from "@/components/accent-orb";
 import type { ImageAspectRatio } from "@/lib/image/providers";
@@ -156,6 +156,7 @@ export function PublishStage({
       <div>
         <ArticlePanel
           projectId={projectId}
+          title={title}
           draftId={draftId}
           longForm={longForm}
           draftMd={draftMd}
@@ -177,6 +178,7 @@ export function PublishStage({
 
 function ArticlePanel({
   projectId,
+  title,
   draftId,
   longForm,
   draftMd,
@@ -192,6 +194,8 @@ function ArticlePanel({
   onNext,
 }: {
   projectId: string;
+  /** Only the images tab shows it; the content tab has the article itself. */
+  title: string;
   draftId: string;
   longForm: boolean;
   draftMd: string;
@@ -232,6 +236,7 @@ function ArticlePanel({
         <>
       <ImagePanel
         projectId={projectId}
+        title={title}
         existing={images}
         initialReferences={imageReferences}
         defaultOptionId={defaultOptionId}
@@ -328,6 +333,7 @@ function ContentPanel({
 
 function ImagePanel({
   projectId,
+  title,
   existing,
   initialReferences,
   defaultOptionId,
@@ -339,6 +345,7 @@ function ImagePanel({
   onNext,
 }: {
   projectId: string;
+  title: string;
   existing: GeneratedImageView[];
   initialReferences: UploadedReferenceView[];
   defaultOptionId: string;
@@ -673,11 +680,16 @@ function ImagePanel({
           also what gives the empty state somewhere to be said. */}
       <section className="cs-bezel flex min-h-[calc(100svh-9rem)] flex-col">
         <div className="cs-bezel-core flex flex-1 flex-col">
-          {/* NO TITLE. The article's name is on the stage before this one and
-              the one after it, and the stepper says which stage this is —
-              repeating it here named the thing you are not working on.
+          {/* THE ARTICLE'S NAME, which this stage used to be the only one
+              without. Draft shows the piece itself and Publish shows the
+              preview, so both say what you are working on simply by showing
+              it; here the subject is a picture, and without the headline there
+              was nothing on the plate to say which article the picture is FOR.
+              It is a caption, not a heading — the stepper already says what
+              stage this is, so this only has to name the thing. */}
+          <p className="px-5 pt-5 text-sm font-medium text-ink-2 sm:px-6 sm:pt-6">{title}</p>
 
-              The picture takes the room that is left, centred in it, so the
+          {/* The picture takes the room that is left, centred in it, so the
               dock stays on the floor of the plate whether there is one image or
               none. */}
           <div className="flex flex-1 items-center justify-center p-5 sm:p-6">
@@ -1034,15 +1046,28 @@ function ImagePanel({
           </div>
         </section>
 
-        {/* The set, at thumbnail size. Picking one moves it to the middle;
+        {/* ALWAYS TWO PANELS, like Draft and Publish. This appeared only once a
+            second image existed, so the rail was one card for most of the
+            stage's life and then abruptly two — and the place your generated
+            images were going to arrive was, until they arrived, nothing at all.
+            It states what it holds, and says what is in it.
+
+            The set is at thumbnail size. Picking one moves it to the middle;
             nothing else about the page changes. */}
-        {imgs.length > 1 && (
-          <section className="cs-bezel" aria-label="Generated images">
-            <div className="cs-bezel-core p-4">
-              <p className="px-1 pb-3 text-sm text-ink-2">
-                {imgs.length} images — choose the one to publish.
-              </p>
-              <ul className="grid grid-cols-2 gap-3">
+        <section className="cs-bezel" aria-label="Generated images">
+          <div className="cs-bezel-core p-5">
+            <h3 className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">
+              Generated images
+            </h3>
+            <p className="mt-1 text-sm leading-relaxed text-ink-2">
+              {imgs.length === 0
+                ? "None yet. They collect here as they are made."
+                : imgs.length === 1
+                  ? "One image, shown in the middle."
+                  : `${imgs.length} images — choose the one to publish.`}
+            </p>
+            {imgs.length > 0 && (
+              <ul className="mt-4 grid grid-cols-2 gap-3">
                 {imgs.map((img) => (
                   <li key={img.id}>
                     <GeneratedImage
@@ -1054,9 +1079,9 @@ function ImagePanel({
                   </li>
                 ))}
               </ul>
-            </div>
-          </section>
-        )}
+            )}
+          </div>
+        </section>
       </div>
     </div>
   );
@@ -1114,15 +1139,14 @@ function GeneratedImage({ img, feature = false, selected, onSelect, onDeleted }:
             {selected ? `Variation ${img.variationNo} will be published` : `Publish variation ${img.variationNo}`}
           </span>
         </button>
-        {selected && (
-          <span
-            aria-hidden
-            className="absolute left-3 top-3 z-20 inline-flex min-h-8 items-center gap-1.5 rounded-full bg-accent px-3 text-xs font-semibold text-white"
-          >
-            <IconCheck width={12} height={12} />
-            Publishing
-          </span>
-        )}
+        {/* NO "PUBLISHING" BADGE. It was an orange pill laid over the top-left
+            corner of the very picture it was describing — on the featured
+            image, which is the only one large enough to read, that meant a
+            label sitting on the subject at the size the subject is meant to be
+            judged at. The 2px accent ring around the frame already says which
+            one is chosen, the rail beside it says so again by highlighting the
+            same thumbnail, and the button's own screen-reader text still names
+            the state for anyone who cannot see either. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={img.url}
