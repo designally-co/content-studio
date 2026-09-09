@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef } from "react";
 
 /** Creating an article is the home surface, not a step of this article's
  *  pipeline — there is nothing here to return to. The research-and-outline
@@ -39,25 +40,56 @@ export function Stepper({
   const currentVisible = visibleStage(current, finalizeView);
   const reachedVisible = visibleStage(reached);
 
-  return (
-    /* PLAIN TEXT, IN THE APP'S OWN INK. This carried a coloured disc per step —
-       orange for the current one, green with a tick for the done ones, two
-       greys for the rest — a filled pill behind the current label, and a
-       connector rule that turned green as you advanced. Five colours and three
-       shapes to say which of three words you are on.
+  const scroller = useRef<HTMLElement>(null);
+  const activeItem = useRef<HTMLLIElement>(null);
 
-       Position already says most of it: the steps read left to right, so what
-       is behind you is behind you. The current step takes full ink and the
-       weight; everything else is quiet, and the ones you cannot reach yet are
-       quieter still. No orange — that belongs to the thing you press — and no
-       green, which was the only place in the product using it as chrome. */
+  /* BRING THE CURRENT STEP TO THE MIDDLE, when there is not room for all three.
+     Centring the list is a layout decision and it stops helping the moment the
+     steps overflow: the row then starts at "Draft & edit" whatever stage you
+     are on, so a phone at the Publish stage opens showing two steps you have
+     finished and not the one you are looking at.
+
+     The condition is overflow rather than a breakpoint, because that is the
+     actual question — a narrow window on a laptop has the same problem. With
+     room for everything this measures, finds nothing to do, and leaves the
+     centred list alone. */
+  useEffect(() => {
+    const centre = () => {
+      const nav = scroller.current;
+      const item = activeItem.current;
+      if (!nav || !item || nav.scrollWidth <= nav.clientWidth) return;
+      const navBox = nav.getBoundingClientRect();
+      const itemBox = item.getBoundingClientRect();
+      // Relative, so it is correct wherever the item's offset parent happens to
+      // be, and however far the row is already scrolled. The browser clamps.
+      nav.scrollLeft += itemBox.left - navBox.left - (nav.clientWidth - itemBox.width) / 2;
+    };
+    centre();
+    // Rotating a phone can turn three steps that fitted into three that do not.
+    window.addEventListener("resize", centre);
+    return () => window.removeEventListener("resize", centre);
+  }, [currentVisible]);
+
+  return (
+    /* ONE MARK FOR THE CURRENT STEP, NOT FIVE. This began with a coloured disc
+       per step — orange for the current one, green with a tick for the done
+       ones, two greys for the rest — a filled pill, and a connector that turned
+       green as you advanced: five colours and three shapes to say which of
+       three words you are on. All of it came out.
+
+       What came back is the pill alone, in grey. Position and weight carry the
+       rest: the steps read left to right, so what is behind you is behind you,
+       and the ones you cannot reach yet are quieter still. No green, which was
+       the only place in the product using it as chrome, and no tick — the
+       Publish stage says it is published, in words, on the panel you are
+       looking at when it matters. */
     /* CENTRED, AND IT SURVIVES OVERFLOW. `justify-center` on the scrolling
        element itself is the obvious way and the broken one: once the steps are
        wider than the phone, centring pushes the first one off the left edge
        into a region the scroll cannot reach. A `w-fit` list with auto margins
        centres while there is room and collapses those margins to nothing when
        there is not, so a narrow screen scrolls from the beginning. */
-    <nav aria-label="Content pipeline" className="overflow-x-auto">
+    <nav ref={scroller} aria-label="Content pipeline" className="overflow-x-auto">
       <ol className="mx-auto flex w-fit items-center gap-1">
         {STAGES.map((s, i) => {
           const active = s.n === currentVisible;
@@ -66,13 +98,25 @@ export function Stepper({
              fine for a pointer, under every platform's minimum for a thumb,
              and this is the control you use to move between stages on a phone.
              The label did not change size; the target around it did. */
+          /* THE PILL IS BACK, IN GREY. Weight alone turned out to be too little
+             on a phone: the row scrolls, so there is no full set of steps beside
+             it, and "this one is bolder" cannot be read against nothing. A
+             filled pill answers it without looking anywhere else.
+
+             Grey rather than orange, which is reserved for the thing you press.
+             A step you are already on is not an action.
+
+             AND THE HOVER NOW EXISTS. It was `bg-sunken`, which is #f8f8f7 —
+             the exact colour of the bar this sits on, so hovering a step you
+             could navigate to did nothing at all. Three surfaces, each a step
+             apart: the bar, the hover, and the one you are on. */
           const content = (
             <span
-              className={`flex min-h-11 items-center whitespace-nowrap rounded-lg px-4 text-sm transition-colors duration-(--duration-fast) ease-(--ease-out) ${
+              className={`flex min-h-11 items-center whitespace-nowrap rounded-full px-4 text-sm transition-colors duration-(--duration-fast) ease-(--ease-out) ${
                 active
-                  ? "font-medium text-ink"
+                  ? "bg-chrome-active font-medium text-ink"
                   : navigable
-                    ? "text-ink-3 hover:bg-sunken hover:text-ink"
+                    ? "text-ink-3 hover:bg-chrome-hover hover:text-ink"
                     : "text-ink-3 opacity-60"
               }`}
             >
@@ -80,14 +124,14 @@ export function Stepper({
             </span>
           );
           return (
-            <li key={s.n} className="flex items-center">
+            <li key={s.n} ref={active ? activeItem : undefined} className="flex items-center">
               {navigable && !active ? (
                 <Link
                   href={`/pipeline/${projectId}?stage=${s.target}${s.n === 2 ? "&view=images" : s.n === 3 ? "&view=complete" : ""}`}
                   /* `block`, so the anchor is the size of the padded span
                      inside it. An inline anchor gives the browser a line box to
                      hit-test instead, which is shorter than what is drawn. */
-                  className="block rounded-lg focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+                  className="block rounded-full focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
                 >
                   {content}
                 </Link>
