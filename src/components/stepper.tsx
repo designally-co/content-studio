@@ -104,23 +104,35 @@ export function Stepper({
        into a region the scroll cannot reach. A `w-fit` list with auto margins
        centres while there is room and collapses those margins to nothing when
        there is not, so a narrow screen scrolls from the beginning. */
-    /* NO SCROLLBAR. Nothing here is aimed at with a pointer — the row moves by
+    /* EDGE TO EDGE, BY UNDOING THE PAGE GUTTER AND PAYING IT BACK AS PADDING.
+       The bar this sits in is inset by 20px, so a step scrolling away stopped
+       and vanished 20px in from the screen — an arbitrary line with nothing
+       drawn on it, which reads as clipping rather than as more to come. The
+       negative margin gives the scroll the whole width; the matching padding
+       puts the steps back on the page's own left edge when they are at rest.
+       Only below `lg`, where the row can actually overflow: pulling a full-bleed
+       element out of a centred container on a wide screen risks giving the page
+       a horizontal scroll of its own, for no gain.
+
+       NO SCROLLBAR. Nothing here is aimed at with a pointer — the row moves by
        swipe, or it does not move at all because everything fits — and a bar
        under three words is a horizontal rule the design never asked for. Hiding
        it does not stop it scrolling. */
     <nav
       ref={scroller}
       aria-label="Content pipeline"
-      className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="-mx-5 overflow-x-auto px-5 [scrollbar-width:none] sm:-mx-8 sm:px-8 lg:mx-0 lg:px-0 [&::-webkit-scrollbar]:hidden"
     >
       <ol className="mx-auto flex w-fit items-center gap-1">
         {STAGES.map((s, i) => {
           const active = s.n === currentVisible;
           const navigable = s.n <= reachedVisible;
-          /* 44px, WHICH IS THE POINT. These were 36 tall and padded by 10 —
-             fine for a pointer, under every platform's minimum for a thumb,
-             and this is the control you use to move between stages on a phone.
-             The label did not change size; the target around it did. */
+          /* SMALL, DELIBERATELY. A 44px thumb target was the reflex and the
+             wrong call here: this is a progress indicator that happens to be
+             navigable, sitting above the work in a bar that follows you down
+             the page, and at thumb size it competed with the article for the
+             top of the screen. The three steps are far apart and rarely
+             pressed — 32px is enough to hit and quiet enough to ignore. */
           /* THE PILL IS BACK, IN GREY. Weight alone turned out to be too little
              on a phone: the row scrolls, so there is no full set of steps beside
              it, and "this one is bolder" cannot be read against nothing. A
@@ -135,7 +147,7 @@ export function Stepper({
              apart: the bar, the hover, and the one you are on. */
           const content = (
             <span
-              className={`flex min-h-11 items-center whitespace-nowrap rounded-full px-4 text-sm transition-colors duration-(--duration-fast) ease-(--ease-out) ${
+              className={`flex min-h-8 items-center whitespace-nowrap rounded-full px-3 text-sm transition-colors duration-(--duration-fast) ease-(--ease-out) ${
                 active
                   ? "bg-chrome-active font-medium text-ink"
                   : navigable
@@ -161,9 +173,13 @@ export function Stepper({
               ) : (
                 <span aria-current={active ? "step" : undefined}>{content}</span>
               )}
-              {/* A hairline, the same one every divider in the product uses. */}
+              {/* THE STRONGER RULE, NOT THE HAIRLINE. --border is drawn for a
+                  plate sitting on white, where it has a whole card's edge to
+                  register along; as a 16px stub between two words it was faint
+                  enough to read as a rendering artefact. This connects the
+                  steps, so it has to be visible enough to be seen doing it. */}
               {i < STAGES.length - 1 && (
-                <span aria-hidden className="mx-1 h-px w-4 shrink-0 bg-line sm:w-5" />
+                <span aria-hidden className="mx-1 h-px w-5 shrink-0 bg-line-strong sm:w-6" />
               )}
             </li>
           );
