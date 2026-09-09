@@ -43,25 +43,40 @@ export function Stepper({
   const scroller = useRef<HTMLElement>(null);
   const activeItem = useRef<HTMLLIElement>(null);
 
-  /* BRING THE CURRENT STEP TO THE MIDDLE, when there is not room for all three.
-     Centring the list is a layout decision and it stops helping the moment the
-     steps overflow: the row then starts at "Draft & edit" whatever stage you
-     are on, so a phone at the Publish stage opens showing two steps you have
+  /* THE CURRENT STEP SITS IN THE MIDDLE OF THE SCREEN, whatever step it is.
+     Centring the whole list is a layout decision and it stops helping the
+     moment the steps overflow: the row then begins at "Draft & edit" whichever
+     stage you are on, so a phone at Publish opens showing two steps you have
      finished and not the one you are looking at.
 
-     The condition is overflow rather than a breakpoint, because that is the
-     actual question — a narrow window on a laptop has the same problem. With
-     room for everything this measures, finds nothing to do, and leaves the
-     centred list alone. */
+     HALF A SCREEN OF PADDING AT EACH END IS WHAT MAKES IT POSSIBLE. Scrolling
+     stops at the end of the content, so without it the last step can only ever
+     reach the right edge — measured at 375px, "Publish" ran out of scroll 128px
+     short of the middle. Padding gives the row somewhere to keep going, and the
+     finished steps run off to the left as they should.
+
+     The padding is applied here rather than in a class because it must not
+     exist when everything fits: it would force a scroll onto a row that had no
+     need of one, and turn the centred list into an off-centre one. So the
+     natural width is measured first, with any previous padding cleared. */
   useEffect(() => {
     const centre = () => {
       const nav = scroller.current;
       const item = activeItem.current;
-      if (!nav || !item || nav.scrollWidth <= nav.clientWidth) return;
+      const list = nav?.firstElementChild;
+      if (!nav || !item || !(list instanceof HTMLElement)) return;
+
+      list.style.paddingInline = "";
+      if (nav.scrollWidth <= nav.clientWidth) {
+        nav.scrollLeft = 0;
+        return;
+      }
+      list.style.paddingInline = `${nav.clientWidth / 2}px`;
+
       const navBox = nav.getBoundingClientRect();
       const itemBox = item.getBoundingClientRect();
       // Relative, so it is correct wherever the item's offset parent happens to
-      // be, and however far the row is already scrolled. The browser clamps.
+      // be, and however far the row is already scrolled.
       nav.scrollLeft += itemBox.left - navBox.left - (nav.clientWidth - itemBox.width) / 2;
     };
     centre();
@@ -89,7 +104,15 @@ export function Stepper({
        into a region the scroll cannot reach. A `w-fit` list with auto margins
        centres while there is room and collapses those margins to nothing when
        there is not, so a narrow screen scrolls from the beginning. */
-    <nav ref={scroller} aria-label="Content pipeline" className="overflow-x-auto">
+    /* NO SCROLLBAR. Nothing here is aimed at with a pointer — the row moves by
+       swipe, or it does not move at all because everything fits — and a bar
+       under three words is a horizontal rule the design never asked for. Hiding
+       it does not stop it scrolling. */
+    <nav
+      ref={scroller}
+      aria-label="Content pipeline"
+      className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
       <ol className="mx-auto flex w-fit items-center gap-1">
         {STAGES.map((s, i) => {
           const active = s.n === currentVisible;
