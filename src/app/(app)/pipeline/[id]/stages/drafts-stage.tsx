@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Markdown } from "@/components/markdown";
 import { streamNdjson } from "@/lib/ndjson-client";
 import { ApiNotReady, StageShell } from "./stage-shell";
-import { X } from "lucide-react";
+import { Eye, Pencil, X } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { deleteRevisionAction, goToFinalizeAction, saveDraftContentAction } from "../actions";
 
@@ -251,23 +251,40 @@ export function DraftsStage({
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8">
         {/* Tray and plate. The article is the product on this screen, so it is
             seated as an object rather than boxed by a header and footer strip. */}
+        {/* The plate and the line that reports on it. Wrapped, because the grid
+            gives this column one child and the status now sits outside the
+            article rather than in its header. */}
+        <div className="min-w-0">
         <article className="cs-bezel motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:duration-500">
           <div className="cs-bezel-core">
-            <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 px-5 pb-4 pt-5 sm:px-8 sm:pt-6">
-              <div className="min-w-0">
-                <p className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">Article draft</p>
-                <p className="mt-1 text-sm text-ink-2" aria-live="polite">
-                  {draft.streaming ? "Writing draft…" : revising ? "Applying revision…" : dirty || pending ? "Saving…" : draft.contentMd ? `Saved · Target ${targetLength}` : `Target ${targetLength}`}
-                </p>
-              </div>
+            {/* NO TITLE HERE. "Article draft" sat in 20px semibold at the top of
+                the plate, directly under a progress row whose current step says
+                Draft — the same fact, twice, in the two places you look first.
+                What is left is the one control, so the header is the control. */}
+            <header className="flex items-center justify-end px-5 pb-2 pt-5 sm:px-8 sm:pt-6">
               {/* ONE ACTION ON THE ARTICLE, and it is the one that changes how
                   you are looking at it. Revisions and Regenerate were sitting
                   here too, so the panel's toolbar held a view toggle, a drawer
                   latch and a destructive rewrite at identical weight. Both of
                   the others act on the DRAFT rather than the view, and both now
-                  live in the rail where the drafting tools are. */}
-              <button type="button" onClick={toggleEditing} disabled={!draft.contentMd || draft.streaming || revising} className="cs-tool" aria-pressed={editing}>
-                {editing ? "Preview" : "Edit"}
+                  live in the rail where the drafting tools are.
+
+                  THE NAME DOES NOT CHANGE WITH THE ICON. It is a toggle, so the
+                  state belongs in `aria-pressed`, not in a label that renames
+                  itself — a button called "Preview" that is pressed reads as a
+                  preview that is switched on, which is the opposite of what it
+                  does. The icon shows where pressing takes you; the title says
+                  it in words for anyone hovering. */}
+              <button
+                type="button"
+                onClick={toggleEditing}
+                disabled={!draft.contentMd || draft.streaming || revising}
+                className="cs-tool !w-9 justify-center !px-0"
+                aria-pressed={editing}
+                aria-label="Edit the Markdown"
+                title={editing ? "Preview the article" : "Edit the Markdown"}
+              >
+                {editing ? <Eye aria-hidden className="size-4" /> : <Pencil aria-hidden className="size-4" />}
               </button>
             </header>
 
@@ -285,6 +302,24 @@ export function DraftsStage({
             )}
           </div>
         </article>
+
+        {/* UNDER THE PLATE, WHERE A CAPTION GOES. This was the plate's subtitle,
+            which put "Saved · Target 300–500 words" — a target you are working
+            towards and a save that has already happened — above the article, in
+            the position that introduces it. It reports on the thing, so it
+            reads after it. */}
+        <p className="mt-3 px-1 text-sm text-ink-3" aria-live="polite">
+          {draft.streaming
+            ? "Writing draft…"
+            : revising
+              ? "Applying revision…"
+              : dirty || pending
+                ? "Saving…"
+                : draft.contentMd
+                  ? `Saved · Target ${targetLength}`
+                  : `Target ${targetLength}`}
+        </p>
+        </div>
 
         {/* top-32, the offset Publish already used. At top-6 the rail
             slid under the sticky stepper before it caught, which reads as
