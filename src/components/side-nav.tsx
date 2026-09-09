@@ -128,7 +128,12 @@ export function SideNav({
           />
           <aside
             id="mobile-navigation"
-            className="relative flex h-full w-[min(20rem,88vw)] flex-col border-r border-line-strong bg-chrome shadow-[var(--shadow-pop)]"
+            /* NARROWER THAN IT WAS. 320px, or 88% of a phone, is nearly the
+               whole screen for three destinations and an account row — it read
+               as a page that had replaced the app rather than as a panel over
+               it, and left almost none of the work visible to come back to.
+               17rem holds the longest row with room to spare. */
+            className="relative flex h-full w-[min(17rem,78vw)] flex-col border-r border-line-strong bg-chrome shadow-[var(--shadow-pop)]"
             aria-label="Mobile navigation"
             role="dialog"
             aria-modal="true"

@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { DropdownMenu } from "radix-ui";
-import { LogOut, Fingerprint, FileText, KeyRound, ChevronsUpDown } from "lucide-react";
+import { LogOut, Fingerprint, FileText, KeyRound } from "lucide-react";
 import { logoutAction } from "@/app/actions";
 import { ConfirmDialog } from "./confirm-dialog";
 import { SECTION_LABELS, type SettingsSection } from "./settings/sections";
@@ -67,11 +67,13 @@ export function AccountMenu({
         }`}
       >
         <Initials email={email} />
+        {/* NO CHEVRON. It was a second thing in a row whose whole content is
+            one long address that already has to truncate — the glyph took width
+            the address needed, to say "this opens something" about a row that
+            says so by lighting up under the pointer and by being the only
+            control on the floor of the rail. */}
         {!collapsed && (
-          <>
-            <span className="min-w-0 flex-1 truncate text-left text-sm font-medium">{email}</span>
-            <ChevronsUpDown aria-hidden className="size-4 shrink-0 text-ink-3" />
-          </>
+          <span className="min-w-0 flex-1 truncate text-left text-sm font-medium">{email}</span>
         )}
       </DropdownMenu.Trigger>
 
