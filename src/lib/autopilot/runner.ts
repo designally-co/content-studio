@@ -168,7 +168,17 @@ async function runsToday(routineId: string): Promise<number> {
   return row?.n ?? 0;
 }
 
-/** Starts that failed before an article existed, today. */
+/**
+ * Starts that failed before an article existed, today.
+ *
+ * `status = 'failed'` as well as the missing project, and both halves earn
+ * their place. Without the project test a run that failed at publishing —
+ * having written the whole article — would count against a ceiling meant for
+ * runs that cost a topic request and nothing else. Without the status test
+ * every projectless row counts, and since a skipped slot is stored as one of
+ * those, three skips would have spent most of a ceiling that exists for
+ * provider trouble.
+ */
 async function failedStartsToday(routineId: string): Promise<number> {
   const db = await getDb();
   const [row] = await db
@@ -178,6 +188,7 @@ async function failedStartsToday(routineId: string): Promise<number> {
       and(
         eq(routineRuns.routineId, routineId),
         gte(routineRuns.startedAt, startOfDay()),
+        eq(routineRuns.status, "failed"),
         isNull(routineRuns.projectId)
       )
     );
@@ -592,20 +603,44 @@ export async function tick(): Promise<TickReport> {
   }
 
   for (const routine of due) {
-    // Whether or not it starts, its clock moves on. A routine that cannot run
-    // today should try tomorrow, not on every tick for the rest of the day.
-    await rescheduleRoutine(routine);
+    /* THE CLOCK MOVES WHERE THE DECISION IS MADE, not before it.
+       It used to move here, above every check, on the reasoning that a routine
+       which cannot run today should try tomorrow rather than on every tick for
+       the rest of the day. That is right for the three ceilings below and
+       wrong for the one case underneath them: a start that THREW also had its
+       clock moved to tomorrow, so it never came due again today and
+       FAILED_STARTS_PER_DAY — five retries, for exactly the case of a provider
+       being briefly unwell — could never reach two. One blip cost the day. */
 
     const total = await runsToday(routine.id);
-    if (total >= routine.maxPerDay) continue;
-    if ((await failedStartsToday(routine.id)) >= FAILED_STARTS_PER_DAY) continue;
-    if (routine.hubStatus === "published" && !isHubConfigured()) continue;
+    if (total >= routine.maxPerDay) {
+      report.note = await skipRoutine(
+        routine,
+        total === 1
+          ? "Already wrote an article today."
+          : `Already wrote ${total} articles today.`
+      );
+      continue;
+    }
+    if ((await failedStartsToday(routine.id)) >= FAILED_STARTS_PER_DAY) {
+      report.note = await skipRoutine(routine, "Too many failed starts today.");
+      continue;
+    }
+    if (routine.hubStatus === "published" && !isHubConfigured()) {
+      report.note = await skipRoutine(routine, "It publishes to the Hub, which is not configured.");
+      continue;
+    }
 
     try {
       await withDeadline(startRun(routine), STEP_DEADLINE_MS, "topic");
+      // Only now: an article exists, so this slot is genuinely spent.
+      await rescheduleRoutine(routine);
       report.started += 1;
       report.idle = false;
     } catch (cause) {
+      /* The clock deliberately stays where it is. The routine is still due, so
+         the next tick tries again — which is what the failed-start ceiling is
+         counting towards, and what stops it when the trouble is not brief. */
       await recordStartFailure(routine.id, cause);
       report.note = "A routine could not start — see its history.";
     }
@@ -656,6 +691,36 @@ function notIdleNote(all: Routine[]): string {
   const on = all.filter((routine) => routine.enabled && routine.scheduleKind !== "manual");
   if (on.length === 0) return "No routine is on a schedule.";
   return "Nothing is due yet.";
+}
+
+/**
+ * Pass over a slot that came due, and say so out loud.
+ *
+ * A SKIPPED SLOT USED TO LEAVE NOTHING BEHIND. The clock moved, the `continue`
+ * ran, and the routine's next scheduled time arrived with no article, no error,
+ * and nothing anywhere that could account for the gap — which is, from the
+ * outside, indistinguishable from the scheduler never firing at all. It is the
+ * worst thing this file can do, because it sends whoever is watching to debug
+ * infrastructure that is working perfectly.
+ *
+ * So a skip is a row now. It carries no project, so it counts against neither
+ * `maxPerDay` nor the failed-start ceiling; it exists to be read.
+ *
+ * The clock still moves, because every reason that reaches here is one that
+ * will still be true five minutes from now — the day's quota is spent, or the
+ * Hub is not configured. Leaving it due would re-skip, and re-record, on every
+ * tick until midnight.
+ */
+async function skipRoutine(routine: Routine, reason: string): Promise<string> {
+  const db = await getDb();
+  await db.insert(routineRuns).values({
+    routineId: routine.id,
+    step: "topic",
+    status: "skipped",
+    error: reason.slice(0, 500),
+  });
+  await rescheduleRoutine(routine);
+  return `${routine.name} skipped a run — ${reason.toLowerCase()}`;
 }
 
 /** A start that failed leaves a row, so the reason is readable on the page. */

@@ -352,7 +352,14 @@ export type RoutineStep =
   | "images"
   | "publish"
   | "done";
-export type RoutineRunStatus = "running" | "done" | "failed";
+/**
+ * `skipped` is a slot that came due and was deliberately not taken — the day's
+ * quota was already spent, or something the routine depends on was missing. It
+ * is not a failure and it is not an article; it exists so the page can say why
+ * a scheduled time passed with nothing to show for it, which is otherwise the
+ * one outcome the machine has no way of explaining.
+ */
+export type RoutineRunStatus = "running" | "done" | "failed" | "skipped";
 
 export const routineRuns = pgTable("routine_runs", {
   id: uuid("id").primaryKey().defaultRandom(),

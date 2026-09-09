@@ -444,7 +444,12 @@ function RoutineCard({
 
       {live && <Progress live={live} />}
       {!live && failure && <Failure message={humanise(failure)} />}
-      {!live && !failure && last?.status === "failed" && <LastRun run={last} />}
+      {/* A skip joins a failure as something the card volunteers. Both are
+          answers to "its time came and went — what happened?", and that
+          question is the reason to look at this card at all. */}
+      {!live && !failure && (last?.status === "failed" || last?.status === "skipped") && (
+        <LastRun run={last} />
+      )}
 
       {/* EDGE TO EDGE. The rule was inside the card's padding, so it stopped
           short of both sides and read as an underline beneath the description
@@ -612,6 +617,18 @@ function LastRun({ run }: { run: RunView }) {
           run.error ? ` — ${humanise(run.error)}` : "."
         }`}
       />
+    );
+  }
+  /* NOT RED. Nothing went wrong — the routine came due, found a reason not to
+     write, and moved on, which is the ceiling doing its job. It reads as
+     ordinary metadata because it is, and because dressing it as a failure
+     would send someone looking for a fault that is not there. */
+  if (run.status === "skipped") {
+    return (
+      <p className="mt-3 rounded-xl bg-sunken px-4 py-3 text-sm leading-relaxed text-ink-2">
+        Skipped {when}
+        {run.error ? ` — ${run.error}` : "."}
+      </p>
     );
   }
   return (
