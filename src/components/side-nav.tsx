@@ -79,16 +79,29 @@ export function SideNav({
           scroll back up to find is a menu button you cannot reach; but it is
           on the page's own ground with no rule under it, so there is no second
           surface up there, just a control. */}
-      <div className="sticky top-0 z-(--z-sticky) flex h-12 shrink-0 items-center bg-bg px-2 lg:hidden">
+      {/* AS WIDE AS THE BUTTON, NOT AS WIDE AS THE SCREEN. It still claims a
+          48px line in the flow — that is what keeps it off the top of every
+          page — but only the button's own width of it, which leaves the rest of
+          that line for whatever the page wants to put there. The pipeline puts
+          its stepper there, pulled up alongside.
+
+          It also sits a layer above that content and carries the page's own
+          background, so a step scrolling past slides out of sight behind the
+          button instead of over it. */}
+      <div className="sticky top-0 z-(--z-nav) flex h-12 w-fit shrink-0 items-center bg-bg px-3 lg:hidden">
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="grid size-11 place-items-center rounded-lg text-ink-2 hover:bg-sunken focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+          /* A CIRCLE, AND THE SAME ONE THE RAIL'S OWN TOGGLE IS. That control
+             straddles the sidebar edge on a desktop and is drawn exactly this
+             way — --border-strong, the page's ground, a card's shadow. This is
+             the same job on a smaller screen, so it is not a second design. */
+          className="grid size-10 place-items-center rounded-full border border-line-strong bg-bg text-ink-2 shadow-[var(--shadow-card)] transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
           aria-label="Open navigation"
           aria-expanded={open}
           aria-controls="mobile-navigation"
         >
-          <Menu className="size-5" />
+          <Menu aria-hidden className="size-[18px]" />
         </button>
       </div>
 

@@ -121,7 +121,13 @@ export function Stepper({
     <nav
       ref={scroller}
       aria-label="Content pipeline"
-      className="-mx-5 overflow-x-auto px-5 [scrollbar-width:none] sm:-mx-8 sm:px-8 lg:mx-0 lg:px-0 [&::-webkit-scrollbar]:hidden"
+      /* FADED AT THE LEFT, because on a phone the menu button sits over that
+         end of the row and a step scrolling past it was being sliced mid-word
+         by an opaque block — "…mages", which reads as a typo rather than as
+         something that carries on off-screen. The mask hands the same job to a
+         gradient. Off above `lg`, where there is no button and nothing to hide
+         behind. */
+      className="-mx-5 overflow-x-auto px-5 [mask-image:linear-gradient(to_right,transparent_0,#000_76px)] [scrollbar-width:none] sm:-mx-8 sm:px-8 lg:mx-0 lg:px-0 lg:[mask-image:none] [&::-webkit-scrollbar]:hidden"
     >
       <ol className="mx-auto flex w-fit items-center gap-1">
         {STAGES.map((s, i) => {

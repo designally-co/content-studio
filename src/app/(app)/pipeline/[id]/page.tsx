@@ -90,10 +90,18 @@ export default async function PipelinePage({
           with it — a floating surface, and the scrim existed only to manage the
           consequences of floating. On the page itself, on the same gutter as
           everything else, it needs neither. */}
-      {/* top-12 tracks the height of the menu-button strip the rail leaves on a
-          phone — 64 when that was a full header, 48 now that it is one control
-          on the page's own ground. */}
-      <div className="sticky top-12 z-(--z-sticky) mx-auto w-full max-w-7xl bg-bg px-5 py-3 sm:px-8 lg:top-0 lg:px-12 xl:px-16">
+      {/* BESIDE THE MENU BUTTON, NOT UNDER IT. The rail's button claims a 48px
+          line at the top of a phone and only its own width of it; this pulls
+          the stepper up onto that same line, so the top of the screen is one
+          row — a button, then the progress — instead of two bands of chrome
+          stacked above an article.
+
+          `py-2` rather than `py-3` is what makes the heights agree: 8 + the
+          32px pill + 8 is the 48 the button's line is tall. They both stick to
+          the top, so a disagreement here would show as a step of background
+          against the button while scrolling. Above `lg` the rail is a sidebar,
+          there is no button, and the row goes back to its own line. */}
+      <div className="sticky top-0 z-(--z-sticky) mx-auto -mt-12 w-full max-w-7xl bg-bg px-5 py-2 sm:px-8 lg:mt-0 lg:px-12 lg:py-3 xl:px-16">
         <Stepper
           projectId={id}
           current={current}
