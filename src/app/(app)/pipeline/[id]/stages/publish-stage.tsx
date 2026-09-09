@@ -663,30 +663,41 @@ function ImagePanel({
        thumbnails beside it, and the forward action is in a panel like every
        other stage's. */
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8">
-      <div className="flex min-h-[calc(100svh-9rem)] flex-col gap-6">
-        {/* NO TITLE. The article's name is on the stage before this one and the
-            one after it, and the stepper says which stage this is — repeating
-            it here named the thing you are not working on. The picture is the
-            subject; the card holds it and nothing else, and does not exist
-            until there is one to hold. */}
-        {featured && (
-          <section className="cs-bezel">
-            <div className="cs-bezel-core p-5 sm:p-6">
-              <div className="flex justify-center">
-                <GeneratedImage
-                  key={featured.id}
-                  img={featured}
-                  feature
-                  selected
-                  onSelect={() => chooseCover(featured.id)}
-                  onDeleted={() => setImgs((current) => current.filter((item) => item.id !== featured.id))}
-                />
-              </div>
-            </div>
-          </section>
-        )}
+      {/* ONE PLATE, the way Draft holds the article and Publish holds the
+          preview. This column was a stack of loose pieces on the page ground —
+          a card that existed only once an image did, some sentences, and a dock
+          floating over all of it behind a gradient scrim — so the stage in the
+          middle of the pipeline was the one that did not look like the pipeline.
 
-      <div className="space-y-2">
+          The plate is here whether or not there is a picture yet, which is
+          also what gives the empty state somewhere to be said. */}
+      <section className="cs-bezel flex min-h-[calc(100svh-9rem)] flex-col">
+        <div className="cs-bezel-core flex flex-1 flex-col">
+          {/* NO TITLE. The article's name is on the stage before this one and
+              the one after it, and the stepper says which stage this is —
+              repeating it here named the thing you are not working on.
+
+              The picture takes the room that is left, centred in it, so the
+              dock stays on the floor of the plate whether there is one image or
+              none. */}
+          <div className="flex flex-1 items-center justify-center p-5 sm:p-6">
+            {featured ? (
+              <GeneratedImage
+                key={featured.id}
+                img={featured}
+                feature
+                selected
+                onSelect={() => chooseCover(featured.id)}
+                onDeleted={() => setImgs((current) => current.filter((item) => item.id !== featured.id))}
+              />
+            ) : (
+              <p className="max-w-sm text-balance text-center text-sm leading-relaxed text-ink-2">
+                No image yet. Describe one below, or auto-draft it from the article.
+              </p>
+            )}
+          </div>
+
+      <div className="space-y-2 px-5 sm:px-6">
         {!anthropicReady && (
           <p id="auto-draft-requirement" className="text-sm text-ink-2">
             Configure <code>ANTHROPIC_API_KEY</code> in the server environment to use Auto-draft.
@@ -723,27 +734,18 @@ function ImagePanel({
         {busy === "prompt" ? "Drafting image prompt" : busy === "gen" ? "Generating images" : ""}
       </p>
 
-      {/* Sticky, not fixed: laid out inside the content column, so it takes the
-          width the sidebar leaves and moves with it when that collapses. Fixed
-          positioning is against the viewport and cannot know the sidebar exists.
-          Sticky also reserves its own space, so nothing needs measuring.
+      {/* ON THE FLOOR OF THE PLATE, not floating over the page.
+          It used to be `sticky bottom-16` with a gradient scrim beneath it,
+          because it sat on the page ground with images scrolling underneath and
+          needed to hold itself clear of the bottom edge and mask what passed
+          behind. Inside the plate there is nothing to hold clear of and nothing
+          to mask: `mt-auto` puts it on the floor, and the picture above takes
+          whatever height is left.
 
           Everything else is a setting on the prompt, so the settings compress
           into chips in the control row. Structure, growth and controls all
           mirror the composer on the home surface. */}
-      {/* 64px clear of the bottom edge, held by both the sticky offset and the
-          margin: the offset governs while the page overflows, the margin while
-          it does not, and this dock moves between those two states depending on
-          how many images there are. Padding cannot do it — `bottom` pins the
-          element's own edge, so padding sits inside that and reads as nothing. */}
-      <div className="sticky bottom-16 z-20 mt-auto mb-16 pt-6">
-        <div
-          aria-hidden
-          // Reaches past the gap: with the dock held 64px off the bottom, a
-          // scrim stopping at its edge would leave a strip for images to scroll
-          // through underneath it.
-          className="pointer-events-none absolute inset-x-0 -bottom-16 -z-10 h-[calc(100%+8rem)] bg-linear-to-t from-bg from-72% to-transparent"
-        />
+      <div className="mt-auto p-5 pt-4 sm:p-6 sm:pt-4">
         {/*
           The reference photographs, shown as photographs.
 
@@ -1009,7 +1011,8 @@ function ImagePanel({
           </div>
         </div>
       </div>
-      </div>
+        </div>
+      </section>
 
       {/* top-32, the offset Publish already used. At top-6 the rail
             slid under the sticky stepper before it caught, which reads as
