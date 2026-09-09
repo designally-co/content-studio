@@ -1,7 +1,7 @@
 "use client";
 
 import { DropdownMenu } from "radix-ui";
-import { Check, ChevronRight, ImagePlus, Sparkles, SlidersHorizontal } from "lucide-react";
+import { Check, ChevronRight, ImagePlus, LoaderCircle, Sparkles, SlidersHorizontal } from "lucide-react";
 
 /**
  * The image dock's controls, folded into two menus.
@@ -27,8 +27,32 @@ const ITEM =
 const PANEL =
   "z-(--z-dropdown) min-w-52 rounded-2xl bg-surface p-2 shadow-[var(--shadow-pop)] outline-none duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none";
 
+/**
+ * An outlined disc, the same one the send button is.
+ *
+ * These were `cs-tool` — a borderless pill carrying an icon AND a word — and
+ * between them they put "Settings" and "Reference required" in the control row
+ * of a dock whose actual instruction is the sentence you type above them. Two
+ * labels for two things you set once, competing with the one thing you do every
+ * time. The icons carry it; the words move to the accessible name and the
+ * tooltip, where they answer the question only if it is asked.
+ */
 const TRIGGER =
-  "cs-tool shrink-0 data-[state=open]:bg-sunken data-[state=open]:text-ink";
+  "cs-btn cs-dock-btn-icon shrink-0 data-[state=open]:bg-sunken data-[state=open]:text-ink";
+
+/**
+ * The ring — stated at each use, never in TRIGGER.
+ *
+ * `cs-btn` draws its outline in `--border`, a hairline meant for a button on
+ * the page's grey ground; on the dock's white it computed to #f0f0f0 and read
+ * as no outline at all. These take `--border-strong`.
+ *
+ * It cannot live in TRIGGER alongside the reference button's danger tint: two
+ * border-colour utilities on one element are the same specificity, so the
+ * winner would be whichever Tailwind emitted last rather than whichever was
+ * written last — the same trap that left the stepper's current pill unedged.
+ */
+const RING = "border-line-strong";
 
 export type Choice = { value: string; label: string; description?: string };
 
@@ -113,9 +137,13 @@ export function ImageSettingsMenu({
 }) {
   return (
     <DropdownMenu.Root modal={false}>
-      <DropdownMenu.Trigger className={TRIGGER} disabled={disabled} aria-label="Image settings">
+      <DropdownMenu.Trigger
+        className={`${TRIGGER} ${RING}`}
+        disabled={disabled}
+        aria-label="Image settings"
+        title="Image settings"
+      >
         <SlidersHorizontal aria-hidden className="size-4" strokeWidth={1.6} />
-        Settings
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         {/* Upwards: the dock sits at the foot of the stage, so a menu opening
@@ -169,23 +197,48 @@ export function ReferenceMenu({
   fileInput: React.ReactNode;
   disabled?: boolean;
 }) {
+  const busy = uploading || finding;
+  /* THE STATE HAS TO SURVIVE LOSING THE LABEL. It was the label — "Uploading…",
+     "Looking…", "Reference required" — so with the word gone it moves into the
+     three things an icon button still has: the accessible name, the tooltip,
+     and the drawing. A required reference is the one state that must be visible
+     without hovering, so it also takes the danger ink and a tinted outline. */
   const label = uploading
-    ? "Uploading…"
+    ? "Uploading a reference…"
     : finding
-      ? "Looking…"
+      ? "Looking for a reference…"
       : missing
         ? "Reference required"
-        : "Reference";
+        : "Reference image";
 
   return (
     <>
       <DropdownMenu.Root modal={false}>
+        {/* A PILL, WHERE SETTINGS IS A DISC. The two are not the same kind of
+            control: settings are values you set once and forget, and a
+            reference is material this article either has or is missing — a
+            state worth naming on the face of the button rather than only in a
+            tooltip nobody hovers for. The word stays "Reference" in every
+            state; which state it is in comes from the icon and the tint, so the
+            button does not change width while you watch it. */}
         <DropdownMenu.Trigger
-          className={`${TRIGGER} ${missing ? "text-danger-ink" : ""}`}
+          className={`cs-btn cs-dock-btn cs-dock-btn--wide shrink-0 data-[state=open]:bg-sunken ${
+            missing ? "border-danger text-danger-ink" : RING
+          }`}
           disabled={disabled}
+          aria-label={label}
+          title={label}
         >
-          <ImagePlus aria-hidden className="size-4" strokeWidth={1.6} />
-          {label}
+          {busy ? (
+            <LoaderCircle
+              aria-hidden
+              className="size-4 animate-spin motion-reduce:animate-none"
+              strokeWidth={1.6}
+            />
+          ) : (
+            <ImagePlus aria-hidden className="size-4" strokeWidth={1.6} />
+          )}
+          <span className="whitespace-nowrap pl-2">Reference</span>
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
           <DropdownMenu.Content className={PANEL} side="top" align="start" sideOffset={8} collisionPadding={12}>
