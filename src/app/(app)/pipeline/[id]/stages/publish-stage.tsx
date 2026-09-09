@@ -1125,10 +1125,19 @@ function GeneratedImage({ img, feature = false, selected, onSelect, onDeleted }:
   return (
     <figure
       style={feature ? { maxWidth: Math.round(FEATURE_MAX_HEIGHT * ratio) } : undefined}
+      /* THE FEATURED IMAGE WEARS NO RING. The accent ring answers "which of
+         these is chosen", which is a question a grid asks and a single picture
+         cannot: the one in the middle of the plate is there BECAUSE it is
+         chosen, so ringing it states the obvious in the loudest colour the
+         product has, around the one thing on the screen meant to be looked at
+         on its own terms. The rail's thumbnails keep it, because that is where
+         the choosing happens. */
       className={`group overflow-hidden rounded-lg transition-shadow duration-(--duration-base) ease-(--ease-spring) ${
-        selected
-          ? "shadow-[0_0_0_2px_var(--accent),var(--shadow-plate)]"
-          : "shadow-[0_0_0_1px_var(--border)] hover:shadow-[0_0_0_1px_var(--border-strong)]"
+        feature
+          ? "shadow-[var(--shadow-plate)]"
+          : selected
+            ? "shadow-[0_0_0_2px_var(--accent),var(--shadow-plate)]"
+            : "shadow-[0_0_0_1px_var(--border)] hover:shadow-[0_0_0_1px_var(--border-strong)]"
       }`}
     >
       <div className="relative">
