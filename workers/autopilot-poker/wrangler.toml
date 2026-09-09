@@ -28,9 +28,17 @@ compatibility_date = "2026-09-09"
 # answer a request.
 workers_dev = false
 
-# Every five minutes, so a seven-step article finishes about 35 minutes after it
-# becomes due. Cheap to run constantly: a poke with nothing to do costs one
-# database query and returns `idle`. 288 requests a day against a free tier of
-# 100,000.
+# Every two minutes. THE INTERVAL IS THE ARTICLE'S PACE, because a poke advances
+# one step and the step itself takes a fraction of the gap: measured end to end
+# on 9 September 2026, a seven-step article took 25 minutes at */5 while the work
+# inside it was well under five. At */2 the same article lands in about 12.
+#
+# Cheap to run constantly: a poke with nothing to do costs one database query and
+# returns `idle`. 720 requests a day against a free tier of 100,000 — and Vercel
+# only bills the function for the milliseconds it spends saying "nothing is due".
+#
+# Not faster than this. Two minutes is already shorter than the slowest step, so
+# some pokes will find the run claimed and do nothing; below that the misses
+# outnumber the work without the article arriving any sooner.
 [triggers]
-crons = ["*/5 * * * *"]
+crons = ["*/2 * * * *"]
