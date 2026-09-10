@@ -668,11 +668,18 @@ function ImagePanel({
      the middle of the stage should have one in it even before a choice. */
   const featured = imgs.find((img) => img.id === selectedCoverId) ?? imgs[0];
 
+  /* EACH STATE SAYS THE THING YOU CANNOT SEE. "One image, shown in the middle"
+     described the screen back to the person looking at it — there is one
+     picture, and it is in the middle, both plainly true and neither worth a
+     line of type. What is NOT visible with one image is that asking again adds
+     to the set rather than replacing it, which is the whole reason to ask
+     again. The plural case already worked this way: it says the tiles are a
+     choice, which nothing about a grid of pictures announces. */
   const imagesNote =
     imgs.length === 0
       ? "None yet."
       : imgs.length === 1
-        ? "One image, shown in the middle."
+        ? "One so far — generate again to compare."
         : `${imgs.length} images — choose the one to publish.`;
 
   /* ONE DEFINITION, TWO HOMES — the rail panel on a desktop, the body of a
@@ -1133,16 +1140,20 @@ function ImagePanel({
             <h3 className="font-heading text-[length:var(--text-h3)] font-medium tracking-tight text-ink">
               Review and publish
             </h3>
-            {/* "Generate an image, or continue without one" restated the two
-                buttons already on screen, and "the image that travels to the
-                Hub" made a picture the subject of a journey. Say which one is
-                chosen, and that skipping is allowed — the two things you cannot
-                work out by looking. */}
-            <p className="mt-1 text-sm leading-relaxed text-ink-2">
-              {imgs.length === 0
-                ? "You can publish without an image."
-                : "The image in the middle is the one that publishes."}
-            </p>
+            {/* ONLY WHEN IT HAS SOMETHING TO ADD. With an image chosen this
+                said "the image in the middle is the one that publishes" — the
+                middle image is the large one, the selected one, the only one
+                with a tick, and the reader is looking straight at it. Three
+                signals already carry that, and a fourth in words reads as the
+                interface not trusting its own design.
+
+                With NO image there is a real thing to say, because nothing on
+                screen says it: that you are allowed to go on anyway. */}
+            {imgs.length === 0 && (
+              <p className="mt-1 text-sm leading-relaxed text-ink-2">
+                You can publish without an image.
+              </p>
+            )}
             <button type="button" onClick={onNext} className="cs-cta mt-4 w-full">
               Continue to publish
             </button>
