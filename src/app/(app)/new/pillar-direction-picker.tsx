@@ -74,27 +74,38 @@ export function PillarDirectionPicker({
              correct for exactly that. Both were true of a layout that no
              longer exists.
 
-             `side="top"` is where the room is, and collisions are Radix's to
-             handle again: on a wide screen with the dock centred it can flip
-             back down if that is where the space is, which is the whole point
-             of letting it decide. */
+             ALWAYS UPWARD, THOUGH — never sometimes. Left to decide, Radix
+             flips to whichever side has room, and "room" depends on how tall
+             the list is: Design has ten directions and opened downward, New
+             Update has three and opened up. Same control, same press, the menu
+             appearing on a different side each time, and nothing the reader
+             did caused it. A menu that moves is a menu you have to find.
+
+             So the side is fixed and the HEIGHT gives instead. Capped to the
+             space Radix measured above the trigger, a list that would not have
+             fitted scrolls rather than jumping to the other side — which is
+             the trade worth making, because a scrollbar is a thing you can see
+             and a flip is a thing you can only be surprised by. */
           side="top"
           align="start"
           sideOffset={8}
           collisionPadding={12}
+          avoidCollisions={false}
+          style={{
+            maxHeight:
+              "min(60svh, var(--radix-dropdown-menu-content-available-height, 60svh))",
+          }}
           /* THE SETTINGS MENU'S PANEL, exactly — same ground, same radius, same
              shadow, no border. Two dropdowns in one product drawn as two
              different objects is two products. It was a bordered plate with a
              bespoke two-layer shadow and 6px padding; this is the shared one. */
-          className={`${PANEL} w-max max-w-[calc(100vw-1.5rem)] text-ink`}
+          className={`${PANEL} w-max max-w-[calc(100vw-1.5rem)] overflow-y-auto text-ink [scrollbar-width:thin]`}
           aria-label={activePillar ? `${activePillar.name} directions` : "Content direction"}
         >
           {activePillar ? (
-            /* Capped against the height Radix measured between the trigger and
-               the edge of the screen, rather than a guess at half the viewport
-               — the old `50svh` was a number chosen for a composer that sat in
-               the middle of the display. */
-            <div key={activePillar.id} className="max-h-[min(60svh,var(--radix-dropdown-menu-content-available-height,60svh))] overflow-y-auto [scrollbar-width:none] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-right-2 motion-safe:duration-150 [&::-webkit-scrollbar]:hidden">
+            /* The cap lives on the panel, not here: two levels each scrolling
+               inside a panel that also scrolls is two scrollbars for one list. */
+            <div key={activePillar.id} className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-right-2 motion-safe:duration-150">
               <MenuItem
                 onSelect={(event) => {
                   event.preventDefault();
@@ -118,7 +129,7 @@ export function PillarDirectionPicker({
               ))}
             </div>
           ) : (
-            <div key="pillars" className="max-h-[min(60svh,var(--radix-dropdown-menu-content-available-height,60svh))] overflow-y-auto [scrollbar-width:none] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-left-2 motion-safe:duration-150 [&::-webkit-scrollbar]:hidden">
+            <div key="pillars" className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-left-2 motion-safe:duration-150">
               <DropdownMenuPrimitive.Label className="px-3 pb-1.5 pt-2 text-xs font-semibold text-ink-3">
                 Content direction
               </DropdownMenuPrimitive.Label>
