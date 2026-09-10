@@ -10,6 +10,7 @@ import { Directions } from "./directions";
 import { ArticleTemplateCard } from "./article-template-card";
 import { ApiKeys } from "./api-keys";
 import { ModelSelectionCard } from "./model-selection-card";
+import { PAGE_CLOSE_BUTTON } from "@/components/page-bar";
 
 /**
  * THE SHEET CARRIES ITS OWN PALETTE, matching the routine sheet exactly: a
@@ -112,7 +113,13 @@ export function SettingsSheet({
                the old padded header, but here it puts the button 4px past the
                scroller's content box — enough to raise a horizontal scrollbar
                across the foot of every sheet. */
-            className="-mt-1 ml-3 mb-1 grid size-10 shrink-0 float-right place-items-center rounded-lg text-(--sheet-ink-2) transition-colors duration-(--duration-fast) hover:bg-chrome hover:text-(--sheet-ink) focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+            /* THE SHEET'S CLOSE, from the one constant every close in the app
+               uses. A rounded-lg ghost button was the odd one out on a surface
+               of pills, and it only appeared on hover — a dismissal you had to
+               find rather than see. The dialog's ground is the app's own
+               (#f8f8f7), so the disc's grey lands on it exactly as it does on
+               a bottom sheet. */
+            className={`float-right -mt-1 mb-1 ml-3 ${PAGE_CLOSE_BUTTON}`}
           >
             <X aria-hidden className="size-5" />
           </Dialog.Close>

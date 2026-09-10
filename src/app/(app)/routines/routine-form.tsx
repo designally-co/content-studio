@@ -13,6 +13,7 @@ import {
   type RoutineScheduleKind,
 } from "@/lib/autopilot/schedule";
 import type { RoutineView } from "@/lib/autopilot/views";
+import { PAGE_CLOSE_BUTTON } from "@/components/page-bar";
 
 /**
  * One routine's settings, as a dialog.
@@ -172,7 +173,13 @@ export function RoutineForm({
             </Dialog.Title>
             <Dialog.Close
               aria-label="Close"
-              className="-mr-1 -mt-1 grid size-10 shrink-0 place-items-center rounded-lg text-(--sheet-ink-2) transition-colors duration-(--duration-fast) hover:bg-(--sheet-field) hover:text-(--sheet-ink) focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+            /* THE SHEET'S CLOSE, from the one constant every close in the app
+               uses. A rounded-lg ghost button was the odd one out on a surface
+               of pills, and it only appeared on hover — a dismissal you had to
+               find rather than see. The dialog's ground is the app's own
+               (#f8f8f7), so the disc's grey lands on it exactly as it does on
+               a bottom sheet. */
+              className={`-mr-1 -mt-1 ${PAGE_CLOSE_BUTTON}`}
             >
               <X aria-hidden className="size-5" />
             </Dialog.Close>
