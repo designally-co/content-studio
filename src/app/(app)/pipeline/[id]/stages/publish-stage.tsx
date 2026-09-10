@@ -1019,7 +1019,7 @@ function ImagePanel({
 
           <div className="cs-dock-controls flex-wrap gap-2">
             <ImageSettingsMenu
-              models={options.map((o) => ({ value: o.optionId, label: o.label, description: o.strengths }))}
+              models={options.map((o) => ({ value: o.optionId, label: o.label }))}
               model={optionId}
               onModel={selectModel}
               ratios={selectedOption?.capabilities.aspectRatios ?? []}

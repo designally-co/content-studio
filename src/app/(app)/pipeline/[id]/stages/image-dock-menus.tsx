@@ -60,7 +60,13 @@ const TRIGGER =
  */
 const RING = "border-transparent bg-chrome text-ink-2 enabled:hover:bg-chrome-active enabled:hover:text-ink";
 
-export type Choice = { value: string; label: string; description?: string };
+/* NO DESCRIPTION. Each model used to carry a line of its strengths under its
+   name, which turned a list of four names into a wall of small grey prose you
+   had to read past to find the one you already knew you wanted — and made the
+   panel tall enough to need its own scroll on a phone. A name is what you pick
+   by; what a model is good at belongs where you are deciding which to buy, not
+   where you are switching between them. */
+export type Choice = { value: string; label: string };
 
 /**
  * A setting, as a row you press and a panel that replaces the one you were on.
@@ -126,23 +132,13 @@ function GroupChoices({ group, onBack }: { group: Group; onBack: () => void }) {
           return (
             <DropdownMenu.Item
               key={choice.value}
-              className={`${ITEM} items-start py-2`}
+              className={ITEM}
               onSelect={() => group.onChange(choice.value)}
             >
-              <span className="min-w-0 flex-1">
-                <span className="block">{choice.label}</span>
-                {/* Each option carries its own rationale here, where it is
-                    useful, rather than as helper text stacked under a control
-                    nobody is looking at yet. */}
-                {choice.description && (
-                  <span className="mt-0.5 block text-xs leading-relaxed text-ink-3">
-                    {choice.description}
-                  </span>
-                )}
-              </span>
+              <span className="min-w-0 flex-1 truncate">{choice.label}</span>
               <Check
                 aria-hidden
-                className={`mt-0.5 size-4 shrink-0 ${active ? "text-ink" : "invisible"}`}
+                className={`size-4 shrink-0 ${active ? "text-ink" : "invisible"}`}
               />
             </DropdownMenu.Item>
           );
