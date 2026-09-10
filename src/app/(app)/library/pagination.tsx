@@ -47,7 +47,12 @@ export function Pagination({
   return (
     <nav
       aria-label="Library pages"
-      className="mt-4 flex flex-wrap items-center justify-between gap-3"
+      /* ON THE CONTENT'S EDGE, NOT THE CARD'S. The bar ran to the same left
+         edge as the cards above it, so the range lined up with their OUTLINE
+         while every word inside them started 12px further in — the text of the
+         page had two left edges. The padding matches whatever is above it: the
+         card's own gutter below `sm`, the table cell's from `sm` up. */
+      className="mt-4 flex flex-wrap items-center justify-between gap-3 px-3 sm:px-4"
     >
       <p className="text-sm text-ink-3">
         {from}–{to} of {total}
