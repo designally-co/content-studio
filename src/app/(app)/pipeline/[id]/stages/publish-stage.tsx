@@ -1065,9 +1065,14 @@ function ImagePanel({
                   onClick={draftPrompt}
                   disabled={busy !== null || !anthropicReady}
                   aria-describedby={!anthropicReady ? "auto-draft-requirement" : undefined}
-                  className="cs-btn cs-dock-btn cs-dock-btn--wide shrink-0 border-[var(--orange-200)] bg-accent-soft text-accent-press enabled:hover:border-[var(--orange-300)] enabled:hover:bg-[var(--orange-200)]"
+                  /* FILLED, like Create's Generate. It was the accent at its
+                     palest with an outline holding it together — the shape of
+                     a secondary action, on the one thing in this dock you are
+                     being invited to press. The label and the orb go white
+                     with it. */
+                  className="cs-btn cs-dock-btn cs-dock-btn--wide shrink-0 border-transparent bg-accent text-white enabled:hover:border-transparent enabled:hover:bg-accent-hover"
                 >
-                  <AccentOrb />
+                  <AccentOrb tone="on-accent" />
                   <span className="whitespace-nowrap pl-2">
                     {busy === "prompt" ? "Drafting…" : "Auto-draft"}
                   </span>

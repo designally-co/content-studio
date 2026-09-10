@@ -38,21 +38,26 @@ const PANEL =
  * tooltip, where they answer the question only if it is asked.
  */
 const TRIGGER =
-  "cs-btn cs-dock-btn-icon shrink-0 data-[state=open]:bg-sunken data-[state=open]:text-ink";
+  "cs-btn cs-dock-btn-icon shrink-0 data-[state=open]:bg-chrome-active data-[state=open]:text-ink";
 
 /**
- * The ring — stated at each use, never in TRIGGER.
+ * FILLED, NOT OUTLINED — the same soft grey disc Create's dock wears, and the
+ * same one every close button in the app is drawn as.
  *
- * `cs-btn` draws its outline in `--border`, a hairline meant for a button on
- * the page's grey ground; on the dock's white it computed to #f0f0f0 and read
- * as no outline at all. These take `--border-strong`.
+ * These used to be outlined in `--border-strong`, because `cs-btn` draws its
+ * hairline in `--border` and on the dock's white that computed to #f0f0f0 and
+ * read as no outline at all. Which was true, and the answer was the wrong one:
+ * a darker ring made these two the most strongly drawn things in a row whose
+ * whole point is the action at its other end. A fill states the target without
+ * drawing a line around it.
  *
- * It cannot live in TRIGGER alongside the reference button's danger tint: two
- * border-colour utilities on one element are the same specificity, so the
- * winner would be whichever Tailwind emitted last rather than whichever was
- * written last — the same trap that left the stepper's current pill unedged.
+ * It stays stated at each use rather than living in TRIGGER, because the
+ * reference button's missing state tints its border: two border-colour
+ * utilities on one element are the same specificity, so the winner would be
+ * whichever Tailwind emitted last rather than whichever was written last —
+ * the trap that once left the stepper's current pill unedged.
  */
-const RING = "border-line-strong";
+const RING = "border-transparent bg-chrome text-ink-2 enabled:hover:bg-chrome-active enabled:hover:text-ink";
 
 export type Choice = { value: string; label: string; description?: string };
 
@@ -214,16 +219,19 @@ export function ReferenceMenu({
   return (
     <>
       <DropdownMenu.Root modal={false}>
-        {/* A PILL, WHERE SETTINGS IS A DISC. The two are not the same kind of
-            control: settings are values you set once and forget, and a
-            reference is material this article either has or is missing — a
-            state worth naming on the face of the button rather than only in a
-            tooltip nobody hovers for. The word stays "Reference" in every
-            state; which state it is in comes from the icon and the tint, so the
-            button does not change width while you watch it. */}
+        {/* A DISC, LIKE SETTINGS. It carried the word "Reference" on the
+            reasoning that a missing reference is a state worth naming on the
+            face of the button — but the two controls at this end of the dock
+            are the same kind of thing, values you set before pressing the one
+            at the other end, and a labelled pill beside a disc read as two
+            unrelated controls rather than a pair. The missing state still
+            speaks: the tint carries it, and the word survives in the
+            accessible name and the tooltip. */}
         <DropdownMenu.Trigger
-          className={`cs-btn cs-dock-btn cs-dock-btn--wide shrink-0 data-[state=open]:bg-sunken ${
-            missing ? "border-danger text-danger-ink" : RING
+          className={`${TRIGGER} ${
+            missing
+              ? "border-transparent bg-danger-soft text-danger-ink enabled:hover:bg-danger-soft"
+              : RING
           }`}
           disabled={disabled}
           aria-label={label}
@@ -238,7 +246,6 @@ export function ReferenceMenu({
           ) : (
             <ImagePlus aria-hidden className="size-4" strokeWidth={1.6} />
           )}
-          <span className="whitespace-nowrap pl-2">Reference</span>
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
           <DropdownMenu.Content className={PANEL} side="top" align="start" sideOffset={8} collisionPadding={12}>
