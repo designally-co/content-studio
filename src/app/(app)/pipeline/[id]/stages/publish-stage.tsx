@@ -668,18 +668,18 @@ function ImagePanel({
      the middle of the stage should have one in it even before a choice. */
   const featured = imgs.find((img) => img.id === selectedCoverId) ?? imgs[0];
 
-  /* EACH STATE SAYS THE THING YOU CANNOT SEE. "One image, shown in the middle"
-     described the screen back to the person looking at it — there is one
-     picture, and it is in the middle, both plainly true and neither worth a
-     line of type. What is NOT visible with one image is that asking again adds
-     to the set rather than replacing it, which is the whole reason to ask
-     again. The plural case already worked this way: it says the tiles are a
-     choice, which nothing about a grid of pictures announces. */
+  /* A DECK ONLY WHERE THERE IS SOMETHING TO SAY. Empty, it says so, because a
+     panel with nothing under it gives no reason. Plural, it says the tiles are
+     a choice, which nothing about a grid of pictures announces.
+
+     With exactly one there is no third fact of that kind: the panel holds one
+     picture and you can see it, and every line tried here has either described
+     that or advertised the button beside it. Nothing, then. */
   const imagesNote =
     imgs.length === 0
       ? "None yet."
       : imgs.length === 1
-        ? "One so far — generate again to compare."
+        ? null
         : `${imgs.length} images — choose the one to publish.`;
 
   /* ONE DEFINITION, TWO HOMES — the rail panel on a desktop, the body of a
@@ -1172,7 +1172,9 @@ function ImagePanel({
             <h3 className="font-heading text-[length:var(--text-h3)] font-medium tracking-tight text-ink">
               Generated images
             </h3>
-            <p className="mt-1 text-sm leading-relaxed text-ink-2">{imagesNote}</p>
+            {imagesNote && (
+              <p className="mt-1 text-sm leading-relaxed text-ink-2">{imagesNote}</p>
+            )}
             {imageGrid}
           </div>
         </section>
@@ -1182,7 +1184,7 @@ function ImagePanel({
       <StageAction label="Continue to publish" onClick={onNext}>
         <ArrowRight aria-hidden className="size-5" />
       </StageAction>
-      <StageSheet title="Generated images" subtitle={imagesNote} onOpenChange={setSheetLift}>
+      <StageSheet title="Generated images" subtitle={imagesNote ?? undefined} onOpenChange={setSheetLift}>
         {imageGrid}
       </StageSheet>
     </div>
