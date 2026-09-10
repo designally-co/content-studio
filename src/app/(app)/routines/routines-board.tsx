@@ -467,6 +467,17 @@ function RoutineCard({
             switch invites a click that does nothing. */}
         {!isManual && (
           <Switch
+            /* THE TRACK ON THE CARD'S GRID, NOT THE TARGET. The 44px hit area
+               was already 12 from the top and right — but it holds a 40x24
+               track centred inside it, so the thing you can actually see sat
+               at 23 and 15 while the title beside it sat at 12. The eye lines
+               up what is drawn.
+
+               -10 and -2 are exactly that slack: (44-24)/2 and (44-40)/2. Top
+               AND bottom, so the row also stops being 44px tall to hold a
+               22px title — the switch was quietly setting the height of the
+               card's first line. */
+            className="-my-2.5 -mr-0.5"
             checked={enabled}
             label={`Run ${routine.name} on its schedule`}
             onChange={(nextValue) => {

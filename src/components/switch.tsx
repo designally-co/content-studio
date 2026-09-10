@@ -23,12 +23,24 @@ export function Switch({
   onChange,
   label,
   disabled,
+  className = "",
 }: {
   checked: boolean;
   onChange: (next: boolean) => void;
   /** Names the thing, so a screen reader hears which one this switches. */
   label: string;
   disabled?: boolean;
+  /** For the caller to absorb the target's slack.
+   *
+   *  THE 44px TARGET IS 10px TALLER AND 2px WIDER THAN WHAT IS DRAWN, on each
+   *  side, and only the caller knows whether that matters: the track is what
+   *  a reader lines up against the other things on the card, and the invisible
+   *  ring around it is what makes the switch hittable. Laid out by its box, a
+   *  switch sitting in a card's top corner reads as inset further than the
+   *  title beside it — not because it is, but because the part you can see is.
+   *  Negative margins here pull the box back to the track without giving up a
+   *  pixel of the target. */
+  className?: string;
 }) {
   return (
     <button
@@ -38,7 +50,7 @@ export function Switch({
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className="group/switch inline-grid min-h-11 min-w-11 place-items-center rounded-lg transition-opacity disabled:pointer-events-none disabled:opacity-45"
+      className={`group/switch inline-grid min-h-11 min-w-11 place-items-center rounded-lg transition-opacity disabled:pointer-events-none disabled:opacity-45 ${className}`}
     >
       <span
         aria-hidden
