@@ -126,6 +126,14 @@
      30 = the disc's own 20px radius plus the 10px of dock that surrounds it.
      That is the whole rule: outer equals inner plus the gap. Change the
      controls' padding and this has to move with it. */
+  /* ONE RADIUS FOR EVERY BOTTOM SHEET. The stage sheets and the settings sheet
+     are the same object — a surface that rises from the bottom edge and covers
+     most of the screen — and they were rounded by two different classes that
+     happened to agree. 28: `--radius-3xl` is 20, which on something 375 wide
+     reads as a square with its corners knocked off, and the dock beside it is
+     already 30. A sheet is the largest surface in the product with corners at
+     all, and it should look it. */
+  --radius-sheet: 1.75rem;
   --dock-radius: 1.875rem;
   --dock-border: var(--border);
   --dock-border-focus: #bdbdbd;
