@@ -43,7 +43,19 @@ export default async function CreatePage() {
     .filter((group) => group.directions.length > 0);
 
   return (
-    <div className="cs-create-page min-h-svh bg-sunken">
+    /* THE 48px MENU STRIP IS A SIBLING OF THIS PAGE, not part of it, so
+       `min-h-svh` asked for a full viewport BELOW a bar that had already taken
+       48 of it — the page came out exactly 48px taller than the phone and
+       scrolled by that much with nothing in the gap. The composer's own
+       `50svh` maths is measured against the viewport, so it stays as it is;
+       what was wrong was the box around it claiming a height it does not have.
+
+       `overflow-hidden` on top of that, because this screen is a composer
+       centred in the space available and not a document: with nothing below
+       the fold there is nothing a scroll could reveal, and a page that gives
+       under the thumb without moving anywhere reads as broken. Above `lg` the
+       strip does not exist and the page is free to grow. */
+    <div className="cs-create-page h-[calc(100svh-3rem)] overflow-hidden bg-sunken lg:h-auto lg:min-h-svh lg:overflow-visible">
       <SetupForm pillars={groups} anthropicReady={anthropicReady} />
     </div>
   );

@@ -125,7 +125,10 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
         event.preventDefault();
         void submitArticle();
       }}
-      className="mx-auto w-full max-w-7xl px-4 pb-16 sm:px-6 sm:pb-20 lg:px-12 lg:pb-24 xl:px-16"
+      /* 12 on a phone, like every other page. This one was still on 16, which
+         is 8px of the headline's measure spent on gutters wider than the ones
+         the rest of the app settled on. */
+      className="mx-auto w-full max-w-7xl px-3 pb-16 sm:px-6 sm:pb-20 lg:px-12 lg:pb-24 xl:px-16"
     >
       <div className="mx-auto max-w-3xl">
         {showComposer && (
@@ -143,7 +146,11 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
             {/* One line, one colour. The supporting sentence moved into the
                 field's own placeholder, where it explains the input at the
                 moment the editor is looking at the input. */}
-            <h1 className="mx-auto max-w-2xl text-balance font-heading text-[length:var(--text-h1)] font-medium leading-[1.1] tracking-[-0.02em] text-ink motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-200 sm:text-[length:var(--text-hero)]">
+            {/* WIDER THAN THE COLUMN'S DEFAULT MEASURE. A headline is not body
+                text — it is read in one glance rather than line by line — and
+                at 2xl this one broke across two lines on a phone with room to
+                spare on both sides of it. */}
+            <h1 className="mx-auto max-w-3xl text-balance font-heading text-[length:var(--text-h1)] font-medium leading-[1.1] tracking-[-0.02em] text-ink motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-200 sm:text-[length:var(--text-hero)]">
               What should the industry read next?
             </h1>
           </div>
@@ -401,7 +408,7 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
 
           {!generatingTopics && topics.length === 0 && !hasInput && (
             <p className="text-center text-sm leading-relaxed text-ink-3">
-              No idea yet? Generate ideas searches the design press across your pillars and directions.
+              No idea yet? Generate ideas searches the design press.
             </p>
           )}
 
