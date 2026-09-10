@@ -31,7 +31,7 @@ import { claimSheet, registerSheet, releaseSheet } from "./sheet-stack";
  * happens to be doing — a field on a grey ground reading as disabled here
  * because the ground behind it is the colour a disabled field uses there.
  */
-const SHEET = {
+export const SHEET = {
   "--sheet-bg": "#f8f8f7",
   "--sheet-field": "#f0f0ef",
   "--sheet-plate": "#ffffff",

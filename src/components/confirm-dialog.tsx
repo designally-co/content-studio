@@ -4,6 +4,8 @@ import { Dialog } from "radix-ui";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PAGE_CLOSE_BUTTON } from "@/components/page-bar";
+import { SHEET } from "@/components/sheet-dialog";
+import { useDialogMotion } from "@/lib/dialog-motion";
 
 /**
  * An irreversible thing, asked properly.
@@ -21,12 +23,6 @@ import { PAGE_CLOSE_BUTTON } from "@/components/page-bar";
  * reader to supply the stakes themselves, so each caller passes the one thing
  * worth knowing — what survives this and what does not.
  */
-
-const SHEET = {
-  "--sheet-bg": "#f8f8f7",
-  "--sheet-ink": "#1a1a1a",
-  "--sheet-ink-2": "#737373",
-} as React.CSSProperties;
 
 export function ConfirmDialog({
   title,
@@ -46,13 +42,27 @@ export function ConfirmDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  /* `centred` at every width: this is a 28rem box asking one question, not a
+     surface with an edge to have come from. It resolves in place. */
+  const { mounted, setPanel, setOverlay } = useDialogMotion({
+    open,
+    onExited: () => {},
+    shape: "centred",
+  });
+
+  if (!mounted) return null;
+
   return (
-    <Dialog.Root open={open} onOpenChange={(next) => !next && onCancel()}>
+    /* Radix stays open for as long as the panel is mounted — presence belongs
+       to the motion hook now, and letting Radix close would take the content
+       away before it had finished leaving. */
+    <Dialog.Root open onOpenChange={(next) => !next && onCancel()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-(--z-backdrop) bg-ink/25 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 motion-reduce:animate-none" />
+        <Dialog.Overlay ref={setOverlay} className="fixed inset-0 z-(--z-backdrop) bg-ink/25" />
         <Dialog.Content
+          ref={setPanel}
           style={SHEET}
-          className="fixed left-1/2 top-1/2 z-(--z-modal) w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-(--sheet-bg) p-5 shadow-[var(--shadow-pop)] outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none sm:p-6"
+          className="fixed left-1/2 top-1/2 z-(--z-modal) w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-(--sheet-bg) p-5 shadow-[var(--shadow-pop)] outline-none sm:p-6"
         >
           <div className="flex items-start justify-between gap-4">
             <Dialog.Title className="font-heading text-[length:var(--text-h2)] font-medium tracking-tight text-(--sheet-ink)">

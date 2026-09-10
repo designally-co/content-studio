@@ -62,10 +62,18 @@ function offscreen(panel: HTMLElement): number {
 export function useDialogMotion({
   open,
   onExited,
+  shape = "responsive",
 }: {
   open: boolean;
   /** Fires once the exit has finished and the panel is gone. */
   onExited: () => void;
+  /**
+   * `responsive` is a sheet on a phone and a dialog above `lg`. `centred` is a
+   * dialog at every width — for a modal that never becomes a sheet, like a
+   * confirmation, where sliding a 28rem box up from the floor would claim it
+   * lives at an edge it has no relationship to.
+   */
+  shape?: "responsive" | "centred";
 }) {
   const [mounted, setMounted] = useState(open);
   // Adjusted during render rather than in an effect — React's own answer for
@@ -94,12 +102,17 @@ export function useDialogMotion({
   useIsomorphicLayoutEffect(() => {
     if (!mounted || !panel) return;
     gsap.set(overlay, { autoAlpha: 0 });
-    gsap.set(panel, isSheet() ? { y: offscreen(panel), autoAlpha: 1 } : { autoAlpha: 0, scale: 0.96 });
-  }, [mounted, panel, overlay]);
+    gsap.set(
+      panel,
+      shape === "responsive" && isSheet()
+        ? { y: offscreen(panel), autoAlpha: 1 }
+        : { autoAlpha: 0, scale: 0.96 },
+    );
+  }, [mounted, panel, overlay, shape]);
 
   useEffect(() => {
     if (!mounted || !panel) return;
-    const sheet = isSheet();
+    const sheet = shape === "responsive" && isSheet();
     const timeline = gsap.timeline();
 
     if (open) {
@@ -155,7 +168,7 @@ export function useDialogMotion({
     return () => {
       timeline.kill();
     };
-  }, [open, mounted, panel, overlay]);
+  }, [open, mounted, panel, overlay, shape]);
 
   return { mounted, panel, setPanel, setOverlay };
 }
