@@ -207,7 +207,7 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                     field.focus();
                   });
                 }}
-                className="absolute right-3 top-3 grid size-9 place-items-center rounded-lg text-ink-3 transition-colors hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="absolute right-3 top-3 grid size-10 place-items-center rounded-lg text-ink-3 transition-colors hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                 aria-label={inputExpanded ? "Collapse article input" : "Expand article input"}
                 aria-controls="article-input"
               >
@@ -231,18 +231,47 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                   // as full ink against the muted default, the way a select shows
                   // a value against its placeholder. No accent, no fill, no rule
                   // — which also puts its icon back on the field's 16px gutter.
-                  className={`inline-flex min-h-9 max-w-[55%] items-center gap-2 rounded-full px-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${
+                  /* A DISC UNTIL THERE IS SOMETHING TO SAY. "Auto direction"
+                     is the absence of a choice, and printing the absence took
+                     a third of the dock's control row to tell the reader that
+                     nothing had happened — beside a placeholder that is
+                     already telling them what to do. As a disc it is the
+                     affordance without the announcement; the moment a
+                     direction is picked, the control becomes a pill and says
+                     which, because now there IS something to say.
+
+                     Both states are 40 tall, so choosing a direction does not
+                     change the height of the row the dock's actions sit on. */
+                  className={`inline-flex items-center rounded-full text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${
+                    selectedDirection
+                      ? "min-h-10 max-w-[55%] gap-2 px-2.5"
+                      : "size-10 justify-center"
+                  } ${
+                    /* FILLED, LIKE EVERY OTHER DISC IN THE APP. Transparent, it
+                       was a control you had to already know was there — a bare
+                       icon on the dock's white ground with nothing to say where
+                       its edges are, which matters more now that the default
+                       state has no label to give it a shape. The close discs'
+                       grey, on the same white it sits on there. */
                     pickerOpen
-                      ? "bg-sunken text-ink"
-                      : `bg-transparent hover:bg-sunken hover:text-ink ${selectedDirection ? "text-ink" : "text-ink-2"}`
+                      ? "bg-chrome-active text-ink"
+                      : `bg-chrome hover:bg-chrome-active hover:text-ink ${selectedDirection ? "text-ink" : "text-ink-2"}`
                   }`}
                 >
                   {selectedPillar ? (() => {
                     const Icon = pillarIcon(selectedPillar.slug);
                     return <Icon aria-hidden className="size-4 shrink-0" strokeWidth={1.8} />;
                   })() : <Sparkles aria-hidden className="size-4 shrink-0" strokeWidth={1.8} />}
-                  <span className="truncate">{selectedDirection?.name ?? "Auto direction"}</span>
-                  <ChevronDown aria-hidden className={`size-3.5 shrink-0 transition-transform ${pickerOpen ? "rotate-180" : ""}`} />
+                  {/* KEPT, NOT REMOVED, when the control is a disc: a button
+                      whose only content is a decorative icon has no accessible
+                      name at all. `sr-only` leaves the name for anyone not
+                      reading it off the screen. */}
+                  <span className={selectedDirection ? "truncate" : "sr-only"}>
+                    {selectedDirection?.name ?? "Auto direction"}
+                  </span>
+                  {selectedDirection && (
+                    <ChevronDown aria-hidden className={`size-3.5 shrink-0 transition-transform ${pickerOpen ? "rotate-180" : ""}`} />
+                  )}
                 </button>
               </PillarDirectionPicker>
               {/* ONE ACTION AT A TIME, and the field decides which. Both used to
