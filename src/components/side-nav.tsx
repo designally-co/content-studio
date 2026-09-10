@@ -4,7 +4,10 @@ import Link from "next/link";
 
 import { FlatMark } from "@/app/mark";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import gsap from "gsap";
+
+import { MOTION, duration } from "@/lib/motion";
 import { Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { PAGE_ACTION_BUTTON_QUIET, PAGE_CLOSE_BUTTON } from "./page-bar";
 import { AccountMenu } from "./account-menu";
@@ -37,6 +40,12 @@ const NAV = [
 /** Routes that open with the panel out of the way. */
 const COLLAPSED_ROUTES = new Set(["/"]);
 
+/* `useLayoutEffect` on the client, `useEffect` on the server — React warns
+   about the former during SSR, and the drawer's opening position has to be set
+   BEFORE the browser paints or the panel flashes at x=0 for a frame on its way
+   to sliding in from off-screen. */
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
 export function SideNav({
   email,
   isAdmin = false,
@@ -46,6 +55,77 @@ export function SideNav({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  /* PRESENCE, SEPARATE FROM INTENT. `open` is what the reader asked for;
+     `mounted` is whether the panel is still in the tree. They came apart the
+     moment the drawer got an exit animation: closing has to keep the markup
+     alive until the panel has finished leaving, or there is nothing left to
+     watch leave. Adjusted during render rather than in an effect — React's own
+     answer for state derived from other state, and the pattern the search box
+     on Library already uses. */
+  const [mounted, setMounted] = useState(false);
+  if (open && !mounted) setMounted(true);
+  const panelRef = useRef<HTMLElement>(null);
+
+  /* Off-screen before the first paint, so the slide starts from outside the
+     display rather than appearing in place and then jumping left. */
+  useIsomorphicLayoutEffect(() => {
+    if (!mounted || !panelRef.current) return;
+    gsap.set(panelRef.current, { xPercent: -100 });
+  }, [mounted]);
+
+  /* IN FROM THE LEFT, OUT THE WAY IT CAME. The drawer is reached by a button on
+     the left edge, so the left edge is where it lives when it is not here —
+     travel from anywhere else would be a claim about geography that the button
+     contradicts.
+
+     The rows follow the panel rather than arriving with it, and overlap it by
+     just over half: the panel is most of the way home before they begin, so the
+     eye reads one movement with a grain to it rather than two things happening
+     at once. `-14px` is a hint of the same direction, not a second slide.
+
+     Only on the way in. Leaving, the panel takes its contents with it as one
+     object — staggering an exit makes a reader wait for a list to finish
+     dismantling itself after they have already said they are done with it. */
+  useEffect(() => {
+    if (!mounted || !panelRef.current) return;
+    const panel = panelRef.current;
+    const rows = panel.querySelectorAll("[data-stagger]");
+    const timeline = gsap.timeline();
+
+    if (open) {
+      timeline.to(panel, {
+        xPercent: 0,
+        duration: duration(MOTION.ENTER),
+        ease: MOTION.EASE_ENTER,
+      });
+      timeline.fromTo(
+        rows,
+        { x: -14, autoAlpha: 0 },
+        {
+          x: 0,
+          autoAlpha: 1,
+          duration: duration(MOTION.CONTENT),
+          ease: MOTION.EASE_ENTER,
+          stagger: duration(MOTION.STAGGER),
+        },
+        `-=${duration(MOTION.ENTER) * 0.55}`,
+      );
+    } else {
+      timeline.to(panel, {
+        xPercent: -100,
+        duration: duration(MOTION.EXIT),
+        ease: MOTION.EASE_EXIT,
+        // The unmount rides on the tween rather than on a timer, so the markup
+        // is removed exactly when the panel has finished leaving — not a frame
+        // before, and not still sitting there afterwards.
+        onComplete: () => setMounted(false),
+      });
+    }
+
+    return () => {
+      timeline.kill();
+    };
+  }, [open, mounted]);
   // Which settings section is showing, or null for closed. Held here rather
   // than in the menu so the sheet outlives the menu that opened it — a menu
   // closes on select, and a sheet mounted inside one would close with it.
@@ -124,7 +204,7 @@ export function SideNav({
         </button>
       </div>
 
-      {open && (
+      {mounted && (
         /* ON THE NAV'S OWN LAYER, NOT THE BACKDROP'S. The drawer is the rail,
            folded away — and the account menu at its foot is set one step above
            the rail so it can clear it. At --z-backdrop the drawer outranked
@@ -134,6 +214,7 @@ export function SideNav({
            dialogs sit two steps up and still cover it. */
         <div className="fixed inset-0 z-(--z-drawer) lg:hidden">
           <aside
+            ref={panelRef}
             id="mobile-navigation"
             /* THE WHOLE SCREEN, AND NO SCRIM BEHIND IT. This was a 17rem panel
                over a dimmed page, which is the right shape when what is behind
@@ -158,7 +239,7 @@ export function SideNav({
             role="dialog"
             aria-modal="true"
           >
-            <div className="flex h-16 items-center justify-between gap-3 border-b border-line pl-7 pr-4">
+            <div data-stagger className="flex h-16 items-center justify-between gap-3 border-b border-line pl-7 pr-4">
               <MobileBrand />
               <button
                 ref={closeButtonRef}
@@ -175,7 +256,7 @@ export function SideNav({
               </button>
             </div>
             <NavLinks pathname={pathname} isAdmin={isAdmin} onNavigate={() => setOpen(false)} />
-            <div className="shrink-0 border-t border-line px-4 pb-4 pt-3">
+            <div data-stagger className="shrink-0 border-t border-line px-4 pb-4 pt-3">
               <AccountMenu
                 email={email}
                 isAdmin={isAdmin}
@@ -300,6 +381,10 @@ function NavLinks({ pathname, isAdmin, onNavigate, collapsed = false }: { pathna
             <Link
               key={href}
               href={href}
+              /* Part of the drawer's opening stagger. Inert on the desktop
+                 rail, which never animates — the attribute is only ever
+                 queried from inside the drawer's own panel. */
+              data-stagger
               onClick={onNavigate}
               aria-current={active ? "page" : undefined}
               title={collapsed ? label : undefined}
