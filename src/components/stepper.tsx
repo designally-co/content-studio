@@ -145,12 +145,12 @@ export function Stepper({
          Focus still scrolls a step into view, which is the one case where
          moving without a gesture is correct.
 
-         FADED AT THE LEFT, because on a phone the menu button sits over that
-         end of the row and a step passing behind it was being sliced mid-word
-         by an opaque block — "…mages", which reads as a typo rather than as
-         something that carries on off-screen. Off above `lg`, where there is no
-         button and nothing to hide behind. */
-      className="-mx-5 overflow-x-hidden px-5 [mask-image:linear-gradient(to_right,transparent_0,#000_76px)] sm:-mx-8 sm:px-8 lg:mx-0 lg:px-0 lg:[mask-image:none]"
+         FADED AT BOTH ENDS, because on a phone a button sits over each of
+         them — the menu on the left, the stage's forward action on the right —
+         and a step passing behind one was being sliced mid-word by an opaque
+         disc. "…mages" reads as a typo rather than as something that carries on
+         off-screen. Off above `lg`, where neither button exists. */
+      className="-mx-5 overflow-x-hidden px-5 [mask-image:linear-gradient(to_right,transparent_0,#000_76px,#000_calc(100%-64px),transparent_100%)] sm:-mx-8 sm:px-8 lg:mx-0 lg:px-0 lg:[mask-image:none]"
     >
       <ol className="mx-auto flex w-fit items-center gap-1">
         {STAGES.map((s, i) => {

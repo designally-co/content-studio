@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Markdown } from "@/components/markdown";
 import { streamNdjson } from "@/lib/ndjson-client";
 import { ApiNotReady, StageShell } from "./stage-shell";
-import { Eye, Pencil, X } from "lucide-react";
+import { ArrowRight, Eye, Pencil, X } from "lucide-react";
+import { SHEET_CLEARANCE, StageAction, StageSheet } from "./stage-mobile";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { deleteRevisionAction, goToFinalizeAction, saveDraftContentAction } from "../actions";
 
@@ -238,6 +239,117 @@ export function DraftsStage({
 
   if (!anthropicReady) return <StageShell title="Draft & edit"><ApiNotReady /></StageShell>;
 
+  /* ONE DEFINITION, TWO HOMES. The revise tools are a rail panel on a desktop
+     and the body of a pull-up sheet on a phone. Written twice they would drift
+     apart on the first change; written here they cannot. Each block keeps its
+     own `px-5` so its dividers still run edge to edge, which is why the sheet
+     takes them `flush`. */
+  const cannotContinue =
+    !draft.id || !draft.contentMd || draft.streaming || revising || dirty || pending;
+
+  const reviseBody = (
+    <>
+              <div className="space-y-4 px-5 pb-5">
+                <div className="flex flex-wrap gap-1.5">
+                  {SUGGESTIONS.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onClick={() => void revise(suggestion)}
+                      disabled={revising || dirty || pending}
+                      className="rounded-full bg-sunken px-3 py-2 text-left text-xs font-medium text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-spring) hover:bg-accent-soft hover:text-accent-press focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+                <form onSubmit={(event) => { event.preventDefault(); void revise(input); }} className="space-y-2.5">
+                  <label htmlFor="revision-instruction" className="sr-only">Revision instruction</label>
+                  <textarea id="revision-instruction" value={input} onChange={(event) => setInput(event.target.value)} className="cs-textarea min-h-24 rounded-2xl text-sm" placeholder="Make the typeface descriptions more specific…" />
+                  {/* SECONDARY. One orange button to a page, and on this page
+                      it is Continue to images — the thing that moves the
+                      article forward. Applying a revision keeps you exactly
+                      where you are, however often you do it, so it takes the
+                      outlined treatment the rest of this rail uses. Two filled
+                      oranges made the page ask twice which one was the point. */}
+                  <button type="submit" disabled={revising || dirty || pending || !input.trim()} className="cs-btn w-full justify-center">
+                    {revising ? "Applying…" : "Apply revision"}
+                  </button>
+                </form>
+              </div>
+
+              {revisions.length > 0 && (
+                <div className="max-h-[26rem] overflow-y-auto border-t border-line px-5 py-5">
+                  <h4 className="text-sm font-semibold text-ink">Version history</h4>
+                  {/* CHIPS, LIKE THE SUGGESTIONS ABOVE THEM. Each version was a
+                      block of instruction text with a Restore link that
+                      appeared on hover underneath it — a two-step reveal for a
+                      list whose whole purpose is to be picked from, and a row
+                      three times the height of what it says. They are the same
+                      shape as the suggestion chips now: one press, and the one
+                      you are on is filled. */}
+                  {/* Oldest first, so the original is where you would look for
+                      it and the newest is nearest the work. Each chip carries
+                      its own remove: a list of versions is only readable if the
+                      ones you have finished with can leave it. */}
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {versions.map((revision, index) => {
+                      const showing = revision.id === activeVersionId;
+                      const label = index === 0 ? "Original" : revision.userMessage;
+                      return (
+                        <span
+                          key={revision.id}
+                          className={`inline-flex max-w-full items-center rounded-full text-xs transition-colors duration-(--duration-fast) ease-(--ease-out) ${
+                            showing
+                              ? "bg-chrome-active text-ink"
+                              : "bg-sunken text-ink-2 hover:bg-deep"
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => showVersion(revision)}
+                            disabled={dirty || pending || !revision.resultMd}
+                            aria-pressed={showing}
+                            title={label}
+                            className="min-w-0 truncate rounded-full py-2 pl-3 pr-1.5 text-left font-medium hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            {label}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteVersion(revision)}
+                            disabled={pending}
+                            aria-label={`Delete version: ${label}`}
+                            className="grid size-6 shrink-0 place-items-center rounded-full text-ink-3 transition-colors hover:text-danger-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:opacity-40 mr-1"
+                          >
+                            <X aria-hidden className="size-3" />
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {/* Last, and separated: everything above changes the draft you
+                  have, and this throws it away for a new one. */}
+              <div className="border-t border-line px-5 py-4">
+                {/* RED, BECAUSE IT DESTROYS THE DRAFT. Everything else in this
+                    rail changes the article and leaves the previous text a chip
+                    away; this throws the current draft out and writes a new one
+                    from scratch. It kept the same outline as Apply revision,
+                    which said the two were the same kind of act. */}
+                <button
+                  type="button"
+                  onClick={() => setConfirmingRegenerate(true)}
+                  disabled={draft.streaming || revising || dirty || pending}
+                  className="cs-btn w-full justify-center border-danger/30 text-danger-ink hover:bg-danger-soft"
+                >
+                  {draft.streaming ? "Writing…" : "Regenerate the draft"}
+                </button>
+              </div>
+    </>
+  );
+
   return (
     <StageShell title="Draft & edit" wide>
       {/* THE SAME TWO COLUMNS AS PUBLISH — minmax(0,1fr) and a 360px rail — so
@@ -248,7 +360,7 @@ export function DraftsStage({
           drawer opened, which meant asking to see revisions reflowed the whole
           page and narrowed the article you were reading. Revisions drop INTO
           the rail now; the layout does not move. */}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8">
+      <div className={`grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8 ${SHEET_CLEARANCE}`}>
         {/* Tray and plate. The article is the product on this screen, so it is
             seated as an object rather than boxed by a header and footer strip. */}
         {/* The plate and the line that reports on it. Wrapped, because the grid
@@ -356,7 +468,11 @@ export function DraftsStage({
             below that start — top-32 was 128 — makes sticky snap the rail down
             twenty pixels at rest, so the two columns begin on different lines
             before anything has been scrolled. */}
-        <div className="space-y-6 lg:sticky lg:top-[4.5rem]">
+        {/* THE RAIL IS A DESKTOP IDEA. On a phone it stacked under a four
+            thousand pixel article, which put the button that leaves the stage
+            below every word of it. Its two panels become a corner button and a
+            pull-up sheet instead — same content, no vertical cost. */}
+        <div className="hidden space-y-6 lg:block lg:sticky lg:top-[4.5rem]">
           <section className="cs-bezel">
             <div className="cs-bezel-core p-5">
               {/* NAME THE WORK, IN THE VERB THE READER WOULD USE. "Next step"
@@ -395,7 +511,7 @@ export function DraftsStage({
               <button
                 type="button"
                 onClick={continueToImages}
-                disabled={!draft.id || !draft.contentMd || draft.streaming || revising || dirty || pending}
+                disabled={cannotContinue}
                 className="cs-cta mt-4 w-full"
               >
                 Continue to images
@@ -417,107 +533,20 @@ export function DraftsStage({
                 <p className="mt-1 text-sm leading-relaxed text-ink-2">One focused change at a time.</p>
               </div>
 
-              <div className="space-y-4 px-5 pb-5">
-                <div className="flex flex-wrap gap-1.5">
-                  {SUGGESTIONS.map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      type="button"
-                      onClick={() => void revise(suggestion)}
-                      disabled={revising || dirty || pending}
-                      className="rounded-full bg-sunken px-3 py-2 text-left text-xs font-medium text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-spring) hover:bg-accent-soft hover:text-accent-press focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-                <form onSubmit={(event) => { event.preventDefault(); void revise(input); }} className="space-y-2.5">
-                  <label htmlFor="revision-instruction" className="sr-only">Revision instruction</label>
-                  <textarea id="revision-instruction" value={input} onChange={(event) => setInput(event.target.value)} className="cs-textarea min-h-24 rounded-2xl text-sm" placeholder="Make the typeface descriptions more specific…" />
-                  {/* SECONDARY. One orange button to a page, and on this page
-                      it is Continue to images — the thing that moves the
-                      article forward. Applying a revision keeps you exactly
-                      where you are, however often you do it, so it takes the
-                      outlined treatment the rest of this rail uses. Two filled
-                      oranges made the page ask twice which one was the point. */}
-                  <button type="submit" disabled={revising || dirty || pending || !input.trim()} className="cs-btn w-full justify-center">
-                    {revising ? "Applying…" : "Apply revision"}
-                  </button>
-                </form>
-              </div>
-
-              {revisions.length > 0 && (
-                <div className="max-h-[26rem] overflow-y-auto border-t border-line px-5 py-5">
-                  <h4 className="text-sm font-semibold text-ink">Version history</h4>
-                  {/* CHIPS, LIKE THE SUGGESTIONS ABOVE THEM. Each version was a
-                      block of instruction text with a Restore link that
-                      appeared on hover underneath it — a two-step reveal for a
-                      list whose whole purpose is to be picked from, and a row
-                      three times the height of what it says. They are the same
-                      shape as the suggestion chips now: one press, and the one
-                      you are on is filled. */}
-                  {/* Oldest first, so the original is where you would look for
-                      it and the newest is nearest the work. Each chip carries
-                      its own remove: a list of versions is only readable if the
-                      ones you have finished with can leave it. */}
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {versions.map((revision, index) => {
-                      const showing = revision.id === activeVersionId;
-                      const label = index === 0 ? "Original" : revision.userMessage;
-                      return (
-                        <span
-                          key={revision.id}
-                          className={`inline-flex max-w-full items-center rounded-full text-xs transition-colors duration-(--duration-fast) ease-(--ease-out) ${
-                            showing
-                              ? "bg-chrome-active text-ink"
-                              : "bg-sunken text-ink-2 hover:bg-deep"
-                          }`}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => showVersion(revision)}
-                            disabled={dirty || pending || !revision.resultMd}
-                            aria-pressed={showing}
-                            title={label}
-                            className="min-w-0 truncate rounded-full py-2 pl-3 pr-1.5 text-left font-medium hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            {label}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => deleteVersion(revision)}
-                            disabled={pending}
-                            aria-label={`Delete version: ${label}`}
-                            className="grid size-6 shrink-0 place-items-center rounded-full text-ink-3 transition-colors hover:text-danger-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:opacity-40 mr-1"
-                          >
-                            <X aria-hidden className="size-3" />
-                          </button>
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-              {/* Last, and separated: everything above changes the draft you
-                  have, and this throws it away for a new one. */}
-              <div className="border-t border-line px-5 py-4">
-                {/* RED, BECAUSE IT DESTROYS THE DRAFT. Everything else in this
-                    rail changes the article and leaves the previous text a chip
-                    away; this throws the current draft out and writes a new one
-                    from scratch. It kept the same outline as Apply revision,
-                    which said the two were the same kind of act. */}
-                <button
-                  type="button"
-                  onClick={() => setConfirmingRegenerate(true)}
-                  disabled={draft.streaming || revising || dirty || pending}
-                  className="cs-btn w-full justify-center border-danger/30 text-danger-ink hover:bg-danger-soft"
-                >
-                  {draft.streaming ? "Writing…" : "Regenerate the draft"}
-                </button>
-              </div>
+              {reviseBody}
             </div>
           </aside>
         </div>
+
+        {/* The rail's two panels, for a screen with no room for a rail. The
+            action carries no label, so its name lives in `aria-label` and its
+            tooltip; the sheet is titled the same as the panel it replaces. */}
+        <StageAction label="Continue to images" onClick={continueToImages} disabled={cannotContinue}>
+          <ArrowRight aria-hidden className="size-5" />
+        </StageAction>
+        <StageSheet title="Revise" subtitle="One focused change at a time." flush>
+          {reviseBody}
+        </StageSheet>
 
         {/* A window.confirm was doing this — the browser's own dialog, with the
             page's title in it and an OK button, for the one action here that

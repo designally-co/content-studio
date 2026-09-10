@@ -1,0 +1,223 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+
+/**
+ * The action rail, on a phone.
+ *
+ * On a desktop each stage is a column of work with a rail of panels beside it:
+ * the forward action on top, the stage's own tool underneath. A phone has no
+ * room for a second column, so the rail stacked BELOW the article — which put
+ * the button that leaves the stage at the bottom of a four-thousand-pixel
+ * scroll, and the revise tools below that.
+ *
+ * Two surfaces take its place, and between them they cost no vertical space at
+ * all. The forward action becomes one button in the corner of the screen, on
+ * the line the menu button and the stepper already occupy. The stage's tool
+ * becomes a sheet on the floor of the screen that is pulled up when wanted.
+ */
+
+/** How much of the sheet stays on screen when it is closed. */
+const PEEK = 56;
+
+/** Past this much drag, let go and it goes the rest of the way. */
+const THRESHOLD = 48;
+
+/**
+ * The forward action, as one button in the top-right corner.
+ *
+ * It sits in the same 48px band as the menu button opposite it, so the top of a
+ * phone reads as one row — menu, progress, action — rather than as chrome with
+ * a floating button dropped on top of it.
+ *
+ * `fixed`, not `sticky`: it belongs to the screen rather than to the column it
+ * came from, and the stage it acts on scrolls underneath it.
+ */
+/**
+ * The corner slot and the disc that sits in it, published separately.
+ *
+ * The publish stage's action is not a button but a menu trigger — one press has
+ * to ask whether the article is going live or saving as a draft — and Radix
+ * needs to own that element. Sharing the classes rather than the component is
+ * what keeps the two looking like the same control.
+ */
+export const STAGE_ACTION_SLOT =
+  "fixed right-3 top-0 z-(--z-nav) flex h-12 items-center lg:hidden";
+
+export const STAGE_ACTION_BUTTON =
+  "grid size-10 place-items-center rounded-full bg-accent text-white shadow-[var(--shadow-card)] transition-colors duration-(--duration-fast) ease-(--ease-out) enabled:hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-chrome-active disabled:text-ink-3 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]";
+
+export function StageAction({
+  label,
+  onClick,
+  disabled,
+  children,
+}: {
+  /** Named, because the button itself is only a glyph. */
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={STAGE_ACTION_SLOT}>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={label}
+        title={label}
+        /* Filled, unlike the menu button's outline: this is the one thing on
+           the screen you are being invited to press, and the pair of discs
+           either side of the stepper should not read as two of a kind. */
+        className={STAGE_ACTION_BUTTON}
+      >
+        {children}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * The stage's own tool, as a sheet that pulls up from the floor.
+ *
+ * Closed it shows a handle and its name, which is enough to say what is down
+ * there. Open it takes most of the screen and scrolls inside itself.
+ *
+ * DRAGGED OR TAPPED, because both are things people do to a handle like this
+ * one. The drag is written on pointer events rather than touch events so it
+ * works from a trackpad too, and the element captures the pointer so a fast
+ * flick that leaves the handle still finishes the gesture.
+ */
+export function StageSheet({
+  title,
+  subtitle,
+  flush,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  /**
+   * The content brings its own horizontal padding.
+   *
+   * Panels in the desktop rail pad each block individually so their dividers
+   * can run edge to edge; padding them again here would inset those rules and
+   * make the sheet look like a different component holding the same controls.
+   */
+  flush?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const [drag, setDrag] = useState<number | null>(null);
+  const startY = useRef(0);
+  const panel = useRef<HTMLDivElement>(null);
+
+  const finish = useCallback(
+    (delta: number) => {
+      setDrag(null);
+      // Down closes, up opens, and only past the threshold — otherwise a stray
+      // pixel of movement while tapping would toggle it.
+      if (delta > THRESHOLD) setOpen(false);
+      else if (delta < -THRESHOLD) setOpen(true);
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", close);
+    return () => document.removeEventListener("keydown", close);
+  }, [open]);
+
+  /* Clamped so the sheet cannot be dragged off the top of its own travel or
+     pushed below its closed position — either would leave it somewhere it has
+     no way of animating back from. */
+  const offset =
+    drag === null
+      ? undefined
+      : open
+        ? Math.max(0, drag)
+        : Math.min(0, drag);
+
+  return (
+    <>
+      {/* The way out, and the thing that says the sheet is modal-ish while it
+          is open. Not rendered closed, so the page below stays usable. */}
+      {open && (
+        <button
+          type="button"
+          aria-label={`Close ${title}`}
+          onClick={() => setOpen(false)}
+          className="fixed inset-0 z-(--z-sticky) bg-ink/20 lg:hidden motion-safe:animate-in motion-safe:fade-in-0"
+        />
+      )}
+
+      <div
+        ref={panel}
+        className="fixed inset-x-0 bottom-0 z-(--z-nav) flex max-h-[85svh] flex-col rounded-t-2xl border-t border-line-strong bg-surface shadow-[var(--shadow-pop)] lg:hidden"
+        style={{
+          transform: open
+            ? `translateY(${offset ?? 0}px)`
+            : `translateY(calc(100% - ${PEEK}px + ${offset ?? 0}px))`,
+          transition: drag === null ? "transform 260ms var(--ease-out)" : "none",
+        }}
+      >
+        {/* The whole header is the handle: a 4px bar is the right SIGN for a
+            drag and the wrong size for a target, so the name beside it drags
+            too, and tapping anywhere along it toggles. */}
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => drag === null && setOpen((v) => !v)}
+          onPointerDown={(event) => {
+            startY.current = event.clientY;
+            setDrag(0);
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }}
+          onPointerMove={(event) => {
+            if (drag === null) return;
+            setDrag(event.clientY - startY.current);
+          }}
+          onPointerUp={(event) => {
+            const delta = event.clientY - startY.current;
+            event.currentTarget.releasePointerCapture(event.pointerId);
+            // A press that never moved is a tap: let the click handler have it.
+            if (Math.abs(delta) < 4) setDrag(null);
+            else finish(delta);
+          }}
+          onPointerCancel={() => setDrag(null)}
+          className="flex h-14 shrink-0 touch-none select-none items-center gap-3 px-5 text-left"
+        >
+          <span aria-hidden className="h-1 w-9 shrink-0 rounded-full bg-line-strong" />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">
+              {title}
+            </span>
+          </span>
+        </button>
+
+        {subtitle && (
+          <p className="shrink-0 px-5 pb-1 text-sm leading-relaxed text-ink-2">{subtitle}</p>
+        )}
+        <div
+          className={`min-h-0 flex-1 overflow-y-auto pb-6 ${flush ? "" : "px-5"}`}
+          aria-hidden={!open}
+        >
+          {children}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/**
+ * How much room the closed sheet takes, for the page to keep clear of.
+ *
+ * The sheet is fixed, so it does not push anything: without this the last of
+ * the article — or the image dock, which lives at the foot of its own plate —
+ * would sit permanently underneath it.
+ */
+export const SHEET_CLEARANCE = "pb-16 lg:pb-0";

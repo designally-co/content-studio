@@ -2,10 +2,18 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ExternalLink, LoaderCircle, Maximize2, Minimize2, Send, X } from "lucide-react";
+import { ArrowRight, ExternalLink, LoaderCircle, Maximize2, Minimize2, Send, X } from "lucide-react";
 import { Markdown } from "@/components/markdown";
 import { CopyButton } from "@/components/copy-button";
+import { DropdownMenu } from "radix-ui";
 import { StageShell } from "./stage-shell";
+import {
+  SHEET_CLEARANCE,
+  STAGE_ACTION_BUTTON,
+  STAGE_ACTION_SLOT,
+  StageAction,
+  StageSheet,
+} from "./stage-mobile";
 import { countMetrics } from "@/lib/text";
 import { markdownToPlainText } from "@/lib/plain";
 import { type PublishMetadata } from "@/lib/publish-meta";
@@ -653,6 +661,32 @@ function ImagePanel({
   /* Falls back to the first rather than showing nothing: an image exists, so
      the middle of the stage should have one in it even before a choice. */
   const featured = imgs.find((img) => img.id === selectedCoverId) ?? imgs[0];
+
+  const imagesNote =
+    imgs.length === 0
+      ? "None yet. They collect here as they are made."
+      : imgs.length === 1
+        ? "One image, shown in the middle."
+        : `${imgs.length} images — choose the one to publish.`;
+
+  /* ONE DEFINITION, TWO HOMES — the rail panel on a desktop, the body of a
+     pull-up sheet on a phone. Written twice they would drift apart on the
+     first change. */
+  const imageGrid = imgs.length > 0 && (
+    <ul className="mt-4 grid grid-cols-2 gap-3">
+      {imgs.map((img) => (
+        <li key={img.id}>
+          <GeneratedImage
+            img={img}
+            selected={img.id === featured?.id}
+            onSelect={() => chooseCover(img.id)}
+            onDeleted={() => setImgs((current) => current.filter((item) => item.id !== img.id))}
+          />
+        </li>
+      ))}
+    </ul>
+  );
+
   return (
     // Always as tall as the space below the pipeline header, and a flex column
     // so the composer can be pushed to the end of it. Sticky alone only pins
@@ -669,7 +703,7 @@ function ImagePanel({
        The choice sits in the middle at size, the rest of the set is a rail of
        thumbnails beside it, and the forward action is in a panel like every
        other stage's. */
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8">
+    <div className={`grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8 ${SHEET_CLEARANCE}`}>
       {/* ONE PLATE, the way Draft holds the article and Publish holds the
           preview. This column was a stack of loose pieces on the page ground —
           a card that existed only once an image did, some sentences, and a dock
@@ -1035,7 +1069,9 @@ function ImagePanel({
       {/* top-32, the offset Publish already used. At top-6 the rail
             slid under the sticky stepper before it caught, which reads as
             the column moving rather than holding. */}
-        <div className="space-y-6 lg:sticky lg:top-[4.5rem]">
+        {/* Hidden on a phone: its two panels become a corner button and a
+            pull-up sheet, so the rail costs no vertical space at all. */}
+        <div className="hidden space-y-6 lg:block lg:sticky lg:top-[4.5rem]">
         <section className="cs-bezel">
           <div className="cs-bezel-core p-5">
             {/* Named by the work you do next, like every other panel in the
@@ -1073,30 +1109,19 @@ function ImagePanel({
             <h3 className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">
               Generated images
             </h3>
-            <p className="mt-1 text-sm leading-relaxed text-ink-2">
-              {imgs.length === 0
-                ? "None yet. They collect here as they are made."
-                : imgs.length === 1
-                  ? "One image, shown in the middle."
-                  : `${imgs.length} images — choose the one to publish.`}
-            </p>
-            {imgs.length > 0 && (
-              <ul className="mt-4 grid grid-cols-2 gap-3">
-                {imgs.map((img) => (
-                  <li key={img.id}>
-                    <GeneratedImage
-                      img={img}
-                      selected={img.id === featured?.id}
-                      onSelect={() => chooseCover(img.id)}
-                      onDeleted={() => setImgs((current) => current.filter((item) => item.id !== img.id))}
-                    />
-                  </li>
-                ))}
-              </ul>
-            )}
+            <p className="mt-1 text-sm leading-relaxed text-ink-2">{imagesNote}</p>
+            {imageGrid}
           </div>
         </section>
       </div>
+
+      {/* The rail's two panels, for a screen with no room for a rail. */}
+      <StageAction label="Continue to publish" onClick={onNext}>
+        <ArrowRight aria-hidden className="size-5" />
+      </StageAction>
+      <StageSheet title="Generated images" subtitle={imagesNote}>
+        {imageGrid}
+      </StageSheet>
     </div>
   );
 }
@@ -1272,7 +1297,7 @@ function PublishComposer({
   const readMinutes = Math.max(1, Math.round(countMetrics(draftMd).words / 220));
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8">
+    <div className={`grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8 ${SHEET_CLEARANCE}`}>
       {/* No label above the preview: it renders the Hub's own masthead and
           chrome, which says what it is more convincingly than a caption. */}
       <div className="min-w-0">
@@ -1292,7 +1317,7 @@ function PublishComposer({
 
       {/* Clears the floating pill (68px) and its scrim, which is only fully
           transparent at 112px — top-24 parked the rail behind a partial veil. */}
-      <div className="lg:sticky lg:top-[4.5rem]">
+      <div className="contents lg:block lg:sticky lg:top-[4.5rem]">
         <PublishRail
           projectId={projectId}
           publish={publish}
@@ -1491,7 +1516,8 @@ function PublishRail({
   const findings = review?.checks.filter((check) => check.status === "review") ?? [];
 
   return (
-    <div aria-labelledby="publish-heading" className="space-y-4">
+    <>
+      <div aria-labelledby="publish-heading" className="hidden space-y-4 lg:block">
       {/* Where it lands and the act of sending it are one decision, so they are
           one block: taxonomy above the rule, actions below it. Publishing is
           public and the draft save is not, so the two stop being full-width
@@ -1686,6 +1712,99 @@ function PublishRail({
           </button>
         </div>
       </section>
-    </div>
+      </div>
+
+      {/* THE RAIL'S TWO PANELS, FOR A PHONE. Publishing is the one forward
+          action that is a question rather than a step — live, or a Hub draft? —
+          so its corner button opens a menu and asks, which is also the
+          confirmation the full-size panel gets from its inline one. */}
+      <div className={STAGE_ACTION_SLOT}>
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger
+            className={STAGE_ACTION_BUTTON}
+            disabled={disabled}
+            aria-label={isLive ? "Republish this article" : "Publish this article"}
+            title={isLive ? "Republish this article" : "Publish this article"}
+          >
+            {busy ? (
+              <LoaderCircle aria-hidden className="size-5 animate-spin motion-reduce:animate-none" />
+            ) : (
+              <Send aria-hidden className="size-5" />
+            )}
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content
+              side="bottom"
+              align="end"
+              sideOffset={8}
+              collisionPadding={12}
+              className="z-(--z-nav-dropdown) w-[min(17rem,calc(100vw-1.5rem))] rounded-2xl bg-surface p-2 shadow-[var(--shadow-pop)] outline-none duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 motion-reduce:animate-none"
+            >
+              <DropdownMenu.Item
+                className="flex min-h-11 cursor-default select-none items-center rounded-lg px-3 text-base text-ink outline-none data-highlighted:bg-sunken"
+                onSelect={() => send("published")}
+              >
+                {isLive ? "Republish to Hub" : "Publish to Hub"}
+              </DropdownMenu.Item>
+              <DropdownMenu.Item
+                className="flex min-h-11 cursor-default select-none items-center rounded-lg px-3 text-base text-ink outline-none data-highlighted:bg-sunken"
+                onSelect={() => send("draft")}
+              >
+                Save as a Hub draft
+              </DropdownMenu.Item>
+              <p className="px-3 pb-1 pt-2 text-xs leading-relaxed text-ink-3">
+                {isLive
+                  ? "Republishing replaces what readers see now."
+                  : "Publishing makes it public straight away."}
+              </p>
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
+      </div>
+
+      <StageSheet
+        title="Brand check"
+        subtitle="Reads the finished article against the brand profile before it goes out."
+      >
+          {!anthropicReady && <p className="mt-2 text-sm text-ink-2">Configure Anthropic to run the review.</p>}
+          {reviewError && <p className="mt-2 text-sm text-danger" role="alert">{reviewError}</p>}
+          {!review && anthropicReady && !reviewing && (
+            <p className="mt-1 text-sm leading-relaxed text-ink-2">
+              Reads the finished article against the brand profile before it goes out.
+            </p>
+          )}
+          {review && (
+            <div className="mt-3" aria-live="polite">
+              <p className={`text-sm font-medium ${findings.length ? "text-ink" : "text-ok-ink"}`}>
+                {findings.length ? review.summary : "No issues need attention."}
+              </p>
+              {findings.length > 0 && (
+                <ul className="mt-3 space-y-3 border-t border-line pt-3">
+                  {findings.map((check, index) => (
+                    <li key={`${check.criterion}-${index}`}>
+                      <p className="text-sm font-semibold text-ink">{check.criterion}</p>
+                      <p className="mt-1 text-sm leading-relaxed text-ink-2">{check.finding}</p>
+                      <p className="mt-1.5 text-sm font-medium text-accent-ink">Suggested edit: {check.suggestion}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={reviewArticle}
+            disabled={reviewing || !anthropicReady}
+            /* The same treatment as Apply revision: this is its panel's own
+               action, and an outlined button is what that weight looks like
+               here. `cs-tool` is the borderless one, which the rail keeps for
+               the quiet action at the foot of a panel — Regenerate the draft. */
+            className="cs-btn mt-4 w-full justify-center"
+          >
+            {reviewing ? "Reviewing…" : review ? "Check again" : "Run brand check"}
+          </button>
+      </StageSheet>
+    </>
   );
 }
