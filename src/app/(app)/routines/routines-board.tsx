@@ -237,12 +237,15 @@ export function RoutinesBoard({
 
       <div className="hidden lg:block">
         <PageHeading
-          /* NO DECK. It said the routine writes an article and sends it to the
-             Hub unreviewed — which is true, and is also what the Readiness
-             panel directly below states in the terms that can actually stop
-             you, with the switches to fix it. Two explanations of the same
-             risk, and only one of them is actionable. */
+          /* A PHRASE, NOT THE WARNING. This said the routine writes an article
+             and sends it to the Hub unreviewed — true, and also what the
+             Readiness panel directly below says in the terms that can actually
+             stop you, with the switches to fix it. Two explanations of one
+             risk, and only one of them actionable.
+             What the page needs here is what it holds. Desktop only, like the
+             header it sits in. */
           title="Routines"
+          description="Articles written on a schedule"
           actions={
             routines.length > 0 ? (
               <Button

@@ -8,7 +8,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import gsap from "gsap";
 
 import { MOTION, duration } from "@/lib/motion";
-import { Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
+import { Menu, PanelLeftClose, X } from "lucide-react";
 import { PAGE_ACTION_BUTTON_QUIET, PAGE_CLOSE_BUTTON } from "./page-bar";
 import { AccountMenu } from "./account-menu";
 import { SettingsSheet } from "./settings/settings-sheet";
@@ -287,24 +287,6 @@ export function SideNav({
         }`}
       >
         <div className="sticky top-0 flex h-dvh flex-col">
-        <button
-          type="button"
-          onClick={() => setCollapsed((value) => !value)}
-          /* The rail's own outline, at rest. This sat on --border, which is the
-             hairline for a plate on white — against the page it is the page,
-             so a control straddling the rail's edge had a visible boundary on
-             one side and nothing on the other. It takes the same
-             --border-strong the rail is drawn with, and darkens on hover. */
-          /* 40 like every other icon button, and `-right-5` with it: the offset
-             is half the width, which is what keeps the handle centred on the
-             rail's edge. Left at -4 it would have sat 4px inside the rail. */
-          className="absolute -right-5 top-5 z-10 grid size-10 place-items-center rounded-full border border-line bg-bg text-ink-2 shadow-[var(--shadow-card)] transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {collapsed ? <PanelLeftOpen aria-hidden className="size-4" /> : <PanelLeftClose aria-hidden className="size-4" />}
-        </button>
-
         {/* The brandmark holds one position across both states — only the
             wordmark beside it appears and disappears, so collapsing reads as
             the panel narrowing rather than as the logo jumping.
@@ -314,17 +296,58 @@ export function SideNav({
             — and the logo, padded once at 16, started 12px to their left. One
             vertical line runs down the panel now instead of two. Collapsed,
             both were already centred in the same 80px. */}
-        <div className={`flex h-16 shrink-0 items-center ${collapsed ? "justify-center px-0" : "gap-3 pl-7 pr-4"}`}>
-          <FlatMark size={32} />
-          {!collapsed && (
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[var(--tracking-caps)] text-ink-3">
-                Designally
-              </p>
-              <p className="font-heading text-base font-medium tracking-tight text-ink">
-                Article Studio
-              </p>
-            </div>
+        <div className={`flex h-16 shrink-0 items-center ${collapsed ? "justify-center px-0" : "gap-3 pl-7 pr-3"}`}>
+          {collapsed ? (
+            /* THE LOGO IS THE WAY BACK. Collapsed, the rail is 80px of icons
+               and the brandmark is the only thing in it that does nothing —
+               while the control that would widen it was hanging off the
+               outside edge, half on the rail and half on the page, which is
+               the one place a button belongs to neither. Pressing the mark is
+               what people try first anyway.
+
+               `aria-expanded` and a name, because "logo" is not an affordance
+               a screen reader can infer. */
+            <button
+              type="button"
+              onClick={() => setCollapsed(false)}
+              aria-expanded={false}
+              aria-label="Expand sidebar"
+              title="Expand sidebar"
+              className="grid size-12 place-items-center rounded-xl transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-chrome-hover focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+            >
+              <FlatMark size={32} />
+            </button>
+          ) : (
+            <>
+              <FlatMark size={32} />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-[var(--tracking-caps)] text-ink-3">
+                  Designally
+                </p>
+                <p className="font-heading text-base font-medium tracking-tight text-ink">
+                  Article Studio
+                </p>
+              </div>
+              {/* INSIDE THE RAIL, ON THE BRAND'S OWN LINE. It used to straddle
+                  the right edge on a `-right-5` offset — a disc that belonged
+                  to neither surface, needed its own border to be legible
+                  against both, and moved with the rail's width. Here it is a
+                  control in a panel, like every other control in the panel.
+
+                  Transparent at rest: the rail is already `--chrome`, and a
+                  filled disc on it would be the loudest thing in a column
+                  whose job is to be quiet. It fills on hover. */}
+              <button
+                type="button"
+                onClick={() => setCollapsed(true)}
+                aria-expanded
+                aria-label="Collapse sidebar"
+                title="Collapse sidebar"
+                className="ml-auto grid size-10 shrink-0 place-items-center rounded-full text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-chrome-active hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+              >
+                <PanelLeftClose aria-hidden className="size-4" />
+              </button>
+            </>
           )}
         </div>
         <div className={`h-px shrink-0 bg-line ${collapsed ? "mx-3" : "mx-4"}`} />

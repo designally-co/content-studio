@@ -5,6 +5,12 @@ import { Check, ChevronLeft, ChevronRight, Layers, Newspaper, Palette, Shapes, S
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
 import type { PillarGroup } from "./setup-form";
 
+/** How many rows the menu shows before it scrolls. */
+const MAX_ROWS = 7;
+/** One row's height — `min-h-11` on MenuItem below. Stated here because the
+ *  cap is arithmetic on it, and the two have to move together. */
+const ROW = "2.75rem";
+
 /* The shared dropdown panel — the settings menus draw themselves with this and
    so does this one. */
 const PANEL =
@@ -91,17 +97,40 @@ export function PillarDirectionPicker({
           sideOffset={8}
           collisionPadding={12}
           avoidCollisions={false}
-          style={{
-            maxHeight:
-              "min(60svh, var(--radix-dropdown-menu-content-available-height, 60svh))",
-          }}
+          /* SEVEN ROWS, THEN IT SCROLLS. A cap in viewport units answers "how
+             much screen may this take" — the wrong question for a list, whose
+             own unit is the row. At 60svh the menu was a different length on
+             every display and on a tall one it never scrolled at all; seven
+             rows is the same list everywhere, long enough to take in at a
+             glance and short enough that the eighth is obviously below.
+
+             `--radix-…-available-height` stays as the outer bound: seven rows
+             is what it WANTS, and on a screen with room for four it takes
+             four rather than running off the top. */
+
           /* THE SETTINGS MENU'S PANEL, exactly — same ground, same radius, same
              shadow, no border. Two dropdowns in one product drawn as two
              different objects is two products. It was a bordered plate with a
              bespoke two-layer shadow and 6px padding; this is the shared one. */
-          className={`${PANEL} w-max max-w-[calc(100vw-1.5rem)] overflow-y-auto text-ink [scrollbar-width:thin]`}
+          className={`${PANEL} w-max max-w-[calc(100vw-1.5rem)] overflow-hidden text-ink`}
           aria-label={activePillar ? `${activePillar.name} directions` : "Content direction"}
         >
+          {/* THE SCROLL IS INSIDE THE PADDING, NOT ON THE PANEL. With the
+              overflow on the panel itself the bar ran down its right edge and
+              across both rounded corners — a straight line drawn over a curve
+              somebody deliberately put there, and the one part of the menu
+              touching its own border. Inset by the panel's own `p-2` it sits
+              beside the rows it scrolls, which is what it is for.
+
+              The cap moves here with it: seven rows exactly, since the panel's
+              padding is now outside the scrolling box rather than counted into
+              it. The available height keeps its bound, less that padding. */}
+          <div
+            className="overflow-y-auto [scrollbar-width:thin] [scrollbar-color:var(--border-strong)_transparent]"
+            style={{
+              maxHeight: `min(calc(${MAX_ROWS} * ${ROW}), calc(var(--radix-dropdown-menu-content-available-height, 100svh) - 1rem))`,
+            }}
+          >
           {activePillar ? (
             /* The cap lives on the panel, not here: two levels each scrolling
                inside a panel that also scrolls is two scrollbars for one list. */
@@ -175,6 +204,7 @@ export function PillarDirectionPicker({
               })}
             </div>
           )}
+          </div>
         </DropdownMenuPrimitive.Content>
       </DropdownMenuPrimitive.Portal>
     </DropdownMenuPrimitive.Root>

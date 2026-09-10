@@ -175,7 +175,16 @@ export default async function LibraryPage({
             standing where the page's name goes — so the rail said Library, the
             browser tab said Library, and the page itself said something else.
             A title names the place; the voice can live in the writing. */}
-        <PageHeading title="Library" />
+        {/* A DECK, AT THE LENGTH THE SETTINGS ONES SETTLED ON — a phrase that
+            names what the page holds and stops. Desktop only, because this
+            whole header is: on a phone the name lives in the bar and there is
+            no room under it for a second line that is not an article.
+
+            It says "drafted or out" rather than counting, which is what this
+            line used to do. A count is already down the page in the range on
+            the paging pill, and it changes as you filter — a deck that moves
+            while you type is a deck you learn to stop reading. */}
+        <PageHeading title="Library" description="Every article, drafted or out" />
 
         <div className="mt-7">
           <FilterBar
