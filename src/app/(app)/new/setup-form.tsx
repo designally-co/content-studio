@@ -34,8 +34,7 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
   const [searchSlow, setSearchSlow] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const dockRef = useRef<HTMLDivElement>(null);
-  const [dockHeight, setDockHeight] = useState(145);
+
 
   const selectedPillar = pillars.find((pillar) => pillar.id === selection.pillarId);
   const selectedDirection = selectedPillar?.directions.find((direction) => direction.id === selection.directionId);
@@ -45,15 +44,10 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
   const hasInput = articleInput.trim().length > 0;
   const ideasBusy = generatingTopics || pending || !anthropicReady;
 
-  // Re-observes when the composer comes back, since the node it was watching is
-  // gone once the results take the page.
-  useEffect(() => {
-    const dock = dockRef.current;
-    if (!dock) return;
-    const observer = new ResizeObserver(([entry]) => setDockHeight(entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height));
-    observer.observe(dock);
-    return () => observer.disconnect();
-  }, [showComposer]);
+  /* THE DOCK'S HEIGHT USED TO BE MEASURED, because the composer was centred on
+     the viewport and the maths needed half of it. Anchored to the foot instead,
+     nothing downstream depends on the number — so the ResizeObserver, the state
+     it fed and the custom property it wrote all went with it. */
 
   // Live web search makes this call slow enough that a second, honest message
   // is worth more than a spinner that says nothing after the first few seconds.
@@ -128,16 +122,35 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
       /* 12 on a phone, like every other page. This one was still on 16, which
          is 8px of the headline's measure spent on gutters wider than the ones
          the rest of the app settled on. */
-      className="mx-auto w-full max-w-7xl px-3 pb-16 sm:px-6 sm:pb-20 lg:px-12 lg:pb-24 xl:px-16"
+      /* A COLUMN THE HEIGHT OF THE SCREEN, so the composer can sit at the foot
+         of it without anybody having to compute where the foot is. The old
+         layout centred the dock on `50svh` and hung the headline off its top
+         edge, which is why the dock's height had to be measured: half of it
+         was a term in the offset. Flex does the same arithmetic without being
+         told the number. */
+      className="mx-auto flex min-h-[calc(100svh-3rem)] w-full max-w-7xl flex-col px-3 pb-6 sm:px-6 sm:pb-20 lg:min-h-svh lg:px-12 lg:pb-24 xl:px-16"
     >
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col">
         {showComposer && (
-        <section
-          className="relative h-[calc(50svh-2rem+var(--dock-half))] lg:h-[calc(50svh+var(--dock-half))]"
-          style={{ "--dock-half": `${dockHeight / 2}px` } as React.CSSProperties}
-        >
-          <div className="absolute left-0 right-0 top-[calc(50svh-2rem)] -translate-y-1/2 lg:top-[50svh]">
-          <div className="absolute bottom-full left-0 right-0 mb-12 text-center sm:mb-14">
+        /* TWO ARRANGEMENTS OF THE SAME TWO THINGS. On a phone the dock goes to
+           the foot, where a thumb is, and the welcome keeps the space above it.
+           On a desktop there is no thumb and no bottom edge worth reaching for,
+           and a field pinned to the floor of a 1300px window is a long way from
+           the sentence that introduces it — so the pair centres together, which
+           is what this screen has always done there.
+
+           `justify-center` and the welcome's `lg:flex-none` are the whole
+           switch: below `lg` the welcome takes the slack and pushes the dock
+           down; above it, it takes only its own height and the two centre as
+           one group. */
+        <section className="relative flex flex-1 flex-col lg:justify-center">
+          {/* THE WELCOME KEEPS THE SPACE ABOVE, and is centred in whatever is
+              left once the dock has taken the foot — so it holds its place on
+              the screen rather than riding down with the thing it used to hang
+              off. `pb` keeps it from settling onto the dock when the field
+              grows and the space above shrinks. */}
+          <div className="flex flex-1 items-center justify-center pb-10 sm:pb-14 lg:flex-none">
+          <div className="w-full text-center">
             {!anthropicReady && (
               <div className="mb-6 rounded-xl border border-warn/30 bg-warn-soft px-4 py-3.5 text-left text-sm text-ink-2">
                 <strong>No Anthropic API key is configured.</strong> Article generation will be unavailable until <code>ANTHROPIC_API_KEY</code> is configured.
@@ -166,12 +179,16 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
               read next?
             </h1>
           </div>
+          </div>
 
+          {/* AT THE FOOT. `shrink-0` so the dock keeps its own height while the
+              block above gives up whatever the column needs. */}
+          <div className="relative shrink-0">
           {/* Sibling, not child: as a child it would paint over the dock's own
               white background instead of sitting behind it. */}
           <div aria-hidden className="cs-dock-glow" />
 
-          <div ref={dockRef} className="cs-dock">
+          <div className="cs-dock">
             <label className="sr-only" htmlFor="article-input">Topic or article brief</label>
             <div className="cs-dock-input-viewport">
             <textarea
@@ -355,6 +372,24 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
               </div>
             </div>
           </div>
+
+          {/* IT BELONGS TO THE DOCK, so it lives with the dock. After the
+              section it sat wherever the section ended — which on a phone is
+              directly under the dock and looks right, and on a desktop is the
+              bottom of a 1300px column while the dock is centred 500px above
+              it. A caption explaining a control has to be beside the control.
+
+              LONGER LINE FIRST. It breaks after "Generate ideas" rather than
+              after the question: a short line over a long one reads as a
+              heading somebody forgot to style, where a long line over a short
+              one reads as a sentence ending. */}
+          {!hasInput && (
+            <p className="mt-6 shrink-0 text-center text-sm leading-relaxed text-ink-3 sm:text-balance">
+              No idea yet? Generate ideas{" "}
+              <br className="sm:hidden" />
+              searches the design press.
+            </p>
+          )}
           </div>
         </section>
         )}
@@ -482,24 +517,6 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
             </div>
           ) : null}
           </div>
-
-          {!generatingTopics && topics.length === 0 && !hasInput && (
-            /* TWO LINES, BROKEN AT THE HINGE. Left to itself this wrapped after
-               "design" and orphaned "press."; balanced, it evened the two lines
-               by width and split "Generate ideas" from "searches" — the name of
-               the button from the verb that says what it does.
-
-               The sentence is a question and its answer, so it breaks between
-               them. The halves are uneven and that is fine: they are two
-               different utterances, not one measure cut in half. Above `sm`
-               there is room for the whole thing on one line, so the `br` goes
-               and balance takes over for the widths in between. */
-            <p className="text-center text-sm leading-relaxed text-ink-3 sm:text-balance">
-              No idea yet?{" "}
-              <br className="sm:hidden" />
-              Generate ideas searches the design press.
-            </p>
-          )}
 
           {error && (
             <p className="mt-4 rounded-xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{error}</p>

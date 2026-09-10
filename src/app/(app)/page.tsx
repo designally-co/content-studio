@@ -50,12 +50,13 @@ export default async function CreatePage() {
        `50svh` maths is measured against the viewport, so it stays as it is;
        what was wrong was the box around it claiming a height it does not have.
 
-       `overflow-hidden` on top of that, because this screen is a composer
-       centred in the space available and not a document: with nothing below
-       the fold there is nothing a scroll could reveal, and a page that gives
-       under the thumb without moving anywhere reads as broken. Above `lg` the
-       strip does not exist and the page is free to grow. */
-    <div className="cs-create-page h-[calc(100svh-3rem)] overflow-hidden bg-sunken lg:h-auto lg:min-h-svh lg:overflow-visible">
+       NOT `overflow-hidden`, though, and not a fixed height. Clipping the page
+       stops the composer scrolling — and stops the LIST OF TOPICS scrolling
+       too, which arrives on this same route once ideas are generated and is
+       taller than the screen by design. A minimum height that is honest about
+       the strip is the whole fix; the composer fills it exactly and so has
+       nothing to scroll. */
+    <div className="cs-create-page min-h-[calc(100svh-3rem)] bg-sunken lg:min-h-svh">
       <SetupForm pillars={groups} anthropicReady={anthropicReady} />
     </div>
   );
