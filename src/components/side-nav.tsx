@@ -103,7 +103,13 @@ export function SideNav({
              for a progress indicator you rarely press; this is the only way to
              reach the rest of the app from a phone, it is pressed constantly,
              and it sits in the top corner where a thumb is least accurate. */
-          className="grid size-11 place-items-center rounded-full border border-line-strong bg-bg text-ink-2 shadow-[var(--shadow-card)] transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+          /* THE DISC THAT CLOSES IT, OPENING IT. Outlined and lifted, it was
+             the heaviest thing on the top of the screen — a hairline, a
+             shadow and a fill competing with the stepper beside it for a
+             control you press twice a session. The same soft grey disc as
+             every close button in the app: one shape for "the menu", pressed
+             either way. */
+          className={`size-11 ${STAGE_CLOSE_BUTTON}`}
           aria-label="Open navigation"
           aria-expanded={open}
           aria-controls="mobile-navigation"
@@ -156,7 +162,7 @@ export function SideNav({
                    constant, so the drawer's and the sheets' cannot drift. A
                    square-cornered ghost button was the only rounded-lg thing
                    on a surface of pills. */
-                className={STAGE_CLOSE_BUTTON}
+                className={`size-11 ${STAGE_CLOSE_BUTTON}`}
                 aria-label="Close navigation"
               >
                 <X aria-hidden className="size-5" />

@@ -61,8 +61,13 @@ export const STAGE_ACTION_BUTTON =
  *  the controls it sits beside. The fill is what makes it findable without
  *  drawing a border around it — a bare glyph on a white sheet had no target
  *  you could see, only one you could hit. */
+/*  NO SIZE IN HERE. The sheet's close is 36 and the drawer's is 44, and
+ *  stating a size in the constant meant each call site that wanted the other
+ *  one put a second `size-*` on the same element — two utilities of equal
+ *  specificity, so which of them wins is decided by the order Tailwind emits
+ *  them in, not the order they are written. The caller owns the size. */
 export const STAGE_CLOSE_BUTTON =
-  "grid size-9 shrink-0 place-items-center rounded-full bg-chrome text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-chrome-active hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]";
+  "grid shrink-0 place-items-center rounded-full bg-chrome text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-chrome-active hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]";
 
 export function StageAction({
   label,
@@ -275,7 +280,7 @@ export function StageSheet({
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label={`Close ${title}`}
-                className={`-mr-1 -mt-0.5 ${STAGE_CLOSE_BUTTON}`}
+                className={`-mr-1 -mt-0.5 size-9 ${STAGE_CLOSE_BUTTON}`}
               >
                 <X aria-hidden className="size-5" />
               </button>

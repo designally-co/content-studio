@@ -1336,16 +1336,23 @@ function PublishComposer({
           this column the scroll container ends the track where the column ends,
           which is exactly the sheet's top edge.
 
-          It replaces the bottom padding that used to hold the page clear of the
-          sheet: the same 162px is now the height this box does NOT occupy —
-          48 for the bar the menu button and stepper share, 32 for the shell's
-          top padding, 70 for the closed sheet, 12 for the gap — so the clearance
-          is the same, stated once instead of twice.
+          IT RUNS TO THE BOTTOM OF THE DISPLAY, UNDERNEATH THE SHEET. Stopping
+          it 12px short drew a hard edge across the page with a strip of ground
+          below it, which read as the preview having been cut off rather than as
+          there being more of it — the same mistake the stepper avoids at the
+          top, where the article visibly goes on beneath the blur. So the column
+          takes everything below the bar (48) and the shell's own padding (32),
+          and the sheet lies over its foot.
 
-          A side benefit: the sticky stepper no longer has a scrolling document
-          under it, so it holds still because nothing moves it rather than
-          because it is pinned. */}
-      <div className="min-w-0 h-[calc(100svh-10.125rem)] overflow-y-auto lg:h-auto lg:overflow-visible">
+          The scrollbar goes, rather than crossing the sheet on its way down. A
+          native bar always paints on top of everything, fixed elements
+          included, so those are the only two options: end the track early, or
+          have no track. Nothing here is aimed at with a pointer, and both the
+          sheet's own scroller and the stepper already made the same call.
+
+          The padding is the closed sheet plus a little, so the last line of the
+          article can be scrolled out from under it rather than stranded there. */}
+      <div className="min-w-0 h-[calc(100svh-5rem)] overflow-y-auto pb-[4.75rem] [scrollbar-width:none] lg:h-auto lg:overflow-visible lg:pb-0 [&::-webkit-scrollbar]:hidden">
         <HubPreviewFrame>
           <HubArticlePreview
             title={title}
