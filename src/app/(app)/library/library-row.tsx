@@ -168,10 +168,11 @@ export function LibraryRow({
  * find was the one fact the layout would not show.
  *
  * So it stops being a table. The title takes the full width and two lines if it
- * needs them, and the three facts that had their own columns become one quiet
- * line underneath it. Nothing is dropped — a phone reader gets MORE than the
- * table gave them, because Direction and Updated were hidden below `sm` and
- * `md` anyway.
+ * needs them, with the one column worth keeping — whether it is out yet —
+ * underneath. Direction and Updated do not come along: the table had already
+ * dropped them at this width, so carrying them down here would be introducing
+ * facts rather than preserving them, and every one of them is another line to
+ * read on every article.
  *
  * The checkbox stays. Per-row delete is revealed on hover, which a touch screen
  * never does, so selecting and using the bar above is the only way to delete
@@ -180,8 +181,6 @@ export function LibraryRow({
 export function LibraryItem({
   id,
   title,
-  category,
-  dateLabel,
   status,
   imageUrl,
   selected,
@@ -189,8 +188,11 @@ export function LibraryItem({
 }: {
   id: string;
   title: string;
-  category: string;
-  dateLabel: string;
+  /* `category` and `dateLabel` arrive with the row and are deliberately not
+     read here — the spread at the call site passes the whole article and the
+     table still wants them. */
+  category?: string;
+  dateLabel?: string;
   status: ProjectStatus;
   imageUrl: string | null;
   selected: boolean;
@@ -235,23 +237,22 @@ export function LibraryItem({
               turn one article into a paragraph. */}
           <span className="line-clamp-2 font-medium leading-snug text-ink">{title}</span>
         </Link>
-        {/* The columns that no longer exist, as one line. Middots rather than
-            three separate labels: these are attributes of the thing above, not
-            fields to compare down a page — there is no column to run an eye
-            down any more. */}
-        <span className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-ink-3">
+        {/* THE NAME AND WHETHER IT IS OUT. Direction and date came down here
+            when the columns went, on the reasoning that a phone should not
+            lose what the table showed — but the table had already dropped both
+            at this width, so they were not being restored, they were being
+            introduced. Three facts in a row of middots under every title is a
+            second line to read on every article to find the one fact that
+            changes what you do next. */}
+        <span className="mt-1 flex items-center gap-1.5 text-xs text-ink-3">
           {status === "published" ? (
             <>
               <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-ok" />
-              <span className="shrink-0">Published</span>
+              Published
             </>
           ) : (
-            <span className="shrink-0">Draft</span>
+            "Draft"
           )}
-          <span aria-hidden>·</span>
-          <span className="truncate">{category}</span>
-          <span aria-hidden>·</span>
-          <span className="shrink-0 whitespace-nowrap">{dateLabel}</span>
         </span>
       </span>
     </li>
