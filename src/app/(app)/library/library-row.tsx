@@ -22,6 +22,8 @@ import { deleteArticleAction } from "./actions";
  *
  * The thumbnail stays, at row height. It is the fastest way to recognise an
  * article you already know, and it costs a column rather than a paragraph.
+ *
+ * ALL OF WHICH STOPS BEING TRUE ON A PHONE — see LibraryItem below.
  */
 export function LibraryRow({
   id,
@@ -152,5 +154,106 @@ export function LibraryRow({
         </button>
       </TableCell>
     </TableRow>
+  );
+}
+
+/**
+ * One article, as a list item — the phone's version of the row above.
+ *
+ * COLUMNS NEED WIDTH, AND A PHONE HAS NONE TO GIVE. The table degrades by
+ * dropping columns as the screen narrows, which works until the last two are
+ * Title and Status: at 375px the title had about seven characters before the
+ * ellipsis, so a page of ten articles read "Buildin…", "The Op…", "Why S…" —
+ * ten thumbnails and ten copies of the word Published. The one fact you came to
+ * find was the one fact the layout would not show.
+ *
+ * So it stops being a table. The title takes the full width and two lines if it
+ * needs them, and the three facts that had their own columns become one quiet
+ * line underneath it. Nothing is dropped — a phone reader gets MORE than the
+ * table gave them, because Direction and Updated were hidden below `sm` and
+ * `md` anyway.
+ *
+ * The checkbox stays. Per-row delete is revealed on hover, which a touch screen
+ * never does, so selecting and using the bar above is the only way to delete
+ * anything here — removing the tick would remove the capability.
+ */
+export function LibraryItem({
+  id,
+  title,
+  category,
+  dateLabel,
+  status,
+  imageUrl,
+  selected,
+  onSelectedChange,
+}: {
+  id: string;
+  title: string;
+  category: string;
+  dateLabel: string;
+  status: ProjectStatus;
+  imageUrl: string | null;
+  selected: boolean;
+  onSelectedChange: (next: boolean) => void;
+}) {
+  return (
+    <li
+      data-selected={selected || undefined}
+      /* `relative` is what lets the title's stretched link cover the whole
+         item rather than just its own line. */
+      className="relative flex items-start gap-3 px-3 py-3 data-selected:bg-sunken"
+    >
+      {/* Above the stretched link, or the link swallows the tick and opens the
+          article instead. `mt-0.5` sits it on the title's first line rather
+          than on the centre of a two-line block. */}
+      <span className="relative z-10 mt-0.5 shrink-0">
+        <Checkbox
+          checked={selected}
+          onCheckedChange={(next) => onSelectedChange(next === true)}
+          aria-label={`Select ${title}`}
+        />
+      </span>
+
+      <span className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-lg bg-deep">
+        {imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={imageUrl} alt="" loading="lazy" decoding="async" className="size-full object-cover" />
+        ) : (
+          <span aria-hidden className="text-sm font-medium text-ink-3">
+            {title.trim().charAt(0).toUpperCase()}
+          </span>
+        )}
+      </span>
+
+      <span className="min-w-0 flex-1">
+        <Link
+          href={`/pipeline/${id}`}
+          className="rounded-sm after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:[outline:2px_solid_var(--accent)] focus-visible:[outline-offset:-2px]"
+        >
+          {/* Two lines, then the ellipsis. One line is what the table was
+              doing and is what made it useless; unbounded lets a long headline
+              turn one article into a paragraph. */}
+          <span className="line-clamp-2 font-medium leading-snug text-ink">{title}</span>
+        </Link>
+        {/* The columns that no longer exist, as one line. Middots rather than
+            three separate labels: these are attributes of the thing above, not
+            fields to compare down a page — there is no column to run an eye
+            down any more. */}
+        <span className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-ink-3">
+          {status === "published" ? (
+            <>
+              <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-ok" />
+              <span className="shrink-0">Published</span>
+            </>
+          ) : (
+            <span className="shrink-0">Draft</span>
+          )}
+          <span aria-hidden>·</span>
+          <span className="truncate">{category}</span>
+          <span aria-hidden>·</span>
+          <span className="shrink-0 whitespace-nowrap">{dateLabel}</span>
+        </span>
+      </span>
+    </li>
   );
 }

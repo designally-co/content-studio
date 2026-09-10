@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/table";
 import type { ProjectStatus } from "@/db/schema";
 import { deleteArticlesAction } from "./actions";
-import { LibraryRow } from "./library-row";
+import { LibraryItem, LibraryRow } from "./library-row";
 
 export type ArticleRow = {
   id: string;
@@ -113,7 +113,24 @@ export function ArticleTable({ rows }: { rows: ArticleRow[] }) {
         </p>
       )}
 
-      <div className="overflow-hidden rounded-2xl border border-line bg-surface">
+      {/* A PHONE GETS A LIST, NOT A NARROWER TABLE. The table sheds columns as
+          the screen shrinks and that holds until the last two are Title and
+          Status — at 375px the title had about seven characters before the
+          ellipsis. Below `sm` the same rows render as list items instead; from
+          `sm` up the table is what it always was, since by then there is width
+          for columns to mean something. */}
+      <ul className="overflow-hidden rounded-2xl border border-line bg-surface [&>li+li]:border-t [&>li+li]:border-line sm:hidden">
+        {rows.map((row) => (
+          <LibraryItem
+            key={row.id}
+            {...row}
+            selected={selected.has(row.id)}
+            onSelectedChange={(next) => toggle(row.id, next)}
+          />
+        ))}
+      </ul>
+
+      <div className="hidden overflow-hidden rounded-2xl border border-line bg-surface sm:block">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
