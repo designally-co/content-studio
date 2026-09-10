@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, ChevronDown, LoaderCircle, Maximize2, Minimize2, Send, Sparkles } from "lucide-react";
+import { ArrowRight, LoaderCircle, Maximize2, Minimize2, Send, Shuffle } from "lucide-react";
 import { AccentOrb } from "@/components/accent-orb";
 import OrbitingCirclesGlobe from "@/components/ui/orbiting-circles-02";
 import {
@@ -244,7 +244,7 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                      change the height of the row the dock's actions sit on. */
                   className={`inline-flex items-center rounded-full text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${
                     selectedDirection
-                      ? "min-h-10 max-w-[55%] gap-2 px-2.5"
+                      ? "min-h-10 max-w-[55%] gap-2 px-3"
                       : "size-10 justify-center"
                   } ${
                     /* FILLED, LIKE EVERY OTHER DISC IN THE APP. Transparent, it
@@ -261,7 +261,17 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                   {selectedPillar ? (() => {
                     const Icon = pillarIcon(selectedPillar.slug);
                     return <Icon aria-hidden className="size-4 shrink-0" strokeWidth={1.8} />;
-                  })() : <Sparkles aria-hidden className="size-4 shrink-0" strokeWidth={1.8} />}
+                  })() : (
+                    /* WHAT AUTO ACTUALLY MEANS, rather than what generates it.
+                       `Sparkles` was three shapes at three sizes in a 16px
+                       space — a smudge rather than a mark — and its singular
+                       form still said "AI did this", which is a fact about the
+                       mechanism. Auto here means "any of your directions,
+                       whichever fits", and two crossing arrows say that
+                       directly. It also stops the disc claiming kinship with
+                       the accent-coloured generate actions. */
+                    <Shuffle aria-hidden className="size-4 shrink-0" strokeWidth={1.8} />
+                  )}
                   {/* KEPT, NOT REMOVED, when the control is a disc: a button
                       whose only content is a decorative icon has no accessible
                       name at all. `sr-only` leaves the name for anyone not
@@ -269,9 +279,12 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                   <span className={selectedDirection ? "truncate" : "sr-only"}>
                     {selectedDirection?.name ?? "Auto direction"}
                   </span>
-                  {selectedDirection && (
-                    <ChevronDown aria-hidden className={`size-3.5 shrink-0 transition-transform ${pickerOpen ? "rotate-180" : ""}`} />
-                  )}
+                  {/* NO CHEVRON. It only ever appeared in the selected state,
+                      where the pill is already the odd shape out in the dock
+                      and the name inside it is plainly a value rather than a
+                      label — nothing else here needs an arrow to say it can be
+                      pressed. In the default state there was never room for
+                      one, so it was marking the state that needed it least. */}
                 </button>
               </PillarDirectionPicker>
               {/* ONE ACTION AT A TIME, and the field decides which. Both used to
