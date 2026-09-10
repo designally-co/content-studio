@@ -379,12 +379,21 @@
      is the same navigation and takes the same layer — it must sit BELOW the
      menu opened from its foot, which a drawer at --z-backdrop did not. */
   --z-nav: 45;
+  /* THE PHONE DRAWER IS NO LONGER THE RAIL, so it no longer shares its layer.
+     Folded away it was a panel over the page and --z-nav was right; full
+     screen it is the screen, and at --z-nav it tied with the stage bottom
+     sheet — same layer, so DOM order decided, and the sheet's peek sat on top
+     of a drawer that covered everything else. One step up settles it. Still
+     below the backdrop: a settings sheet opened from the drawer covers it. */
+  --z-drawer: 47;
   /* A menu opened FROM the nav, which is the one dropdown that has to clear it.
      At --z-dropdown the account menu painted underneath the rail it hangs off:
      272px of menu, 240px of it hidden, and the only part you could see was the
-     sliver past the rail's edge. Above the nav, still below the backdrop, so a
-     sheet opened from the menu covers it rather than fighting it. */
-  --z-nav-dropdown: 46;
+     sliver past the rail's edge. It is PORTALLED, so this number is compared
+     against the whole page and not against the rail it appears to belong to —
+     which is why it has to clear the drawer too, and why raising the drawer
+     without raising this would have put the menu back underneath. */
+  --z-nav-dropdown: 48;
   --z-backdrop: 50;
   --z-modal: 60;
   --z-toast: 70;

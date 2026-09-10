@@ -39,7 +39,7 @@ export default async function LoginPage({
           <Mark size={60} />
         </div>
 
-        <h1 className="sl-lockup">Designally Content Studio</h1>
+        <h1 className="sl-lockup">Designally Article Studio</h1>
 
         {/* What the product is for, in the one place the team sees it stated.
             It writes a draft from research; the editor still edits it — which

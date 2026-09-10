@@ -49,7 +49,7 @@ const plexThai = IBM_Plex_Sans_Thai({
 });
 
 export const metadata: Metadata = {
-  title: "Designally Content Studio",
+  title: "Designally Article Studio",
   description: "Internal AI-powered content generation for the Designally team",
 };
 

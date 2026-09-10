@@ -3,9 +3,10 @@
 import Link from "next/link";
 
 import { FlatMark } from "@/app/mark";
-import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { FileText, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
+import { STAGE_CLOSE_BUTTON } from "@/app/(app)/pipeline/[id]/stages/stage-mobile";
 import { AccountMenu } from "./account-menu";
 import { SettingsSheet } from "./settings/settings-sheet";
 import type { SettingsSection } from "./settings/sections";
@@ -119,35 +120,46 @@ export function SideNav({
            and painted the menu underneath the panel, so Brand, Content and
            Sign out were never reachable from a small screen. Sheets and
            dialogs sit two steps up and still cover it. */
-        <div className="fixed inset-0 z-(--z-nav) lg:hidden">
-          <button
-            type="button"
-            className="absolute inset-0 bg-ink/20"
-            aria-label="Close navigation"
-            onClick={() => setOpen(false)}
-          />
+        <div className="fixed inset-0 z-(--z-drawer) lg:hidden">
           <aside
             id="mobile-navigation"
-            /* NARROWER THAN IT WAS. 320px, or 88% of a phone, is nearly the
-               whole screen for three destinations and an account row — it read
-               as a page that had replaced the app rather than as a panel over
-               it, and left almost none of the work visible to come back to.
-               17rem holds the longest row with room to spare. */
-            className="relative flex h-full w-[min(17rem,78vw)] flex-col border-r border-line-strong bg-chrome shadow-[var(--shadow-pop)]"
+            /* THE WHOLE SCREEN, AND NO SCRIM BEHIND IT. This was a 17rem panel
+               over a dimmed page, which is the right shape when what is behind
+               it still matters — but nothing here is a preview of the page you
+               came from, and a sliver of dimmed work at the right edge was an
+               invitation to tap the one part of the screen that does nothing
+               but dismiss. Full bleed states it plainly: this is navigation,
+               you are in it, and the way out is the button where the way in
+               was. The scrim came out with the gutter it lived in; Escape and
+               the close button are the two ways back, and both are explicit.
+
+               No border and no shadow either — both drew the edge of a panel
+               that no longer has one. */
+            /* THE PAGE'S OWN GROUND, not the rail's. `bg-chrome` is the colour
+               of a panel beside the work; at full screen there is no work
+               beside it, and the close disc — a grey a single step off chrome —
+               went invisible on it. On the app ground the drawer reads as a
+               screen you navigated to, and every surface the close button
+               appears on is now the same colour under it. */
+            className="relative flex h-full w-full flex-col bg-bg"
             aria-label="Mobile navigation"
             role="dialog"
             aria-modal="true"
           >
-            <div className="flex h-16 items-center justify-between border-b border-line px-4">
+            <div className="flex h-16 items-center justify-between gap-3 border-b border-line pl-7 pr-4">
               <MobileBrand />
               <button
                 ref={closeButtonRef}
                 type="button"
                 onClick={() => setOpen(false)}
-                className="grid size-11 place-items-center rounded-lg text-ink-2 hover:bg-sunken focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+                /* THE SAME DISC AS EVERY OTHER CLOSE IN THE APP, from the one
+                   constant, so the drawer's and the sheets' cannot drift. A
+                   square-cornered ghost button was the only rounded-lg thing
+                   on a surface of pills. */
+                className={STAGE_CLOSE_BUTTON}
                 aria-label="Close navigation"
               >
-                <X className="size-5" />
+                <X aria-hidden className="size-5" />
               </button>
             </div>
             <NavLinks pathname={pathname} isAdmin={isAdmin} onNavigate={() => setOpen(false)} />
@@ -208,7 +220,7 @@ export function SideNav({
                 Designally
               </p>
               <p className="font-heading text-base font-semibold tracking-tight text-ink">
-                Content Studio
+                Article Studio
               </p>
             </div>
           )}
@@ -240,9 +252,22 @@ export function SideNav({
 }
 function MobileBrand() {
   return (
-    <div className="flex min-w-0 items-center gap-2.5">
+    /* THE RAIL'S LOCKUP, NOT A SMALLER COUSIN OF IT. The drawer had the mark
+       and one line of 13px type; the rail has the mark, "Designally" over the
+       product name, and both start on the tabs' own vertical line at 28. Two
+       different brand blocks for the same brand, and the phone got the lesser
+       one — which mattered more once the drawer went full screen and became
+       the only thing on the display. Same gap, same sizes, same eyebrow. */
+    <div className="flex min-w-0 items-center gap-3">
       <FlatMark size={32} />
-      <span className="truncate font-heading text-sm font-semibold text-ink">Content Studio</span>
+      <div className="min-w-0">
+        <p className="text-xs font-semibold uppercase tracking-[var(--tracking-caps)] text-ink-3">
+          Designally
+        </p>
+        <p className="truncate font-heading text-base font-semibold tracking-tight text-ink">
+          Article Studio
+        </p>
+      </div>
     </div>
   );
 }
@@ -279,6 +304,55 @@ function NavLinks({ pathname, isAdmin, onNavigate, collapsed = false }: { pathna
             </Link>
           );
         })}
+      {pathname.startsWith("/pipeline/") && (
+        /* Suspense because the row reads the query string, and `useSearchParams`
+           opts its whole subtree into client rendering — without a boundary
+           that would take the entire rail with it. */
+        <Suspense fallback={null}>
+          <CurrentArticleRow collapsed={collapsed} />
+        </Suspense>
+      )}
     </nav>
+  );
+}
+
+/** WHERE YOU ACTUALLY ARE. None of the three destinations matches a pipeline
+ *  URL, so opening the menu from inside an article showed a list with nothing
+ *  current on it — every row equally unselected, as though the article were not
+ *  a place. That was survivable while the drawer was a panel over the work; at
+ *  full screen the article and the stepper naming its stage are both hidden
+ *  behind it, and the menu became the only thing on the display with no answer
+ *  to which one of these you are in.
+ *
+ *  It is not a link. It is the page you are on, so pressing it would do
+ *  nothing — `aria-current="page"` and the selected fill say so, and the way
+ *  back to the article is the close button. */
+function CurrentArticleRow({ collapsed }: { collapsed: boolean }) {
+  const params = useSearchParams();
+  const stage = Number(params.get("stage"));
+  const view = params.get("view");
+  // The same three names the stepper uses, derived the same way it derives
+  // them — anything else would have the menu and the progress row disagreeing.
+  const label = stage && stage <= 5 ? "Draft" : view === "images" ? "Image" : "Publish";
+
+  return (
+    <div
+      aria-current="page"
+      title={collapsed ? `Article — ${label}` : undefined}
+      className={`flex min-h-12 items-center rounded-xl bg-chrome-active text-base font-medium text-ink ${
+        collapsed ? "mx-auto size-12 justify-center px-0" : "gap-3 px-3"
+      }`}
+    >
+      <FileText aria-hidden className="shrink-0 text-ink" width={20} height={20} />
+      {!collapsed && (
+        <>
+          <span className="truncate">Article</span>
+          {/* The stage, set as the quiet half of the row: the destination is
+              the article, the stage is which part of it. */}
+          <span className="ml-auto shrink-0 text-sm font-normal text-ink-2">{label}</span>
+        </>
+      )}
+      {collapsed && <span className="sr-only">{`Article — ${label}`}</span>}
+    </div>
   );
 }

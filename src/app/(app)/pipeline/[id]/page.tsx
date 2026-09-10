@@ -26,7 +26,7 @@ export async function generateMetadata({
   const { id } = await params;
   const loaded = await loadProject(id);
   const name = loaded?.project.selectedTopic?.title?.trim();
-  return { title: `${name || "Untitled article"} · Content Studio` };
+  return { title: `${name || "Untitled article"} · Article Studio` };
 }
 
 /** Parse an aspect-ratio string ("16:9", "3:2", "1:1") to width/height. Falls

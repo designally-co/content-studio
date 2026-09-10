@@ -55,6 +55,15 @@ export const STAGE_ACTION_SLOT =
 export const STAGE_ACTION_BUTTON =
   "grid size-10 place-items-center rounded-full bg-accent text-white shadow-[var(--shadow-card)] transition-colors duration-(--duration-fast) ease-(--ease-out) enabled:hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-chrome-active disabled:text-ink-3 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]";
 
+/** THE ONE CLOSE BUTTON, so the sheet's and the drawer's cannot drift apart.
+ *  A soft grey disc with no outline: it is a dismissal, the quietest thing on
+ *  any surface it appears on, and an outlined pill gave it the same weight as
+ *  the controls it sits beside. The fill is what makes it findable without
+ *  drawing a border around it — a bare glyph on a white sheet had no target
+ *  you could see, only one you could hit. */
+export const STAGE_CLOSE_BUTTON =
+  "grid size-9 shrink-0 place-items-center rounded-full bg-chrome text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-chrome-active hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]";
+
 export function StageAction({
   label,
   onClick,
@@ -266,7 +275,7 @@ export function StageSheet({
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label={`Close ${title}`}
-                className="-mr-1 -mt-0.5 grid size-9 shrink-0 place-items-center rounded-full text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+                className={`-mr-1 -mt-0.5 ${STAGE_CLOSE_BUTTON}`}
               >
                 <X aria-hidden className="size-5" />
               </button>
@@ -279,10 +288,21 @@ export function StageSheet({
             first control, so it read as a caption on the wrong thing. Two
             pixels up, sixteen down. */}
         {subtitle && (
-          <p className="shrink-0 px-5 pt-0.5 text-sm leading-relaxed text-ink-2">{subtitle}</p>
+          /* MEASURED, NOT FULL BLEED. A deck running the whole width of the
+             sheet sets a line the eye has to track all the way back from, for
+             one sentence — and it put the last word under the close button.
+             Capped at a comfortable measure it stays a caption on the title
+             rather than a paragraph in its own right. */
+          <p className="max-w-[34ch] shrink-0 px-5 pt-0.5 text-sm leading-relaxed text-ink-2">
+            {subtitle}
+          </p>
         )}
+        {/* NO BAR DRAWN OVER THE SHEET. A scrollbar tracked down the inside of
+            the right edge, across the rounded corner the sheet just gained, on
+            a surface whose whole interaction is a thumb — the same call the
+            settings sheet already made. It still scrolls. */}
         <div
-          className={`min-h-0 flex-1 overflow-y-auto pb-6 pt-4 ${flush ? "" : "px-5"}`}
+          className={`min-h-0 flex-1 overflow-y-auto pb-6 pt-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${flush ? "" : "px-5"}`}
           aria-hidden={!open}
         >
           {children}

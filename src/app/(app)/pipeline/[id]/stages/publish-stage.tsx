@@ -8,7 +8,6 @@ import { CopyButton } from "@/components/copy-button";
 import { DropdownMenu } from "radix-ui";
 import { StageShell } from "./stage-shell";
 import {
-  SHEET_CLEARANCE,
   STAGE_ACTION_BUTTON,
   STAGE_ACTION_SLOT,
   StageAction,
@@ -671,7 +670,7 @@ function ImagePanel({
 
   const imagesNote =
     imgs.length === 0
-      ? "None yet. They collect here as they are made."
+      ? "None yet."
       : imgs.length === 1
         ? "One image, shown in the middle."
         : `${imgs.length} images — choose the one to publish.`;
@@ -1326,10 +1325,27 @@ function PublishComposer({
   const readMinutes = Math.max(1, Math.round(countMetrics(draftMd).words / 220));
 
   return (
-    <div className={`grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8 ${SHEET_CLEARANCE}`}>
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8">
       {/* No label above the preview: it renders the Hub's own masthead and
           chrome, which says what it is more convincingly than a caption. */}
-      <div className="min-w-0">
+      {/* THE PREVIEW SCROLLS, NOT THE PAGE — which is the only way to get the
+          scrollbar out from over the sheet. A native scrollbar always paints
+          on top of everything, fixed elements included, so while the DOCUMENT
+          was the scroller its bar ran the full height of the phone and straight
+          down across the sheet: there is no z-index that puts it behind. Making
+          this column the scroll container ends the track where the column ends,
+          which is exactly the sheet's top edge.
+
+          It replaces the bottom padding that used to hold the page clear of the
+          sheet: the same 162px is now the height this box does NOT occupy —
+          48 for the bar the menu button and stepper share, 32 for the shell's
+          top padding, 70 for the closed sheet, 12 for the gap — so the clearance
+          is the same, stated once instead of twice.
+
+          A side benefit: the sticky stepper no longer has a scrolling document
+          under it, so it holds still because nothing moves it rather than
+          because it is pinned. */}
+      <div className="min-w-0 h-[calc(100svh-10.125rem)] overflow-y-auto lg:h-auto lg:overflow-visible">
         <HubPreviewFrame>
           <HubArticlePreview
             title={title}
@@ -1772,7 +1788,14 @@ function PublishRail({
             {busy ? (
               <LoaderCircle aria-hidden className="size-5 animate-spin motion-reduce:animate-none" />
             ) : (
-              <Send aria-hidden className="size-5" />
+              /* OPTICALLY CENTRED, NOT GEOMETRICALLY. The paper plane's mass
+                 sits low and left — the tail is empty space in the top-right of
+                 its own box — so centring the BOX leaves the glyph looking like
+                 it has slipped down and back. A pixel each way puts it where
+                 the eye expects it. The spinner is radially symmetric and takes
+                 no correction, which is why the nudge is on the glyph rather
+                 than on the button. */
+              <Send aria-hidden className="size-5 translate-x-px -translate-y-px" />
             )}
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
@@ -1814,7 +1837,9 @@ function PublishRail({
 
       <StageSheet
         title="Brand check"
-        subtitle="Reads the finished article against the brand profile before it goes out."
+        /* ONE SHORT LINE, like every other deck. The old sentence explained
+           when the check runs, which the button below it already says. */
+        subtitle="Checked against your brand profile."
       >
         {brandBody}
       </StageSheet>
