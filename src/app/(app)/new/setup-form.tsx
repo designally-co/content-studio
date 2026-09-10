@@ -484,12 +484,20 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
           </div>
 
           {!generatingTopics && topics.length === 0 && !hasInput && (
-            /* BALANCED, so it does not wrap to a line holding one word. At the
-               dock's width this sentence broke after "design", leaving "press."
-               alone underneath — which reads as a mistake rather than as a
-               second line. */
-            <p className="text-balance text-center text-sm leading-relaxed text-ink-3">
-              No idea yet? Generate ideas searches the design press.
+            /* TWO LINES, BROKEN AT THE HINGE. Left to itself this wrapped after
+               "design" and orphaned "press."; balanced, it evened the two lines
+               by width and split "Generate ideas" from "searches" — the name of
+               the button from the verb that says what it does.
+
+               The sentence is a question and its answer, so it breaks between
+               them. The halves are uneven and that is fine: they are two
+               different utterances, not one measure cut in half. Above `sm`
+               there is room for the whole thing on one line, so the `br` goes
+               and balance takes over for the widths in between. */
+            <p className="text-center text-sm leading-relaxed text-ink-3 sm:text-balance">
+              No idea yet?{" "}
+              <br className="sm:hidden" />
+              Generate ideas searches the design press.
             </p>
           )}
 
