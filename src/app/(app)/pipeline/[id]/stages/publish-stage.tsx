@@ -431,6 +431,13 @@ function ImagePanel({
   // Optimistic: the route resolves the cover on reload, but the choice has to
   // register the instant it is clicked or the control feels broken.
   const [chosenCoverId, setChosenCoverId] = useState<string | null>(coverImageId);
+  /* How far the phone's sheet has risen. The stage does not scroll, so the
+     content moves by exactly that much rather than being covered — a tuned
+     constant clears a sheet holding two thumbnails and hides the dock behind
+     one holding six. Declared with the other hooks: this component returns
+     early further down, and a hook after that runs on some renders and not
+     others. */
+  const [sheetLift, setSheetLift] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const selectedOption = useMemo(
@@ -703,7 +710,7 @@ function ImagePanel({
        The choice sits in the middle at size, the rest of the set is a rail of
        thumbnails beside it, and the forward action is in a panel like every
        other stage's. */
-    <div className={`grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8 ${SHEET_CLEARANCE}`}>
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8">
       {/* NO PLATE HERE, unlike Draft and Publish. Those two hold a DOCUMENT —
           an article, a preview of one — and a plate is what a document sits on.
           This stage holds a picture and a box to describe it in, and both of
@@ -713,7 +720,29 @@ function ImagePanel({
 
           Three things on the page ground instead, in reading order: what the
           picture is for, the picture, and the way to ask for another. */}
-      <section className="flex min-h-[calc(100svh-9rem)] flex-col">
+      {/* A SCREEN, NOT A PAGE. Draft and Publish are documents and scroll like
+          them; this stage is three fixed things — what the picture is for, the
+          picture, and the box to ask for another — and scrolling a screen whose
+          content already fits is a gesture that does nothing but move the dock
+          away from the thumb.
+
+          Sized to the gap that is actually left: 48 for the bar the menu button
+          and stepper share, 32 for the shell's own top padding, 70 for the
+          closed sheet, and 12 so the dock is not welded to it — 162 in total.
+          Getting that sum wrong by the 32 is what made the page scroll a little
+          and the dock slide under the sheet, and it is the kind of wrong that
+          only shows on the device.
+
+          The 12 survives the lift for free: the content moves by exactly the
+          sheet's travel, so whatever gap it has at rest it keeps when open.
+
+          Clipped, so a tall image shrinks instead of pushing the dock off the
+          bottom. Above `lg` it goes back to a minimum height and lets the page
+          grow. */}
+      <section
+        className="flex h-[calc(100svh-10.125rem)] flex-col overflow-hidden transition-transform duration-(--duration-base) ease-(--ease-out) lg:h-auto lg:min-h-[calc(100svh-9rem)] lg:translate-y-0 lg:overflow-visible"
+        style={sheetLift ? { transform: `translateY(-${sheetLift}px)` } : undefined}
+      >
           {/* THE ARTICLE'S NAME, which this stage used to be the only one
               without. Draft shows the piece itself and Publish shows the
               preview, so both say what you are working on simply by showing
@@ -733,7 +762,7 @@ function ImagePanel({
           {/* The picture takes the room that is left, centred in it, so the
               dock stays on the floor of the stage whether there is one image or
               none. */}
-          <div className="flex flex-1 items-center justify-center py-6">
+          <div className="flex min-h-0 flex-1 items-center justify-center py-6">
             {featured ? (
               <GeneratedImage
                 key={featured.id}
@@ -1118,7 +1147,7 @@ function ImagePanel({
       <StageAction label="Continue to publish" onClick={onNext}>
         <ArrowRight aria-hidden className="size-5" />
       </StageAction>
-      <StageSheet title="Generated images" subtitle={imagesNote}>
+      <StageSheet title="Generated images" subtitle={imagesNote} onOpenChange={setSheetLift}>
         {imageGrid}
       </StageSheet>
     </div>
@@ -1226,18 +1255,11 @@ function GeneratedImage({ img, feature = false, selected, onSelect, onDeleted }:
           </button>
         </div>
 
-        {/* Kept for comparison, but only while the eye is on this tile — and
-            not at thumbnail size at all. In the rail, and in the sheet a phone
-            gets, the tiles are barely wider than the string: "fal-ai/nano-
-            banana-2/edit · 16:9 · v1" laid across a picture you are trying to
-            choose between four of, and the model is the same on every one of
-            them. It stays on the featured image, where there is room for it and
-            where you are looking at ONE picture closely. */}
-        {feature && (
-          <figcaption className="cs-reveal pointer-events-none absolute inset-x-0 bottom-0 z-20 truncate bg-linear-to-t from-ink/70 to-transparent px-3 pb-2 pt-6 text-xs font-medium text-white">
-            {img.model} · {img.aspectRatio} · v{img.variationNo}
-          </figcaption>
-        )}
+        {/* NO CAPTION, ANYWHERE. "fal-ai/nano-banana-2/edit · 1:1 · v1" is the
+            provider's routing string, and it was laid across the bottom of the
+            picture — the same text on every image in the set, over the one
+            thing on the stage you are meant to be looking at. Which model made
+            it is a setting, and settings live in the dock's Settings menu. */}
       </div>
 
       {deleteError && <p className="bg-danger-soft px-3 py-2 text-xs text-danger" role="alert">{deleteError}</p>}

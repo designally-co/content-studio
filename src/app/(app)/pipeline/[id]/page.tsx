@@ -77,7 +77,11 @@ export default async function PipelinePage({
         : "images";
 
   return (
-    <div className="flex min-h-screen flex-col">
+    /* The 48px menu strip is a SIBLING of this page, not part of it, so
+       `min-h-screen` here asked for a full viewport BELOW a bar that had
+       already taken 48 of it — every stage was 48px taller than the phone and
+       scrolled by exactly that much with nothing in the gap. */
+    <div className="flex min-h-[calc(100svh-3rem)] flex-col lg:min-h-screen">
       {/* A floating pill carrying only the stepper. Each stage names the article
           in its own body, so repeating it in the chrome said nothing the content
           was not already saying; the browser tab carries identity for anyone

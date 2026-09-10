@@ -101,10 +101,24 @@ export function StageSheet({
   title,
   subtitle,
   flush,
+  onOpenChange,
   children,
 }: {
   title: string;
   subtitle?: string;
+  /**
+   * Told when the sheet opens or closes.
+   *
+   * The images stage does not scroll — it is a title, a picture and a dock
+   * sized to the screen — so when the sheet rises there is nowhere for the
+   * content to go unless it is moved. It lifts instead of being covered.
+   *
+   * Reports the DISTANCE the sheet travelled, not merely that it opened: how
+   * far the content has to move is exactly how far the sheet rose, and that
+   * depends on what is in it. A tuned constant clears a sheet holding two
+   * thumbnails and hides the dock behind one holding six.
+   */
+  onOpenChange?: (lift: number) => void;
   /**
    * The content brings its own horizontal padding.
    *
@@ -132,6 +146,14 @@ export function StageSheet({
     },
     []
   );
+
+  /* Reported from an effect rather than from each of the four things that can
+     change it — the toggle, a drag, the scrim, Escape. One place to be wrong
+     instead of four. */
+  useEffect(() => {
+    const height = panel.current?.getBoundingClientRect().height ?? 0;
+    onOpenChange?.(open ? Math.max(0, height - PEEK) : 0);
+  }, [open, onOpenChange, children]);
 
   useEffect(() => {
     if (!open) return;
@@ -173,7 +195,10 @@ export function StageSheet({
 
       <div
         ref={panel}
-        className="fixed inset-x-0 bottom-0 z-(--z-nav) flex max-h-[85svh] flex-col rounded-t-2xl border-t border-line-strong bg-surface shadow-[var(--shadow-pop)] lg:hidden"
+        /* No rule along the top. The shadow already lifts it off the page, and a
+           hairline as well is the same mistake the dropdown panels make when
+           they carry one — a floating layer drawn as a boxed one. */
+        className="fixed inset-x-0 bottom-0 z-(--z-nav) flex max-h-[85svh] flex-col rounded-t-2xl bg-surface shadow-[var(--shadow-pop)] lg:hidden"
         style={{
           transform: open
             ? `translateY(${offset ?? 0}px)`
