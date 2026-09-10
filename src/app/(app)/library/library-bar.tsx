@@ -68,18 +68,33 @@ export function LibraryBar() {
   }
 
   return (
-    <div className="fixed inset-x-0 top-0 z-(--z-sticky) lg:hidden">
+    /* WHILE IT IS OPEN THE BAR OUTRANKS THE MENU BUTTON. The field spreads
+       across the whole line, and the button lives one layer above the bar it
+       shares that line with — so without this the hamburger sat on top of the
+       search box. It drops back under when the field closes. */
+    <div
+      className={`fixed inset-x-0 top-0 lg:hidden ${
+        searching ? "z-(--z-search)" : "z-(--z-sticky)"
+      }`}
+    >
       <TopBlur />
       {/* Three columns with matching outer widths, so the title lands in the
           middle of the display rather than beside the menu button. The left
           column is empty: it reserves the button's space, and the button
-          itself belongs to the navigation and paints above this. Searching,
-          the field spans the middle and the right, since a search box the
-          width of a title with a gap after it is not a search box. */}
+          itself belongs to the navigation and paints above this. */}
       <div className="mx-auto grid h-12 w-full max-w-7xl grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-2 px-3 sm:px-8">
-        <div aria-hidden />
         {searching ? (
-          <>
+          /* THE DISC BECOMES THE BAR. Open, search is not a control sitting
+             beside the page's name — it is the only thing on the line, spread
+             across all three columns and over the menu button with it. A field
+             that shares the line with a title and a hamburger is a field the
+             width of neither, and on a phone the thing you are doing is the
+             only thing you are doing.
+
+             `relative`, so the X is positioned against the pill rather than
+             placed in a grid column — which is what the field's right padding
+             reserves room for. */
+          <div className="relative col-span-3 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-150">
             <input
               type="search"
               autoFocus
@@ -87,33 +102,26 @@ export function LibraryBar() {
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search by title…"
               aria-label="Search articles"
-              /* On the bar's own line and the bar's own height, so opening
-                 search does not make the band taller and shift the list. The
-                 field is white on the blur, which is the one surface treatment
-                 the stepper's current pill already uses on this line. */
-              /* PLACED, NOT AUTO-FLOWED. The close button below is explicitly
-                 in column 3, and grid places explicit items before auto ones —
-                 so an auto `col-span-2` found only column 2 free on this row
-                 and wrapped to a second one, putting the field under the menu
-                 button and doubling the bar's height. Stating its columns lets
-                 the two share column 3, which is the point: the X rides on the
-                 field's right end, inside the padding reserved for it. */
-              className="col-start-2 col-end-4 row-start-1 h-9 min-w-0 rounded-full bg-surface px-4 pr-11 text-sm text-ink outline-none placeholder:text-ink-3 focus-visible:shadow-[var(--shadow-focus)] [&::-webkit-search-cancel-button]:hidden"
+              /* The bar's own height, so opening search does not make the band
+                 taller and shift the list underneath it. White on the blur,
+                 which is the surface treatment this line already uses. */
+              className="h-9 w-full rounded-full bg-surface pl-4 pr-10 text-sm text-ink outline-none placeholder:text-ink-3 focus-visible:shadow-[var(--shadow-focus)] [&::-webkit-search-cancel-button]:hidden"
             />
             <button
               type="button"
               onClick={closeSearch}
               aria-label="Close search"
-              /* Inside the field's right end rather than beside it: the
-                 field already spans to the gutter, and a disc after it would
-                 have made the box shorter than the title it replaced. */
-              className="col-start-3 row-start-1 mr-1 justify-self-end grid size-7 place-items-center rounded-full text-ink-3 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-chrome hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+              /* Inside the pill's right end, in the padding reserved for it —
+                 the way a field's own clear button sits, rather than as a
+                 second control after the box. */
+              className="absolute right-1 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full text-ink-3 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-chrome hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
             >
               <X aria-hidden className="size-4" />
             </button>
-          </>
+          </div>
         ) : (
           <>
+            <div aria-hidden />
             <h1 className="min-w-0 truncate text-center font-heading text-base font-semibold tracking-tight text-ink">
               Library
             </h1>

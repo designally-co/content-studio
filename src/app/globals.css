@@ -379,6 +379,12 @@
      is the same navigation and takes the same layer — it must sit BELOW the
      menu opened from its foot, which a drawer at --z-backdrop did not. */
   --z-nav: 45;
+  /* A page bar that has temporarily taken the whole line. Library's search
+     expands across the menu button, which lives one layer up from the bar it
+     shares a line with — so while it is open the bar has to outrank the
+     button it is covering, and go back under it when it closes. Below the
+     drawer, which is that button's own destination. */
+  --z-search: 46;
   /* THE PHONE DRAWER IS NO LONGER THE RAIL, so it no longer shares its layer.
      Folded away it was a panel over the page and --z-nav was right; full
      screen it is the screen, and at --z-nav it tied with the stage bottom
