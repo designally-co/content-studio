@@ -3,9 +3,9 @@
 import Link from "next/link";
 
 import { FlatMark } from "@/app/mark";
-import { usePathname, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef, useState } from "react";
-import { FileText, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { STAGE_CLOSE_BUTTON } from "@/app/(app)/pipeline/[id]/stages/stage-mobile";
 import { AccountMenu } from "./account-menu";
 import { SettingsSheet } from "./settings/settings-sheet";
@@ -22,7 +22,13 @@ import {
    rail. */
 const NAV = [
   { href: "/", label: "Create", icon: IconNew, exact: true },
-  { href: "/library", label: "Library", icon: IconLibrary, exact: true },
+  /* AN ARTICLE IS A LIBRARY ITEM, so the rail says Library while you are in
+     one. `/pipeline/<id>` matched none of the three destinations, which left
+     the menu showing a list with nothing current on it for the route people
+     spend the most time on — every row equally unselected, as though the
+     article were nowhere. It is not a fourth destination; it is where Library
+     leads. */
+  { href: "/library", label: "Library", icon: IconLibrary, exact: true, owns: "/pipeline/" },
   // A routine publishes to a live site with nobody reading it first, and the
   // page itself refuses anyone else — so the link is not offered either.
   { href: "/routines", label: "Routines", icon: IconRoutine, exact: false, adminOnly: true },
@@ -281,10 +287,12 @@ function MobileBrand() {
 function NavLinks({ pathname, isAdmin, onNavigate, collapsed = false }: { pathname: string; isAdmin: boolean; onNavigate?: () => void; collapsed?: boolean }) {
   return (
     <nav className={`flex-1 space-y-1 overflow-y-auto py-4 ${collapsed ? "px-2" : "px-4"}`} aria-label="Primary navigation">
-      {NAV.filter((item) => !item.adminOnly || isAdmin).map(({ href, label, icon: Icon, exact }) => {
-          const active = exact
-            ? pathname === href
-            : pathname === href || pathname.startsWith(href + "/");
+      {NAV.filter((item) => !item.adminOnly || isAdmin).map(({ href, label, icon: Icon, exact, owns }) => {
+          const active =
+            (owns !== undefined && pathname.startsWith(owns)) ||
+            (exact
+              ? pathname === href
+              : pathname === href || pathname.startsWith(href + "/"));
           return (
             <Link
               key={href}
@@ -310,55 +318,7 @@ function NavLinks({ pathname, isAdmin, onNavigate, collapsed = false }: { pathna
             </Link>
           );
         })}
-      {pathname.startsWith("/pipeline/") && (
-        /* Suspense because the row reads the query string, and `useSearchParams`
-           opts its whole subtree into client rendering — without a boundary
-           that would take the entire rail with it. */
-        <Suspense fallback={null}>
-          <CurrentArticleRow collapsed={collapsed} />
-        </Suspense>
-      )}
     </nav>
   );
 }
 
-/** WHERE YOU ACTUALLY ARE. None of the three destinations matches a pipeline
- *  URL, so opening the menu from inside an article showed a list with nothing
- *  current on it — every row equally unselected, as though the article were not
- *  a place. That was survivable while the drawer was a panel over the work; at
- *  full screen the article and the stepper naming its stage are both hidden
- *  behind it, and the menu became the only thing on the display with no answer
- *  to which one of these you are in.
- *
- *  It is not a link. It is the page you are on, so pressing it would do
- *  nothing — `aria-current="page"` and the selected fill say so, and the way
- *  back to the article is the close button. */
-function CurrentArticleRow({ collapsed }: { collapsed: boolean }) {
-  const params = useSearchParams();
-  const stage = Number(params.get("stage"));
-  const view = params.get("view");
-  // The same three names the stepper uses, derived the same way it derives
-  // them — anything else would have the menu and the progress row disagreeing.
-  const label = stage && stage <= 5 ? "Draft" : view === "images" ? "Image" : "Publish";
-
-  return (
-    <div
-      aria-current="page"
-      title={collapsed ? `Article — ${label}` : undefined}
-      className={`flex min-h-12 items-center rounded-xl bg-chrome-active text-base font-medium text-ink ${
-        collapsed ? "mx-auto size-12 justify-center px-0" : "gap-3 px-3"
-      }`}
-    >
-      <FileText aria-hidden className="shrink-0 text-ink" width={20} height={20} />
-      {!collapsed && (
-        <>
-          <span className="truncate">Article</span>
-          {/* The stage, set as the quiet half of the row: the destination is
-              the article, the stage is which part of it. */}
-          <span className="ml-auto shrink-0 text-sm font-normal text-ink-2">{label}</span>
-        </>
-      )}
-      {collapsed && <span className="sr-only">{`Article — ${label}`}</span>}
-    </div>
-  );
-}
