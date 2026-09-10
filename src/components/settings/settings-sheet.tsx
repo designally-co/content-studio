@@ -91,10 +91,28 @@ export function SettingsSheet({
             routine sheet. */}
         <Dialog.Content
           style={SHEET}
-          className="fixed left-1/2 top-1/2 z-(--z-modal) flex max-h-[92svh] w-[min(46rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl bg-(--sheet-bg) shadow-[var(--shadow-pop)] outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none"
+          /* A BOTTOM SHEET ON A PHONE, a centred dialog from `lg`.
+             This was one shape at every width: a 46rem panel that shrank to
+             343 and floated 16px in from all four sides — a desktop dialog
+             made small rather than a phone surface. Three things were wrong
+             with it there. It wasted 32px of a 375px screen on margins around
+             a form whose fields then had to fit in what was left. It began
+             320px down and ran to the bottom, so the controls furthest from
+             the thumb were the ones you reach for first. And it was the only
+             modal in the app that did not arrive the way the stage sheets and
+             the drawer do — from the edge nearest your hand.
+
+             Full width, anchored to the foot, with the same rounded top the
+             stage sheets use. Above `lg` every one of those rules is undone
+             and the centred panel comes back untouched. */
+          className="fixed inset-x-0 bottom-0 z-(--z-modal) flex max-h-[92svh] flex-col overflow-hidden rounded-t-3xl bg-(--sheet-bg) shadow-[var(--shadow-pop)] outline-none data-open:animate-in data-open:fade-in-0 data-open:slide-in-from-bottom-4 data-closed:animate-out data-closed:fade-out-0 data-closed:slide-out-to-bottom-4 motion-reduce:animate-none lg:inset-x-auto lg:bottom-auto lg:left-1/2 lg:top-1/2 lg:w-[min(46rem,calc(100vw-2rem))] lg:-translate-x-1/2 lg:-translate-y-1/2 lg:rounded-2xl lg:data-open:zoom-in-95 lg:data-closed:zoom-out-95"
           aria-describedby={undefined}
         >
-        <div className="cs-sheet-scroll min-h-0 flex-1 overflow-y-auto p-5 sm:p-7">
+        {/* `pb` beyond the gutter, because the sheet's foot is now the bottom
+            of the screen: without it the last control sits against the edge
+            with no room to scroll past, and on a phone that edge is where the
+            home indicator is. */}
+        <div className="cs-sheet-scroll min-h-0 flex-1 overflow-y-auto p-5 pb-10 sm:p-7 lg:pb-7">
           {/* NOT DRAWN, BUT STILL SAID. A dialog has to have a name — it is what
               a screen reader announces on open, and Radix warns without one —
               so the section still titles the sheet, just not twice. The content
