@@ -27,9 +27,15 @@ export const IconDashboard = (p: IconProps) => (
   </svg>
 );
 
+/* DRAWN TO THE SAME EXTENT AS ITS NEIGHBOURS. The plus spanned 5 to 19 — 14
+   units of the 24 grid — while Library's rects and Routine's clock both reach
+   3 to 21, so Create sat visibly smaller in a column of icons that are
+   otherwise one size. 17 units rather than the full 18: a cross touches its
+   box at four points where a square touches it along four edges, so matching
+   the extent exactly would make the cross read as the larger of them. */
 export const IconNew = (p: IconProps) => (
   <svg {...base(p)}>
-    <path d="M12 5v14M5 12h14" />
+    <path d="M12 3.5v17M3.5 12h17" />
   </svg>
 );
 

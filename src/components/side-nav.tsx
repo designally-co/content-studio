@@ -426,11 +426,30 @@ function NavLinks({ pathname, isAdmin, onNavigate, collapsed = false }: { pathna
                  sitting on a grey two steps down from the rail. Hover is the
                  step between, so the pointer reads as a preview of selection
                  rather than as a different idea. */
-              className={`flex min-h-12 items-center rounded-xl text-base font-medium text-ink transition-colors duration-(--duration-fast) ease-(--ease-out) ${collapsed ? "mx-auto size-12 justify-center px-0" : "gap-3 px-3"} ${
+              /* THE ROUTINE CARD'S TITLE, EXACTLY: the heading family at 500.
+                 The label had been inheriting the body font, so the rail was
+                 set in Poppins while every name it points at is set in
+                 Zalando — a destination and the thing it names, in two
+                 different voices. Tracking is left alone: the card's title
+                 carries `tracking-tight` and that is a 22px decision, not one
+                 to repeat at 14. */
+              className={`flex min-h-12 items-center rounded-xl font-heading text-base font-medium text-ink transition-colors duration-(--duration-fast) ease-(--ease-out) ${collapsed ? "mx-auto size-12 justify-center px-0" : "gap-3 px-3"} ${
                 active ? "bg-chrome-active" : "hover:bg-chrome-hover"
               }`}
             >
-              <Icon className="text-ink" width={20} height={20} />
+              {/* OPTICALLY BALANCED WITH THE LABEL, NOT NOMINALLY EQUAL TO IT.
+                  The icons are drawn 1.6 thick on a 24 grid and rendered at 20,
+                  so what reaches the screen is 1.33px — which sat level with a
+                  500-weight label and reads thin beside a heavier one. A stem
+                  and a stroke are the same mark to the eye, and if one is
+                  lighter the row looks like a label somebody drew an icon next
+                  to rather than one thing.
+
+                  1.75 on the grid lands at ~1.46 on screen, against a 500 stem
+                  at 14px. Stated here rather than in the icons themselves:
+                  they are 1.6 everywhere else in the product, beside text that
+                  has not changed. */}
+              <Icon className="text-ink" width={20} height={20} strokeWidth={1.75} />
               <span className={collapsed ? "sr-only" : ""}>{label}</span>
             </Link>
           );

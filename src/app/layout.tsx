@@ -29,15 +29,16 @@ const poppins = Poppins({
 // The CI display face, used by the sign-in page only — it is the one screen
 // this app shares with the team app, and the two should read as one product.
 // `preload: false` so every other route does not pay for a face it never sets.
-/* 500 IS LOADED BECAUSE 500 IS USED. Without the face, `font-medium` does not
-   fall back to something near it — it drops to 400, so a heading asking for a
-   step below semibold got body weight instead, and the only way to make it
-   look like a heading again was to put it back to 600. Loading the weight is
-   what makes the step between them exist. */
+/* THE VARIABLE FACE, NOT FOUR CUT INSTANCES. Listing weights loads exactly
+   those and nothing between them, which is fine until a label needs to sit
+   BETWEEN two of them — 500 read too light for the navigation and 600 too
+   bold, and there was no way to say so. Zalando Sans has a weight axis; asking
+   for the family without a list loads it, and every value on the axis becomes
+   available. The named utilities keep working: `font-medium` is still 500, it
+   is simply no longer the only thing near it. */
 const zalando = Zalando_Sans({
   variable: "--font-zalando",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
 });
 
 const splineMono = Spline_Sans_Mono({
