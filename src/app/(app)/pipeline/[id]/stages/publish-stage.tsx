@@ -1140,20 +1140,19 @@ function ImagePanel({
             <h3 className="font-heading text-[length:var(--text-h3)] font-medium tracking-tight text-ink">
               Review and publish
             </h3>
-            {/* ONLY WHEN IT HAS SOMETHING TO ADD. With an image chosen this
-                said "the image in the middle is the one that publishes" — the
-                middle image is the large one, the selected one, the only one
-                with a tick, and the reader is looking straight at it. Three
-                signals already carry that, and a fourth in words reads as the
-                interface not trusting its own design.
+            {/* NAMED BY SELECTION, NOT BY POSITION. "The image in the middle is
+                the one that publishes" tied the fact to a layout — true of the
+                stage on a desktop, and of nothing in particular once the set
+                is a grid in a sheet on a phone. Which image is chosen is a
+                state, and the sentence should name the state.
 
-                With NO image there is a real thing to say, because nothing on
-                screen says it: that you are allowed to go on anyway. */}
-            {imgs.length === 0 && (
-              <p className="mt-1 text-sm leading-relaxed text-ink-2">
-                You can publish without an image.
-              </p>
-            )}
+                With no image there is a different thing to say, because
+                nothing on screen says it: that you may go on without one. */}
+            <p className="mt-1 text-sm leading-relaxed text-ink-2">
+              {imgs.length === 0
+                ? "You can publish without an image."
+                : "The selected image will be published."}
+            </p>
             <button type="button" onClick={onNext} className="cs-cta mt-4 w-full">
               Continue to publish
             </button>
