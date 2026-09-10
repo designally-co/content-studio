@@ -456,9 +456,13 @@ function RoutineCard({
        16 from `sm` up, where the card is the width of the page rather than
        the width of a phone: 12 is compact against 351px and mean against
        1100. */
-    <section className="rounded-2xl border border-line bg-surface p-3 transition-shadow duration-(--duration-base) ease-(--ease-out) hover:shadow-[var(--shadow-card)] sm:p-4">
+    <section className="rounded-2xl border border-line bg-surface p-3.5 transition-shadow duration-(--duration-base) ease-(--ease-out) hover:shadow-[var(--shadow-card)] sm:p-5">
       <div className="flex items-start justify-between gap-4">
-        <h3 className="min-w-0 flex-1 font-heading text-[length:var(--text-h3)] font-semibold leading-snug tracking-tight text-ink">
+        {/* MEDIUM, NOT SEMIBOLD. A card carrying one name does not need weight
+            to say which line is the name — position already does — and five
+            routines in a column read as five headlines shouting over a page
+            whose job is to be glanced at. */}
+        <h3 className="min-w-0 flex-1 font-heading text-[length:var(--text-h3)] font-medium leading-snug tracking-tight text-ink">
           {routine.name}
         </h3>
         {/* A manual routine has nothing to switch on, so the slot stays empty
@@ -500,7 +504,14 @@ function RoutineCard({
            four lines deep and a list of five was twenty lines of text to scan.
            The schedule moved to the footer, where one line of metadata belongs;
            when a routine last wrote something is the Library's question. */
-        <p className="mt-1 line-clamp-2 max-w-[68ch] text-sm leading-relaxed text-ink-2">
+        /* THREE LINES, AND FURTHER DOWN. Two cut most descriptions mid-thought
+           — the point of a description is that the name did not say enough, so
+           the clamp has to leave room for the part that does. `mt-2.5` because
+           the row above is now the switch's 24px track rather than its 44px
+           target: the old `mt-1` was sitting under 20px of invisible padding,
+           and taking that padding away left the deck tucked under the
+           toggle. */
+        <p className="mt-2.5 line-clamp-3 max-w-[68ch] text-sm leading-relaxed text-ink-2">
           {routine.description}
         </p>
       )}
@@ -523,13 +534,22 @@ function RoutineCard({
           and they have to be changed together — a `-mx-5` left behind by a
           card that became `p-3` would hang the rule two pixels over each
           edge. */}
-      <div className="-mx-3 mt-3 flex items-center justify-between gap-3 border-t border-line px-3 pt-3 sm:-mx-4 sm:mt-4 sm:px-4 sm:pt-4">
+      {/* The strip gets TIGHTER BY BEING SHORTER, not by being padded less. Its
+          top padding is the card's own, the way every other edge here is — the
+          earlier lopsided version had 14 above the row and 20 below, and
+          trimming this to 8 only put the same fault the other way round. What
+          shrinks is the ROW: 11px type and a menu button pulled back to the
+          height of its glyph, so the strip is 52 where it was 60. */}
+      <div className="-mx-3.5 mt-3.5 flex items-center justify-between gap-3 border-t border-line px-3.5 pt-3.5 sm:-mx-5 sm:mt-5 sm:px-5 sm:pt-5">
         {/* The icon marks the line as a time rather than as one more sentence
             about the routine — the only thing distinguishing metadata from
             prose once the card is down to two facts. Decorative: the words
             beside it already say what it is. */}
-        <p className="flex min-w-0 items-center gap-2 text-sm text-ink-3">
-          <Clock aria-hidden className="size-4 shrink-0" />
+        {/* SMALLER THAN THE CARD'S PROSE. This is the one line of metadata on
+            the card, and at the description's size it read as a third sentence
+            about the routine rather than as a stamp under it. */}
+        <p className="flex min-w-0 items-center gap-1.5 text-xs text-ink-3">
+          <Clock aria-hidden className="size-3.5 shrink-0" />
           <span className="truncate">{cardSchedule(routine)}</span>
         </p>
         <RoutineMenu
@@ -623,9 +643,17 @@ function RoutineMenu({
     <DropdownMenuPrimitive.Root modal={false}>
       <DropdownMenuPrimitive.Trigger
         aria-label={`More actions for ${name}`}
-        className="grid size-9 shrink-0 place-items-center rounded-lg text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] data-[state=open]:bg-sunken data-[state=open]:text-ink"
+        /* `-my-1.5` PULLS THE TARGET'S SLACK, the way the switch above does.
+           A 36px button in a strip meant to read as a stamp was setting that
+           strip's height on its own, so the margin collapses its box to 24 —
+           the height of the type beside it — while the button keeps all 36 to
+           be hit. Shrinking the button instead would have bought the same
+           tightness by making it harder to press, and nothing is drawn here
+           until you touch it: the target's size is invisible, so there is no
+           reason for it to be the thing that gives. */
+        className="-my-1.5 grid size-9 shrink-0 place-items-center rounded-lg text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] data-[state=open]:bg-sunken data-[state=open]:text-ink"
       >
-        <MoreHorizontal aria-hidden className="size-5" />
+        <MoreHorizontal aria-hidden className="size-4" />
       </DropdownMenuPrimitive.Trigger>
       <DropdownMenuPrimitive.Portal>
         <DropdownMenuPrimitive.Content
