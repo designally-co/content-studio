@@ -198,7 +198,10 @@ export function StageSheet({
         /* No rule along the top. The shadow already lifts it off the page, and a
            hairline as well is the same mistake the dropdown panels make when
            they carry one — a floating layer drawn as a boxed one. */
-        className="fixed inset-x-0 bottom-0 z-(--z-nav) flex max-h-[85svh] flex-col rounded-t-2xl bg-surface shadow-[var(--shadow-pop)] lg:hidden"
+        /* --radius-3xl, the top of the scale below the pill. A sheet is the
+           largest surface in the product that has corners at all, and 16px on
+           something 375 wide reads as a square with the edges knocked off. */
+        className="fixed inset-x-0 bottom-0 z-(--z-nav) flex max-h-[85svh] flex-col rounded-t-3xl bg-surface shadow-[var(--shadow-pop)] lg:hidden"
         style={{
           transform: open
             ? `translateY(${offset ?? 0}px)`
