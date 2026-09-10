@@ -785,8 +785,18 @@ function ImagePanel({
           </p>
         )}
         {referenceMissing && (
-          <p id="generate-requirement" className="text-sm text-ink-2">
-            This model needs a reference image before it can generate.
+          /* SHORT ENOUGH FOR ONE LINE, AND CENTRED WHERE IT SITS ALONE. The old
+             sentence named the condition ("needs… before it can generate"),
+             which is the state the tinted Reference disc is already showing;
+             what it did not say is what to do about it. It also ran to two
+             lines on a phone, left-aligned under a centred image — a stray
+             paragraph rather than a notice about the dock below it.
+
+             Centred at every width: it belongs to the dock directly beneath
+             it, and the dock is centred in this column on a desktop too. A
+             left edge here would be one nothing else in the stage shares. */
+          <p id="generate-requirement" className="text-center text-sm text-ink-2">
+            Add a reference image to generate.
           </p>
         )}
         {/* What the editor is about to get is not obvious from a single prompt
@@ -1030,6 +1040,16 @@ function ImagePanel({
               onCount={setCount}
             />
 
+            {/* ONLY WHERE IT DOES SOMETHING. Half the models cannot take a
+                reference at all, and for those this disc opened a menu whose
+                every option was inert — a control that exists to tell you it
+                does not apply. The capability is already known here; the
+                button follows it.
+
+                It is the same reasoning the dock's own action follows a few
+                lines below: show the one control that is live, rather than
+                showing both and greying the one that is not. */}
+            {selectedOption?.capabilities.referenceImages && (
             <ReferenceMenu
               canFind={references.length < MAX_FOUND_REFERENCES}
               finding={finding}
@@ -1051,6 +1071,7 @@ function ImagePanel({
                 />
               }
             />
+            )}
 
             {/* ONE ACTION AT A TIME, and the prompt decides which. The two used
                 to sit side by side with the inapplicable one greyed — a dock
