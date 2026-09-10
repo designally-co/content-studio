@@ -16,14 +16,15 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
  * disabled is furniture.
  */
 export function Pagination({
-  page,
   pageCount,
   total,
   from,
   to,
   hrefFor,
 }: {
-  page: number;
+  /* `page` still arrives with the rest and is deliberately unread: the range
+     below states where you are, and the guard below only needs the count. */
+  page?: number;
   pageCount: number;
   total: number;
   from: number;
@@ -33,8 +34,14 @@ export function Pagination({
 }) {
   if (pageCount <= 1) return null;
 
+  /* TWO DISCS, NO WORDS. "Previous" and "Next" beside arrows pointing the way
+     they already point is the label saying what the glyph says; the pair took
+     most of the width of a phone to carry four characters of meaning. White
+     with a hairline, matching the cards they page through rather than the
+     chrome at the top of the screen. The names live in `aria-label`, so
+     nothing is lost to anyone who cannot see the arrow. */
   const step =
-    "inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-line px-3 text-sm text-ink transition-colors duration-(--duration-fast) hover:bg-sunken focus-visible:outline-none focus-visible:[outline:2px_solid_var(--accent)] focus-visible:[outline-offset:2px]";
+    "grid size-9 place-items-center rounded-full border border-line bg-surface text-ink-2 transition-colors duration-(--duration-fast) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:[outline:2px_solid_var(--accent)] focus-visible:[outline-offset:2px]";
   const spent = `${step} pointer-events-none opacity-40`;
 
   return (
@@ -47,29 +54,27 @@ export function Pagination({
       </p>
       <div className="flex items-center gap-2">
         {hrefFor.previous ? (
-          <Link href={hrefFor.previous} className={step} rel="prev">
+          <Link href={hrefFor.previous} className={step} rel="prev" aria-label="Previous page">
             <ChevronLeft aria-hidden className="size-4" />
-            Previous
           </Link>
         ) : (
           /* Rendered rather than hidden, so the pair does not shift sideways
              on the first and last page. */
           <span className={spent} aria-hidden>
             <ChevronLeft className="size-4" />
-            Previous
           </span>
         )}
-        <span className="px-1 text-sm text-ink-3">
-          {page} / {pageCount}
-        </span>
+        {/* NO "1 / 2". It sat between the two arrows restating the half of the
+            range that the line to its left already carries — "1–10 of 73" says
+            both how far in you are and how much there is, in the terms the
+            reader actually asked in. Two ways of counting the same list, a
+            hand's width apart. */}
         {hrefFor.next ? (
-          <Link href={hrefFor.next} className={step} rel="next">
-            Next
+          <Link href={hrefFor.next} className={step} rel="next" aria-label="Next page">
             <ChevronRight aria-hidden className="size-4" />
           </Link>
         ) : (
           <span className={spent} aria-hidden>
-            Next
             <ChevronRight className="size-4" />
           </span>
         )}
