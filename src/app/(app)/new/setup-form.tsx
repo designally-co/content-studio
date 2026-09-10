@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, LoaderCircle, Maximize2, Minimize2, Send, Shuffle } from "lucide-react";
+import { ArrowRight, LoaderCircle, Maximize2, Minimize2, Send, Sparkle } from "lucide-react";
 import { AccentOrb } from "@/components/accent-orb";
 import OrbitingCirclesGlobe from "@/components/ui/orbiting-circles-02";
 import {
@@ -262,15 +262,29 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                     const Icon = pillarIcon(selectedPillar.slug);
                     return <Icon aria-hidden className="size-4 shrink-0" strokeWidth={1.8} />;
                   })() : (
-                    /* WHAT AUTO ACTUALLY MEANS, rather than what generates it.
-                       `Sparkles` was three shapes at three sizes in a 16px
-                       space — a smudge rather than a mark — and its singular
-                       form still said "AI did this", which is a fact about the
-                       mechanism. Auto here means "any of your directions,
-                       whichever fits", and two crossing arrows say that
-                       directly. It also stops the disc claiming kinship with
-                       the accent-coloured generate actions. */
-                    <Shuffle aria-hidden className="size-4 shrink-0" strokeWidth={1.8} />
+                    /* ONE STAR, AND FILLED. `Sparkles` was three shapes at
+                       three sizes in a 16px space, which renders as a smudge
+                       rather than as a mark. The singular is the same idea
+                       drawn once — and solid rather than outlined, because a
+                       four-pointed outline at 16px is mostly the hole in the
+                       middle: the stroke has to describe eight edges around a
+                       shape too small to hold them, and what survives is a
+                       blur. Filled, it is one silhouette at any size.
+
+                       AND NO STROKE AT ALL. Filled AND stroked, a 1.5px
+                       outline runs around all eight edges of a 16px star and
+                       fattens its waist until the concave curves between the
+                       points close up — at which point it is a plus sign. The
+                       fill alone keeps those curves, which are the entire
+                       difference between a star and a cross.
+
+                       `fill` and `strokeWidth` as attributes rather than
+                       classes, since lucide ships `fill="none"` and a stroke
+                       width on the svg itself, and a utility would be fighting
+                       an attribute. 20px, half the disc, because the taper
+                       between the points is the whole shape and it needs room
+                       to be seen — at 16 it is a cross with soft corners. */
+                    <Sparkle aria-hidden className="size-5 shrink-0" fill="currentColor" strokeWidth={0} />
                   )}
                   {/* KEPT, NOT REMOVED, when the control is a disc: a button
                       whose only content is a decorative icon has no accessible

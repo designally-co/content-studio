@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronLeft, ChevronRight, Layers, Newspaper, Palette, Shapes, Sparkles, type LucideIcon } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Layers, Newspaper, Palette, Shapes, Sparkle, Sparkles, type LucideIcon } from "lucide-react";
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
 import type { PillarGroup } from "./setup-form";
 
@@ -99,7 +99,16 @@ export function PillarDirectionPicker({
                 Content direction
               </DropdownMenuPrimitive.Label>
               <MenuItem onSelect={() => choose({ pillarId: "", directionId: "" })}>
-                <Sparkles aria-hidden className="size-4 shrink-0 text-ink-3" />
+                {/* THE SAME MARK THE TRIGGER WEARS, so the row you pick and the
+                    disc you end up looking at are recognisably one thing.
+                    Filled and unstroked for the same reason it is on the
+                    trigger: an outlined four-point star this small closes up
+                    into a cross.
+
+                    16 here, not the trigger's 20 — every row below this one
+                    carries a 16px icon, and a larger one would push this row's
+                    text 4px out of the column they all share. */}
+                <Sparkle aria-hidden className="size-4 shrink-0 text-ink-3" fill="currentColor" strokeWidth={0} />
                 <span className="min-w-0 flex-1">
                   <span className="block leading-snug">Auto direction</span>
                   <span className="mt-0.5 block text-xs font-normal leading-snug text-ink-3">Choose the best fit from your input</span>
