@@ -276,7 +276,13 @@ export function SideNav({
       <aside
         // z-(--z-nav) both lifts the nav over a route's sticky header and gives
         // the overhanging toggle a stacking context of its own to live in.
-        className={`relative z-(--z-nav) hidden min-h-dvh shrink-0 self-stretch border-r border-line-strong bg-chrome transition-[width] duration-(--duration-base) ease-(--ease-out) lg:block ${
+        /* THE ONE PIECE OF STRUCTURAL MOTION THAT IS DESKTOP-ONLY, so it takes
+           the module's timing like everything else. `--duration-base` is 200ms
+           — the number hover states and colour changes use — and a rail 240px
+           wide folding to 80 is not a hover state. `--motion-enter` is the
+           length a surface takes to arrive, which is what this is: the rail
+           arriving at a different size. */
+        className={`relative z-(--z-nav) hidden min-h-dvh shrink-0 self-stretch border-r border-line-strong bg-chrome transition-[width] duration-(--motion-enter) ease-(--ease-out) lg:block ${
           collapsed ? "w-20" : "w-60"
         }`}
       >
