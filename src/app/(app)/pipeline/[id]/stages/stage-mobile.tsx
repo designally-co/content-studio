@@ -1,6 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import gsap from "gsap";
+
+import { MOTION, duration } from "@/lib/motion";
 import { X } from "lucide-react";
 
 import { PAGE_ACTION_BUTTON, PAGE_CLOSE_BUTTON } from "@/components/page-bar";
@@ -29,6 +32,11 @@ import { claimSheet, registerSheet, releaseSheet } from "@/components/sheet-stac
  * moving the handle to its own row above pushed the title's descenders below
  * the fold — the sheet read as clipped rather than as resting.
  */
+/* `useLayoutEffect` on the client, `useEffect` on the server — the sheet's
+   closed position has to be set before the browser paints, or it shows fully
+   open for a frame on its way down to the ledge. */
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
 const PEEK = 70;
 
 /** Past this much drag, let go and it goes the rest of the way. */
@@ -189,6 +197,40 @@ export function StageSheet({
         ? Math.max(0, drag)
         : Math.min(0, drag);
 
+  /* THE POSITION IS ONE EXPRESSION, IN TWO UNITS. Open, the panel rests at 0;
+     closed, it rests at its own height less the peek — which is `yPercent: 100`
+     and `y: -PEEK` together, the same thing the old `calc(100% - 70px)` said
+     and just as self-adjusting when the content changes height. */
+  const restingY = open ? { yPercent: 0, y: 0 } : { yPercent: 100, y: -PEEK };
+
+  /* Off-screen but for its ledge before the first paint, so the sheet does not
+     appear fully open and then drop into place. */
+  useIsomorphicLayoutEffect(() => {
+    gsap.set(panel.current, { yPercent: 100, y: -PEEK });
+  }, []);
+
+  useEffect(() => {
+    const node = panel.current;
+    if (!node) return;
+    // Under the thumb it tracks directly: easing towards a moving target lags
+    // behind it, which reads as the sheet being heavy rather than held.
+    if (drag !== null) {
+      gsap.set(node, { ...restingY, y: restingY.y + (offset ?? 0) });
+      return;
+    }
+    const tween = gsap.to(node, {
+      ...restingY,
+      duration: duration(open ? MOTION.ENTER : MOTION.EXIT),
+      ease: open ? MOTION.EASE_ENTER : MOTION.EASE_EXIT,
+    });
+    return () => {
+      tween.kill();
+    };
+    // `restingY` is derived from `open` on every render; depending on the
+    // object would restart the tween each pass.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, drag, offset]);
+
   return (
     <>
       {/* The way out, and the thing that says the sheet is modal-ish while it
@@ -216,12 +258,7 @@ export function StageSheet({
         /* `--radius-sheet`, shared with the settings sheet — the two are the
            same object and were rounded by two classes that merely agreed. */
         className="fixed inset-x-0 bottom-0 z-(--z-nav) flex max-h-[85svh] flex-col rounded-t-(--radius-sheet) bg-surface shadow-[var(--shadow-pop)] lg:hidden"
-        style={{
-          transform: open
-            ? `translateY(${offset ?? 0}px)`
-            : `translateY(calc(100% - ${PEEK}px + ${offset ?? 0}px))`,
-          transition: drag === null ? "transform 260ms var(--ease-out)" : "none",
-        }}
+
       >
         {/* THE HANDLE IS ITS OWN ROW, CENTRED. It sat inline before the title
             like a bullet, which is where a decoration goes and not where a

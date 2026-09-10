@@ -3,6 +3,10 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Dialog } from "radix-ui";
 
+import gsap from "gsap";
+
+import { useDialogMotion } from "@/lib/dialog-motion";
+import { MOTION, duration } from "@/lib/motion";
 import { claimSheet, registerSheet, releaseSheet } from "./sheet-stack";
 
 /**
@@ -53,6 +57,19 @@ export function SheetDialog({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  /* CLOSING IS A REQUEST, NOT THE EVENT. The caller unmounts this component
+     when `onClose` fires, so calling it the moment somebody presses X would
+     take the panel out of the tree with nothing left to animate leaving.
+     `wants` is the ask; the hook plays the exit and reports back when the
+     panel has actually gone, and only then does the caller hear about it.
+
+     Every way out lands here: Radix routes Escape, the scrim and the caller's
+     own `Dialog.Close` through `onOpenChange`, and the drag calls it directly. */
+  const [wants, setWants] = useState(true);
+  const { mounted, panel, setPanel, setOverlay } = useDialogMotion({
+    open: wants,
+    onExited: onClose,
+  });
   /* ONE SHEET AT A TIME. This mounts only while it is open, so claiming on
      mount is the whole of it — whatever stage sheet was holding the bottom of
      the screen closes as this one arrives. `onClose` goes through a ref so a
@@ -83,20 +100,27 @@ export function SheetDialog({
   /** Which pointer owns the gesture, so a second finger cannot hijack it. */
   const pointer = useRef<number | null>(null);
 
+  if (!mounted) return null;
+
   return (
-    <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
+    <Dialog.Root open onOpenChange={(next) => !next && setWants(false)}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-(--z-backdrop) bg-ink/25 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 motion-reduce:animate-none" />
+        {/* The scrim's fade is tweened with the panel rather than declared as a
+            utility, so the two cannot end at different times — which is what a
+            modal looks like when it is wrong. */}
+        <Dialog.Overlay ref={setOverlay} className="fixed inset-0 z-(--z-backdrop) bg-ink/25" />
         <Dialog.Content
+          ref={setPanel}
           /* The sheet's palette, plus wherever the drag has pushed it to. One
              `style`, because two on the same element is not a merge — the
              second silently replaces the first, and the sheet would lose its
              own colours the moment a thumb touched the handle. */
-          style={
-            drag === null
-              ? SHEET
-              : { ...SHEET, transform: `translateY(${drag}px)`, transition: "none" }
-          }
+          /* Palette only. The drag used to write its own `transform` here,
+             which is the property GSAP animates — so the two took turns owning
+             the panel's position, and letting go cleared the inline style and
+             snapped the sheet home with no motion at all. The gesture moves it
+             through GSAP now, so releasing is a tween like everything else. */
+          style={SHEET}
           /* A BOTTOM SHEET ON A PHONE, a centred dialog from `lg`. Shrinking
              the desktop panel instead spent 32px of a 375px screen on margins
              around a form whose fields then had to fit what was left, started
@@ -106,7 +130,7 @@ export function SheetDialog({
 
              THE FRAME DOES NOT SCROLL; THE COLUMN INSIDE IT DOES, so the
              handle stays put while the content moves under it. */
-          className="fixed inset-x-0 bottom-0 z-(--z-modal) flex max-h-[92svh] flex-col overflow-hidden rounded-t-(--radius-sheet) bg-(--sheet-bg) shadow-[var(--shadow-pop)] outline-none data-open:animate-in data-open:fade-in-0 data-open:slide-in-from-bottom-4 data-closed:animate-out data-closed:fade-out-0 data-closed:slide-out-to-bottom-4 motion-reduce:animate-none lg:inset-x-auto lg:bottom-auto lg:left-1/2 lg:top-1/2 lg:w-[min(46rem,calc(100vw-2rem))] lg:-translate-x-1/2 lg:-translate-y-1/2 lg:rounded-2xl lg:data-open:zoom-in-95 lg:data-closed:zoom-out-95"
+          className="fixed inset-x-0 bottom-0 z-(--z-modal) flex max-h-[92svh] flex-col overflow-hidden rounded-t-(--radius-sheet) bg-(--sheet-bg) shadow-[var(--shadow-pop)] outline-none lg:inset-x-auto lg:bottom-auto lg:left-1/2 lg:top-1/2 lg:w-[min(46rem,calc(100vw-2rem))] lg:-translate-x-1/2 lg:-translate-y-1/2 lg:rounded-2xl"
           aria-describedby={undefined}
         >
           {/* THE HANDLE, ON ITS OWN CENTRED ROW — the same bar, in the same
@@ -131,6 +155,9 @@ export function SheetDialog({
               if (drag === null && delta < 4) return;
               if (drag === null) event.currentTarget.setPointerCapture(event.pointerId);
               setDrag(delta);
+              // Directly, not tweened: the sheet has to track the thumb frame
+              // for frame, and easing towards a moving target lags behind it.
+              gsap.set(panel, { y: delta });
             }}
             onPointerUp={(event) => {
               pointer.current = null;
@@ -140,7 +167,18 @@ export function SheetDialog({
               }
               const delta = event.clientY - startY.current;
               setDrag(null);
-              if (delta > SHEET_DISMISS) onClose();
+              if (delta > SHEET_DISMISS) {
+                setWants(false);
+                return;
+              }
+              // Short of the threshold it goes back, and it EASES back: a
+              // sheet that snaps home the instant a thumb lifts reads as a
+              // rejection rather than as the gesture not having been enough.
+              gsap.to(panel, {
+                y: 0,
+                duration: duration(MOTION.EXIT),
+                ease: MOTION.EASE_ENTER,
+              });
             }}
             onPointerCancel={() => {
               pointer.current = null;
