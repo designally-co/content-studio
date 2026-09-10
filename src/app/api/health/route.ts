@@ -37,7 +37,7 @@ export const runtime = "nodejs";
  */
 type ProviderCheck = { ok: boolean | null; status?: number; ms?: number; note?: string };
 let anthropicCache: { at: number; result: ProviderCheck } | null = null;
-let hubCache: { at: number; result: ProviderCheck & { account?: string } } | null = null;
+let hubCache: { at: number; result: ProviderCheck & { account?: string; base?: string } } | null = null;
 const CHECK_TTL_MS = 60_000;
 
 async function checkAnthropic(): Promise<ProviderCheck> {
@@ -88,7 +88,7 @@ async function checkAnthropic(): Promise<ProviderCheck> {
  * row the key belongs to by looking at the Hub's Users list, without an
  * unauthenticated endpoint naming a real address.
  */
-async function checkHub(): Promise<ProviderCheck & { account?: string }> {
+async function checkHub(): Promise<ProviderCheck & { account?: string; base?: string }> {
   if (hubCache && Date.now() - hubCache.at < CHECK_TTL_MS) {
     return { ...hubCache.result, note: "cached" };
   }
@@ -97,7 +97,7 @@ async function checkHub(): Promise<ProviderCheck & { account?: string }> {
   if (!base || !key) return { ok: false, note: "HUB_BASE_URL or HUB_API_KEY is not set" };
 
   const t0 = Date.now();
-  let result: ProviderCheck & { account?: string };
+  let result: ProviderCheck & { account?: string; base?: string };
   try {
     const res = await fetch(`${base}/api/users/me`, {
       headers: { Authorization: `users API-Key ${key}` },
@@ -109,7 +109,13 @@ async function checkHub(): Promise<ProviderCheck & { account?: string }> {
     const ms = Date.now() - t0;
     result =
       account != null
-        ? { ok: true, status: res.status, ms, account: String(account) }
+        /* WHICH HUB, not just whether one answered. Both the Hub's domains
+           serve the same deployment and both answer 200, so "hub: ok" was true
+           of either and could not tell you which `HUB_BASE_URL` this deployment
+           actually holds — and an env var changed in Vercel does not reach a
+           running deployment until the next one. The hostname is public; the
+           key it is checked with is not, and stays unreported. */
+        ? { ok: true, status: res.status, ms, account: String(account), base }
         : {
             ok: false,
             status: res.status,
