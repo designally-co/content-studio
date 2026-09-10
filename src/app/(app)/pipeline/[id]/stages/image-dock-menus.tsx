@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { DropdownMenu } from "radix-ui";
-import { Check, ChevronRight, ImagePlus, LoaderCircle, Sparkles, SlidersHorizontal } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, ImagePlus, LoaderCircle, Sparkles, SlidersHorizontal } from "lucide-react";
 
 /**
  * The image dock's controls, folded into two menus.
@@ -61,59 +62,93 @@ const RING = "border-transparent bg-chrome text-ink-2 enabled:hover:bg-chrome-ac
 
 export type Choice = { value: string; label: string; description?: string };
 
-/** One nested list: a row that names the setting and shows what it is set to. */
-function Group({
-  label,
-  value,
-  choices,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  choices: Choice[];
-  onChange: (next: string) => void;
-}) {
-  const current = choices.find((choice) => choice.value === value);
+/**
+ * A setting, as a row you press and a panel that replaces the one you were on.
+ *
+ * NOT A FLYOUT. `DropdownMenu.Sub` opens its child BESIDE the parent, and
+ * beside is a direction a phone does not have: a 264px panel with a 288px list
+ * next to it needs 550, and on a 375px screen the second level opened at x=285
+ * and ran 198px past the right edge. Most of the model list was simply not
+ * reachable — and collision handling cannot save it, because there is no side
+ * with room on either hand.
+ *
+ * So the second level takes the place of the first, with a row back. It is the
+ * same shape the direction picker on Create already uses, and it costs a
+ * desktop nothing: seeing the parent list while choosing from the child was
+ * never what the parent list was for.
+ */
+type Group = { key: string; label: string; value: string; choices: Choice[]; onChange: (next: string) => void };
+
+/** The row on the first level: names the setting and what it is set to. */
+function GroupRow({ group, onOpen }: { group: Group; onOpen: () => void }) {
+  const current = group.choices.find((choice) => choice.value === group.value);
   return (
-    <DropdownMenu.Sub>
-      <DropdownMenu.SubTrigger className={`${ITEM} data-[state=open]:bg-sunken`}>
-        <span className="flex-1">{label}</span>
-        {/* The value lives on the parent row, so the menu answers what it is
-            set to without being opened a second time. */}
-        <span className="max-w-36 truncate text-ink-3">{current?.label ?? "—"}</span>
-        <ChevronRight aria-hidden className="size-4 shrink-0 text-ink-3" />
-      </DropdownMenu.SubTrigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.SubContent className={`${PANEL} max-w-72`} sideOffset={6} collisionPadding={12}>
-          {choices.map((choice) => {
-            const active = choice.value === value;
-            return (
-              <DropdownMenu.Item
-                key={choice.value}
-                className={`${ITEM} items-start py-2`}
-                onSelect={() => onChange(choice.value)}
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="block">{choice.label}</span>
-                  {/* Each option carries its own rationale here, where it is
-                      useful, rather than as helper text stacked under a control
-                      nobody is looking at yet. */}
-                  {choice.description && (
-                    <span className="mt-0.5 block text-xs leading-relaxed text-ink-3">
-                      {choice.description}
-                    </span>
-                  )}
-                </span>
-                <Check
-                  aria-hidden
-                  className={`mt-0.5 size-4 shrink-0 ${active ? "text-ink" : "invisible"}`}
-                />
-              </DropdownMenu.Item>
-            );
-          })}
-        </DropdownMenu.SubContent>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Sub>
+    <DropdownMenu.Item
+      className={ITEM}
+      /* The menu stays open — this row goes deeper into it rather than
+         choosing anything, and a dismiss here would close the whole thing on
+         the way to the list you asked for. */
+      onSelect={(event) => {
+        event.preventDefault();
+        onOpen();
+      }}
+    >
+      <span className="flex-1">{group.label}</span>
+      {/* The value lives on the parent row, so the menu answers what it is set
+          to without being opened a second time. */}
+      <span className="max-w-36 truncate text-ink-3">{current?.label ?? "—"}</span>
+      <ChevronRight aria-hidden className="size-4 shrink-0 text-ink-3" />
+    </DropdownMenu.Item>
+  );
+}
+
+/** The second level: one setting's choices, in the panel the rows were in. */
+function GroupChoices({ group, onBack }: { group: Group; onBack: () => void }) {
+  return (
+    <>
+      <DropdownMenu.Item
+        className={`${ITEM} text-ink-2`}
+        onSelect={(event) => {
+          event.preventDefault();
+          onBack();
+        }}
+      >
+        <ChevronLeft aria-hidden className="size-4 shrink-0" />
+        <span className="flex-1 font-medium">{group.label}</span>
+      </DropdownMenu.Item>
+      <DropdownMenu.Separator className="my-1 h-px bg-line" />
+      {/* Capped and scrollable: the model list is longer than a phone, and
+          `--radix-dropdown-menu-content-available-height` is what the panel
+          actually has between the trigger and the edge of the screen. */}
+      <div className="max-h-[min(60svh,var(--radix-dropdown-menu-content-available-height,60svh))] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {group.choices.map((choice) => {
+          const active = choice.value === group.value;
+          return (
+            <DropdownMenu.Item
+              key={choice.value}
+              className={`${ITEM} items-start py-2`}
+              onSelect={() => group.onChange(choice.value)}
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block">{choice.label}</span>
+                {/* Each option carries its own rationale here, where it is
+                    useful, rather than as helper text stacked under a control
+                    nobody is looking at yet. */}
+                {choice.description && (
+                  <span className="mt-0.5 block text-xs leading-relaxed text-ink-3">
+                    {choice.description}
+                  </span>
+                )}
+              </span>
+              <Check
+                aria-hidden
+                className={`mt-0.5 size-4 shrink-0 ${active ? "text-ink" : "invisible"}`}
+              />
+            </DropdownMenu.Item>
+          );
+        })}
+      </div>
+    </>
   );
 }
 
@@ -140,8 +175,35 @@ export function ImageSettingsMenu({
   onCount: (next: number) => void;
   disabled?: boolean;
 }) {
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+
+  const groups: Group[] = [
+    { key: "model", label: "Model", value: model, choices: models, onChange: onModel },
+    {
+      key: "ratio",
+      label: "Aspect ratio",
+      value: ratio,
+      choices: ratios.map((value) => ({ value, label: value })),
+      onChange: onRatio,
+    },
+    {
+      key: "count",
+      label: "Images",
+      value: String(count),
+      choices: Array.from({ length: Math.max(1, maxVariations) }, (_, index) => {
+        const value = index + 1;
+        return { value: String(value), label: `${value} image${value > 1 ? "s" : ""}` };
+      }),
+      onChange: (next) => onCount(Number(next)),
+    },
+  ];
+  const active = groups.find((group) => group.key === openGroup) ?? null;
+
   return (
-    <DropdownMenu.Root modal={false}>
+    /* Reopening always starts at the top level: the panel that is up is a
+       property of this visit, not a setting, and coming back to a menu still
+       showing the list you last drilled into is disorienting. */
+    <DropdownMenu.Root modal={false} onOpenChange={(open) => !open && setOpenGroup(null)}>
       <DropdownMenu.Trigger
         className={`${TRIGGER} ${RING}`}
         disabled={disabled}
@@ -152,24 +214,23 @@ export function ImageSettingsMenu({
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         {/* Upwards: the dock sits at the foot of the stage, so a menu opening
-            downwards would leave the screen. */}
-        <DropdownMenu.Content className={PANEL} side="top" align="start" sideOffset={8} collisionPadding={12}>
-          <Group label="Model" value={model} choices={models} onChange={onModel} />
-          <Group
-            label="Aspect ratio"
-            value={ratio}
-            choices={ratios.map((value) => ({ value, label: value }))}
-            onChange={onRatio}
-          />
-          <Group
-            label="Images"
-            value={String(count)}
-            choices={Array.from({ length: Math.max(1, maxVariations) }, (_, index) => {
-              const value = index + 1;
-              return { value: String(value), label: `${value} image${value > 1 ? "s" : ""}` };
-            })}
-            onChange={(next) => onCount(Number(next))}
-          />
+            downwards would leave the screen. `max-w` keeps the second level
+            inside a phone — it is the widest of the two, and the panel is one
+            element now rather than two side by side. */}
+        <DropdownMenu.Content
+          className={`${PANEL} w-[min(20rem,calc(100vw-1.5rem))]`}
+          side="top"
+          align="start"
+          sideOffset={8}
+          collisionPadding={12}
+        >
+          {active ? (
+            <GroupChoices group={active} onBack={() => setOpenGroup(null)} />
+          ) : (
+            groups.map((group) => (
+              <GroupRow key={group.key} group={group} onOpen={() => setOpenGroup(group.key)} />
+            ))
+          )}
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
