@@ -26,7 +26,7 @@ const ITEM =
 /* No border. The shadow already separates it from the page, and a hairline as
    well makes a floating layer look like a boxed one. */
 const PANEL =
-  "z-(--z-dropdown) rounded-2xl bg-surface p-2 shadow-[var(--shadow-pop)] outline-none duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none";
+  "z-(--z-dropdown) rounded-2xl bg-surface p-2 shadow-[var(--shadow-pop)] outline-none duration-(--motion-enter) ease-(--ease-out) data-closed:duration-(--motion-exit) data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none";
 
 /**
  * An outlined disc, the same one the send button is.

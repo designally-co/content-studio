@@ -1882,7 +1882,7 @@ function PublishRail({
                  with the words stranded along its left edge. `w-max` lets the
                  items size it and the viewport cap stops it running off a
                  narrow screen. */
-              className="z-(--z-nav-dropdown) w-max max-w-[calc(100vw-1.5rem)] rounded-2xl bg-surface p-2 shadow-[var(--shadow-pop)] outline-none duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 motion-reduce:animate-none"
+              className="z-(--z-nav-dropdown) w-max max-w-[calc(100vw-1.5rem)] rounded-2xl bg-surface p-2 shadow-[var(--shadow-pop)] outline-none duration-(--motion-enter) ease-(--ease-out) data-closed:duration-(--motion-exit) data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 motion-reduce:animate-none"
             >
               <DropdownMenu.Item
                 className="flex min-h-11 cursor-default select-none items-center rounded-lg px-3 text-base text-ink outline-none data-highlighted:bg-sunken"

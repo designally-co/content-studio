@@ -24,9 +24,12 @@
 export const MOTION = {
   /** A surface arriving: the drawer opening, a sheet rising. */
   ENTER: 0.42,
-  /** The same surface leaving. */
+  /** The same surface leaving. Mirrored in CSS as `--motion-exit`. */
   EXIT: 0.26,
-  /** Content settling inside a surface that has already arrived. */
+  /** Content settling inside a surface that has already arrived — and the
+   *  entrance of a dropdown panel, which is the same kind of movement.
+   *  MIRRORED IN CSS as `--motion-enter`, because dropdowns are animated by
+   *  Radix and a stylesheet cannot import this file. Change one, change both. */
   CONTENT: 0.3,
   /** Between items in a list that arrives together. Small enough to read as
    *  one movement with a grain to it, rather than as items queueing. */

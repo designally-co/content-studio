@@ -88,7 +88,7 @@ export function AccountMenu({
           collisionPadding={12}
           /* No border. The shadow already separates it from the page, and a
              hairline as well makes a floating layer look like a boxed one. */
-          className="z-(--z-nav-dropdown) w-[min(17rem,calc(100vw-1.5rem))] rounded-2xl bg-surface p-2 shadow-[var(--shadow-pop)] outline-none duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none"
+          className="z-(--z-nav-dropdown) w-[min(17rem,calc(100vw-1.5rem))] rounded-2xl bg-surface p-2 shadow-[var(--shadow-pop)] outline-none duration-(--motion-enter) ease-(--ease-out) data-closed:duration-(--motion-exit) data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none"
         >
           <DropdownMenu.Label className="flex items-center gap-3 px-3 py-2.5">
             <Initials email={email} />

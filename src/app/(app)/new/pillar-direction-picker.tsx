@@ -66,7 +66,7 @@ export function PillarDirectionPicker({
           align="start"
           sideOffset={8}
           avoidCollisions={false}
-          className="z-(--z-dropdown) max-h-[calc(50svh-2rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-y-auto rounded-2xl border border-line bg-surface p-1.5 text-ink shadow-[0_4px_8px_rgba(36,31,28,0.08),0_12px_32px_rgba(36,31,28,0.12)] outline-none duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none"
+          className="z-(--z-dropdown) max-h-[calc(50svh-2rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-y-auto rounded-2xl border border-line bg-surface p-1.5 text-ink shadow-[0_4px_8px_rgba(36,31,28,0.08),0_12px_32px_rgba(36,31,28,0.12)] outline-none duration-(--motion-enter) ease-(--ease-out) data-closed:duration-(--motion-exit) data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none"
           aria-label={activePillar ? `${activePillar.name} directions` : "Content direction"}
         >
           {activePillar ? (

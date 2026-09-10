@@ -247,6 +247,18 @@
   --shadow-plate: 0 2px 4px rgba(36, 31, 28, 0.03), 0 16px 40px -16px rgba(36, 31, 28, 0.12);
   --duration-fast: 120ms;
   --duration-base: 200ms;
+  /* THE MOTION MODULE'S NUMBERS, IN CSS. Dropdown panels are the one surface
+     still animated by Radix rather than by GSAP, and deliberately so: Radix
+     owns their presence, and taking it over means `forceMount`, which leaves
+     the DismissableLayer active while the menu is shut — measured, that layer
+     swallows the trigger's own pointerdown and the menus stop opening at all.
+     Six menus made controlled to win a six-pixel slide is the wrong trade.
+
+     So they keep Radix's presence and take the module's TIMING. These two must
+     stay equal to MOTION.CONTENT and MOTION.EXIT in @/lib/motion — CSS cannot
+     import them, so the pairing is stated in both places and nowhere else. */
+  --motion-enter: 300ms;
+  --motion-exit: 260ms;
   --duration-slow: 320ms;
 
   --radius: 8px;
