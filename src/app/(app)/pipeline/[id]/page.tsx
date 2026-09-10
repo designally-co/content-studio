@@ -101,7 +101,7 @@ export default async function PipelinePage({
           the top, so a disagreement here would show as a step of background
           against the button while scrolling. Above `lg` the rail is a sidebar,
           there is no button, and the row goes back to its own line. */}
-      <div className="sticky top-0 z-(--z-sticky) mx-auto -mt-12 w-full max-w-7xl px-5 py-2 sm:px-8 lg:mt-0 lg:px-12 lg:py-3 xl:px-16">
+      <div className="sticky top-0 z-(--z-sticky) mx-auto -mt-12 w-full max-w-7xl px-3 py-2 sm:px-8 lg:mt-0 lg:px-12 lg:py-3 xl:px-16">
         {/* PROGRESSIVE BLUR, NOT A LID. This was `bg-bg` — an opaque band the
             width of the page, so the article did not pass under the stepper so
             much as get chopped off by it, and the bar read as a second surface

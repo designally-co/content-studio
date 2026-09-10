@@ -704,16 +704,16 @@ function ImagePanel({
        thumbnails beside it, and the forward action is in a panel like every
        other stage's. */
     <div className={`grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8 ${SHEET_CLEARANCE}`}>
-      {/* ONE PLATE, the way Draft holds the article and Publish holds the
-          preview. This column was a stack of loose pieces on the page ground —
-          a card that existed only once an image did, some sentences, and a dock
-          floating over all of it behind a gradient scrim — so the stage in the
-          middle of the pipeline was the one that did not look like the pipeline.
+      {/* NO PLATE HERE, unlike Draft and Publish. Those two hold a DOCUMENT —
+          an article, a preview of one — and a plate is what a document sits on.
+          This stage holds a picture and a box to describe it in, and both of
+          those are already objects with edges of their own: the image has its
+          frame, the dock has its border. Wrapping them put a card inside a card
+          and a white panel on a white panel.
 
-          The plate is here whether or not there is a picture yet, which is
-          also what gives the empty state somewhere to be said. */}
-      <section className="cs-bezel flex min-h-[calc(100svh-9rem)] flex-col">
-        <div className="cs-bezel-core flex flex-1 flex-col">
+          Three things on the page ground instead, in reading order: what the
+          picture is for, the picture, and the way to ask for another. */}
+      <section className="flex min-h-[calc(100svh-9rem)] flex-col">
           {/* THE ARTICLE'S NAME, which this stage used to be the only one
               without. Draft shows the piece itself and Publish shows the
               preview, so both say what you are working on simply by showing
@@ -726,14 +726,14 @@ function ImagePanel({
               ARTICLE is named nowhere, and it is the article that carries over
               from the screen before. Matching that screen's h1 is what makes it
               read as the same piece rather than as a note about one. */}
-          <p className="px-5 pt-5 font-heading text-[length:var(--text-h2)] font-semibold leading-tight tracking-tight text-ink sm:px-6 sm:pt-6">
+          <p className="font-heading text-[length:var(--text-h2)] font-semibold leading-tight tracking-tight text-ink">
             {title}
           </p>
 
           {/* The picture takes the room that is left, centred in it, so the
-              dock stays on the floor of the plate whether there is one image or
+              dock stays on the floor of the stage whether there is one image or
               none. */}
-          <div className="flex flex-1 items-center justify-center p-5 sm:p-6">
+          <div className="flex flex-1 items-center justify-center py-6">
             {featured ? (
               <GeneratedImage
                 key={featured.id}
@@ -750,7 +750,7 @@ function ImagePanel({
             )}
           </div>
 
-      <div className="space-y-2 px-5 sm:px-6">
+      <div className="space-y-2">
         {!anthropicReady && (
           <p id="auto-draft-requirement" className="text-sm text-ink-2">
             Configure <code>ANTHROPIC_API_KEY</code> in the server environment to use Auto-draft.
@@ -798,7 +798,7 @@ function ImagePanel({
           Everything else is a setting on the prompt, so the settings compress
           into chips in the control row. Structure, growth and controls all
           mirror the composer on the home surface. */}
-      <div className="mt-auto p-5 pt-4 sm:p-6 sm:pt-4">
+      <div className="mt-auto pt-4">
         {/*
           The reference photographs, shown as photographs.
 
@@ -1063,7 +1063,6 @@ function ImagePanel({
           </div>
         </div>
       </div>
-        </div>
       </section>
 
       {/* top-32, the offset Publish already used. At top-6 the rail
@@ -1227,10 +1226,18 @@ function GeneratedImage({ img, feature = false, selected, onSelect, onDeleted }:
           </button>
         </div>
 
-        {/* Kept for comparison, but only while the eye is on this tile. */}
-        <figcaption className="cs-reveal pointer-events-none absolute inset-x-0 bottom-0 z-20 truncate bg-linear-to-t from-ink/70 to-transparent px-3 pb-2 pt-6 text-xs font-medium text-white">
-          {img.model} · {img.aspectRatio} · v{img.variationNo}
-        </figcaption>
+        {/* Kept for comparison, but only while the eye is on this tile — and
+            not at thumbnail size at all. In the rail, and in the sheet a phone
+            gets, the tiles are barely wider than the string: "fal-ai/nano-
+            banana-2/edit · 16:9 · v1" laid across a picture you are trying to
+            choose between four of, and the model is the same on every one of
+            them. It stays on the featured image, where there is room for it and
+            where you are looking at ONE picture closely. */}
+        {feature && (
+          <figcaption className="cs-reveal pointer-events-none absolute inset-x-0 bottom-0 z-20 truncate bg-linear-to-t from-ink/70 to-transparent px-3 pb-2 pt-6 text-xs font-medium text-white">
+            {img.model} · {img.aspectRatio} · v{img.variationNo}
+          </figcaption>
+        )}
       </div>
 
       {deleteError && <p className="bg-danger-soft px-3 py-2 text-xs text-danger" role="alert">{deleteError}</p>}
@@ -1584,11 +1591,15 @@ function PublishRail({
               "This article is live" — was already on the badge beside the
               heading. What is left says the thing the buttons cannot, which is
               that pressing is public and immediate. */}
-          <p className="mt-1 text-sm leading-relaxed text-ink-2">
-            {isLive
-              ? "Republishing replaces what readers see now."
-              : "Publishing makes it public straight away."}
-          </p>
+          {/* Only before it is live. Once published, the badge beside the
+              heading says so and the button says "Republish" — a sentence
+              underneath restating that republishing republishes was the panel
+              talking for the sake of having a subline. */}
+          {!isLive && (
+            <p className="mt-1 text-sm leading-relaxed text-ink-2">
+              Publishing makes it public straight away.
+            </p>
+          )}
           {/* The pillar + tag are deliberately not shown here. The Hub owns the
               taxonomy (and it has changed — pillars merged/renamed), so echoing a
               category/tag on the CG side only risks contradicting what the editor
@@ -1748,7 +1759,12 @@ function PublishRail({
               align="end"
               sideOffset={8}
               collisionPadding={12}
-              className="z-(--z-nav-dropdown) w-[min(17rem,calc(100vw-1.5rem))] rounded-2xl bg-surface p-2 shadow-[var(--shadow-pop)] outline-none duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 motion-reduce:animate-none"
+              /* AS WIDE AS ITS LONGEST LABEL. A fixed 17rem made a menu of two
+                 short phrases into a panel two thirds the width of the phone,
+                 with the words stranded along its left edge. `w-max` lets the
+                 items size it and the viewport cap stops it running off a
+                 narrow screen. */
+              className="z-(--z-nav-dropdown) w-max max-w-[calc(100vw-1.5rem)] rounded-2xl bg-surface p-2 shadow-[var(--shadow-pop)] outline-none duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 motion-reduce:animate-none"
             >
               <DropdownMenu.Item
                 className="flex min-h-11 cursor-default select-none items-center rounded-lg px-3 text-base text-ink outline-none data-highlighted:bg-sunken"
@@ -1762,11 +1778,13 @@ function PublishRail({
               >
                 Save as a Hub draft
               </DropdownMenu.Item>
-              <p className="px-3 pb-1 pt-2 text-xs leading-relaxed text-ink-3">
-                {isLive
-                  ? "Republishing replaces what readers see now."
-                  : "Publishing makes it public straight away."}
-              </p>
+              {!isLive && (
+                /* Fixed width so the sentence WRAPS inside the menu the items
+                   sized, rather than being the thing that sizes it. */
+                <p className="w-40 px-3 pb-1 pt-2 text-xs leading-relaxed text-ink-3">
+                  Publishing makes it public straight away.
+                </p>
+              )}
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu.Root>

@@ -20,7 +20,7 @@ export function StageShell({
 }) {
   return (
     <div
-      className={`mx-auto w-full px-4 pt-8 sm:px-6 sm:pt-12 ${
+      className={`mx-auto w-full px-3 pt-8 sm:px-6 sm:pt-12 ${
         flushBottom ? "pb-0" : "pb-20 sm:pb-28"
       } ${wide ? "max-w-7xl lg:px-12 xl:px-16" : "max-w-3xl lg:px-8"}`}
     >

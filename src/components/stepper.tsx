@@ -150,7 +150,7 @@ export function Stepper({
          and a step passing behind one was being sliced mid-word by an opaque
          disc. "…mages" reads as a typo rather than as something that carries on
          off-screen. Off above `lg`, where neither button exists. */
-      className="-mx-5 overflow-x-hidden px-5 [mask-image:linear-gradient(to_right,transparent_0,#000_76px,#000_calc(100%-64px),transparent_100%)] sm:-mx-8 sm:px-8 lg:mx-0 lg:px-0 lg:[mask-image:none]"
+      className="-mx-3 overflow-x-hidden px-3 [mask-image:linear-gradient(to_right,transparent_0,#000_76px,#000_calc(100%-64px),transparent_100%)] sm:-mx-8 sm:px-8 lg:mx-0 lg:px-0 lg:[mask-image:none]"
     >
       <ol className="mx-auto flex w-fit items-center gap-1">
         {STAGES.map((s, i) => {

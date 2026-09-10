@@ -1150,6 +1150,34 @@ main:has(.cs-create-page),
     font-optical-sizing: auto;
     -webkit-font-smoothing: antialiased;
   }
+
+  /*
+   * NOTHING SLIDES SIDEWAYS ON A PHONE.
+   *
+   * The layout does not overflow today — measured across all three pipeline
+   * stages, the document's scrollWidth equals its clientWidth — but "does not
+   * overflow today" is not a property you can keep. One long URL in an article,
+   * one wide code block, one unbreakable word in a generated headline, and the
+   * whole page slides under the thumb with the fixed chrome staying put. It
+   * only ever reads as a bug.
+   *
+   * `clip`, NOT `hidden`. `overflow-x: hidden` forces the other axis to `auto`,
+   * which makes the body a scroll container — and a scroll container breaks
+   * every `position: sticky` descendant, which here is the stepper, the menu
+   * button and both rails. `clip` leaves the vertical axis alone.
+   *
+   * `overscroll-behavior-x` is the other half: without it a horizontal swipe is
+   * handed to the browser as a back/forward gesture, so the page appears to
+   * slide even when nothing in it moved.
+   */
+  @media (max-width: 1023px) {
+    html {
+      overscroll-behavior-x: none;
+    }
+    body {
+      overflow-x: clip;
+    }
+  }
   h1,
   h2,
   h3,
