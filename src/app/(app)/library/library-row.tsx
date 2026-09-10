@@ -167,12 +167,14 @@ export function LibraryRow({
  * ten thumbnails and ten copies of the word Published. The one fact you came to
  * find was the one fact the layout would not show.
  *
- * So it stops being a table. The title takes the full width and two lines if it
- * needs them, with the one column worth keeping — whether it is out yet —
- * underneath. Direction and Updated do not come along: the table had already
- * dropped them at this width, so carrying them down here would be introducing
- * facts rather than preserving them, and every one of them is another line to
- * read on every article.
+ * So it stops being a table, and then it stops carrying the columns too. The
+ * title takes the full width and two lines if it needs them, and that is all.
+ * Direction, Updated and Status were each argued down here in turn on the
+ * reasoning that a phone should not lose what the table showed — but the table
+ * had already dropped the first two at this width, and the third was a line of
+ * type under every single article to mark the state that most of them share.
+ * A list of names you can actually read beats a list of names you cannot with
+ * a label underneath each one.
  *
  * The checkbox stays. Per-row delete is revealed on hover, which a touch screen
  * never does, so selecting and using the bar above is the only way to delete
@@ -181,19 +183,18 @@ export function LibraryRow({
 export function LibraryItem({
   id,
   title,
-  status,
   imageUrl,
   selected,
   onSelectedChange,
 }: {
   id: string;
   title: string;
-  /* `category` and `dateLabel` arrive with the row and are deliberately not
-     read here — the spread at the call site passes the whole article and the
-     table still wants them. */
+  /* `category`, `dateLabel` and `status` arrive with the row and are
+     deliberately not read here — the call site spreads the whole article, and
+     the table beside this still wants all three. */
   category?: string;
   dateLabel?: string;
-  status: ProjectStatus;
+  status?: ProjectStatus;
   imageUrl: string | null;
   selected: boolean;
   onSelectedChange: (next: boolean) => void;
@@ -203,12 +204,11 @@ export function LibraryItem({
       data-selected={selected || undefined}
       /* `relative` is what lets the title's stretched link cover the whole
          item rather than just its own line. */
-      className="relative flex items-start gap-3 px-3 py-3 data-selected:bg-sunken"
+      className="relative flex items-center gap-3 px-3 py-3 data-selected:bg-sunken"
     >
       {/* Above the stretched link, or the link swallows the tick and opens the
-          article instead. `mt-0.5` sits it on the title's first line rather
-          than on the centre of a two-line block. */}
-      <span className="relative z-10 mt-0.5 shrink-0">
+          article instead. */}
+      <span className="relative z-10 shrink-0 self-center">
         <Checkbox
           checked={selected}
           onCheckedChange={(next) => onSelectedChange(next === true)}
@@ -227,7 +227,7 @@ export function LibraryItem({
         )}
       </span>
 
-      <span className="min-w-0 flex-1">
+      <span className="min-w-0 flex-1 self-center">
         <Link
           href={`/pipeline/${id}`}
           className="rounded-sm after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:[outline:2px_solid_var(--accent)] focus-visible:[outline-offset:-2px]"
@@ -237,23 +237,7 @@ export function LibraryItem({
               turn one article into a paragraph. */}
           <span className="line-clamp-2 font-medium leading-snug text-ink">{title}</span>
         </Link>
-        {/* THE NAME AND WHETHER IT IS OUT. Direction and date came down here
-            when the columns went, on the reasoning that a phone should not
-            lose what the table showed — but the table had already dropped both
-            at this width, so they were not being restored, they were being
-            introduced. Three facts in a row of middots under every title is a
-            second line to read on every article to find the one fact that
-            changes what you do next. */}
-        <span className="mt-1 flex items-center gap-1.5 text-xs text-ink-3">
-          {status === "published" ? (
-            <>
-              <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-ok" />
-              Published
-            </>
-          ) : (
-            "Draft"
-          )}
-        </span>
+
       </span>
     </li>
   );
