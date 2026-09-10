@@ -105,10 +105,19 @@
      only has to separate two surfaces that already differ. The dock is white
      on white — inside the images plate it is white ON white — and it is the one
      thing on the screen you are meant to type into, so its edge is doing a
-     different job. It is not on the `--border` / `--border-strong` ramp
-     because those belong to containers, and a container must not darken when
-     this does. */
-  --dock-border: #dcdcdc;
+     different job.
+
+     AT REST IT IS THE CONTAINER HAIRLINE, THOUGH. This was #dcdcdc, three
+     steps darker, on the reasoning above — and next to a page of cards, pills
+     and discs all drawn at `--border`, the one darker edge did not read as
+     "type here", it read as the dock being a heavier object than everything
+     around it. The state does the work instead: the resting edge is the same
+     line every other surface uses, and focus is where it darkens.
+
+     It POINTS AT `--border` rather than repeating its value, so the two cannot
+     drift the next time the hairline is tuned. The focus value stays its own
+     number: a container has no focus state to disagree with. */
+  --dock-border: var(--border);
   --dock-border-focus: #bdbdbd;
 
   /* ink — three legible rungs plus a placeholder that is not text */
