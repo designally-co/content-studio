@@ -13,23 +13,30 @@
 export const PAGE_ACTION_BUTTON =
   "grid size-10 place-items-center rounded-full bg-accent text-white shadow-[var(--shadow-card)] transition-colors duration-(--duration-fast) ease-(--ease-out) enabled:hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-chrome-active disabled:text-ink-3 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]";
 
-/** The same disc, for an action that commits nothing — search, filters, a
- *  view switch. White rather than accent, because the accent is what you press
- *  to make something happen and a page that colours everything that way has
- *  said nothing about any of it. It is also the treatment the menu button on
- *  the other end of this line already uses, and both sit over scrolling
- *  content rather than on a surface: white is what stays legible over moving
- *  text, where the close discs' grey would smudge into it. */
+/** The same disc, for an action that commits nothing — search, filters, the
+ *  menu. White rather than accent, because the accent is what you press to
+ *  make something happen and a page that colours everything that way has said
+ *  nothing about any of it.
+ *
+ *  OUTLINED, WHERE THE CLOSE DISCS ARE NOT. These sit over the page's content
+ *  and it scrolls underneath them; white on white text is a shape you have to
+ *  find rather than one you can see, and against the page's own near-white
+ *  ground a fill five values off it is no edge at all. A close button never
+ *  has that problem — it sits ON a surface, in a corner, and its soft grey
+ *  fill is enough on its own.
+ *
+ *  40px, like every other icon button. The size lives HERE rather than at the
+ *  call sites now that there is only one of it — a caller cannot drift from a
+ *  number it does not state, and the two-`size-*`-utilities trap this used to
+ *  invite needs two sizes to exist before it can happen. */
 export const PAGE_ACTION_BUTTON_QUIET =
-  "grid size-10 place-items-center rounded-full bg-surface text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-chrome hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]";
+  "grid size-10 place-items-center rounded-full border border-line-strong bg-surface text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-chrome hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]";
 
-/*  NO SIZE IN HERE. The sheet's close is 36 and the drawer's is 44, and
- *  stating a size in the constant meant each call site that wanted the other
- *  one put a second `size-*` on the same element — two utilities of equal
- *  specificity, so which of them wins is decided by the order Tailwind emits
- *  them in, not the order they are written. The caller owns the size. */
+/*  40, THE SAME AS EVERY OTHER ICON BUTTON. The sheet's close was 36 and the
+ *  drawer's 44, which is why the size used to live at the call sites; with one
+ *  size it belongs here, where nothing can disagree with it. */
 export const PAGE_CLOSE_BUTTON =
-  "grid shrink-0 place-items-center rounded-full bg-chrome text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-chrome-active hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]";
+  "grid size-10 shrink-0 place-items-center rounded-full bg-chrome text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-chrome-active hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]";
 
 /**
  * PROGRESSIVE BLUR, NOT A LID. An opaque band the width of the page does not

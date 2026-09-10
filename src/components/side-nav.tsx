@@ -6,7 +6,7 @@ import { FlatMark } from "@/app/mark";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
-import { PAGE_CLOSE_BUTTON } from "./page-bar";
+import { PAGE_ACTION_BUTTON_QUIET, PAGE_CLOSE_BUTTON } from "./page-bar";
 import { AccountMenu } from "./account-menu";
 import { SettingsSheet } from "./settings/settings-sheet";
 import type { SettingsSection } from "./settings/sections";
@@ -109,15 +109,13 @@ export function SideNav({
              for a progress indicator you rarely press; this is the only way to
              reach the rest of the app from a phone, it is pressed constantly,
              and it sits in the top corner where a thumb is least accurate. */
-          /* WHITE, WHERE THE CLOSE DISCS ARE GREY — and the exception is the
-             point. Every close button sits ON a surface, so a soft grey fill
-             is enough to find it. This one sits over the ARTICLE, which now
-             scrolls underneath it: grey on moving text is a smudge, and the
-             hairline and shadow it used to carry made it the heaviest thing
-             on the screen for a control pressed twice a session. White is the
-             same answer the stepper's current pill reached for the same
-             reason, on the same line, against the same moving text. */
-          className="grid size-11 place-items-center rounded-full bg-surface text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-chrome hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+          /* The same disc as Library's search, from the same constant — both
+             are quiet controls sitting over content that scrolls underneath
+             them, and both need an edge to be a shape rather than a gap. The
+             shadow it used to carry does not come back with the hairline: one
+             or the other states the edge, and two made it the heaviest thing
+             on the screen for a control pressed twice a session. */
+          className={PAGE_ACTION_BUTTON_QUIET}
           aria-label="Open navigation"
           aria-expanded={open}
           aria-controls="mobile-navigation"
@@ -170,7 +168,7 @@ export function SideNav({
                    constant, so the drawer's and the sheets' cannot drift. A
                    square-cornered ghost button was the only rounded-lg thing
                    on a surface of pills. */
-                className={`size-11 ${PAGE_CLOSE_BUTTON}`}
+                className={PAGE_CLOSE_BUTTON}
                 aria-label="Close navigation"
               >
                 <X aria-hidden className="size-5" />
@@ -210,7 +208,10 @@ export function SideNav({
              so a control straddling the rail's edge had a visible boundary on
              one side and nothing on the other. It takes the same
              --border-strong the rail is drawn with, and darkens on hover. */
-          className="absolute -right-4 top-5 z-10 grid size-8 place-items-center rounded-full border border-line-strong bg-bg text-ink-2 shadow-[var(--shadow-card)] transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+          /* 40 like every other icon button, and `-right-5` with it: the offset
+             is half the width, which is what keeps the handle centred on the
+             rail's edge. Left at -4 it would have sat 4px inside the rail. */
+          className="absolute -right-5 top-5 z-10 grid size-10 place-items-center rounded-full border border-line-strong bg-bg text-ink-2 shadow-[var(--shadow-card)] transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >

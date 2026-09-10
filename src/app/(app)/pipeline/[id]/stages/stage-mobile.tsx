@@ -270,7 +270,7 @@ export function StageSheet({
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label={`Close ${title}`}
-                className={`-mr-1 -mt-0.5 size-9 ${PAGE_CLOSE_BUTTON}`}
+                className={`-mr-1 -mt-0.5 ${PAGE_CLOSE_BUTTON}`}
               >
                 <X aria-hidden className="size-5" />
               </button>

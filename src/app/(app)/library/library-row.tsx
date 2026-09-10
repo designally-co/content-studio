@@ -148,7 +148,7 @@ export function LibraryRow({
           onClick={remove}
           disabled={deleting}
           aria-label={deleting ? `Deleting ${title}` : `Delete ${title}`}
-          className="relative z-10 grid size-9 place-items-center rounded-lg text-ink-3 opacity-0 transition-[opacity,color,background-color] duration-(--duration-fast) hover:bg-danger-soft hover:text-danger-ink focus-visible:opacity-100 focus-visible:outline-none focus-visible:[outline:2px_solid_var(--accent)] group-hover:opacity-100 disabled:opacity-50"
+          className="relative z-10 grid size-10 place-items-center rounded-lg text-ink-3 opacity-0 transition-[opacity,color,background-color] duration-(--duration-fast) hover:bg-danger-soft hover:text-danger-ink focus-visible:opacity-100 focus-visible:outline-none focus-visible:[outline:2px_solid_var(--accent)] group-hover:opacity-100 disabled:opacity-50"
         >
           <Trash2 aria-hidden className="size-4" />
         </button>

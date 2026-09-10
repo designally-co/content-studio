@@ -464,14 +464,36 @@ function RoutineCard({
        rather than finished saying them. `sm:pb-2` is stated as well as `pb-2`,
        because `sm:p-5` sets all four sides inside a media query and would
        otherwise win the bottom back on a wide screen. */
-    <section className="rounded-2xl border border-line bg-surface p-3.5 pb-2 transition-shadow duration-(--duration-base) ease-(--ease-out) hover:shadow-[var(--shadow-card)] sm:p-5 sm:pb-2">
+    /* `relative` is what lets the name's stretched overlay cover the whole
+       card rather than just the h3 it lives in. */
+    <section className="relative rounded-2xl border border-line bg-surface p-3.5 pb-2 transition-shadow duration-(--duration-base) ease-(--ease-out) hover:shadow-[var(--shadow-card)] sm:p-5 sm:pb-2">
       <div className="flex items-start justify-between gap-4">
         {/* MEDIUM, NOT SEMIBOLD. A card carrying one name does not need weight
             to say which line is the name — position already does — and five
             routines in a column read as five headlines shouting over a page
             whose job is to be glanced at. */}
         <h3 className="min-w-0 flex-1 font-heading text-[length:var(--text-h3)] font-medium leading-snug tracking-tight text-ink">
-          {routine.name}
+          {/* THE CARD OPENS THE EDITOR, and the name is the control that does
+              it — the same shape the Library uses for a row. Everything on
+              this card describes one routine, so pressing any part of it
+              asking to see that routine is the obvious reading; before this
+              the only way in was the ⋯ menu, which is where you go when you
+              want one of several things, not when you want the thing.
+
+              A stretched pseudo-element rather than a button wrapped around
+              the whole card, so the accessible name is the routine's name
+              instead of a div's worth of text, and so the switch and the menu
+              can still be their own controls inside it.
+
+              A button, not a link: this opens a dialog over the page. There
+              is no address for it to be. */}
+          <button
+            type="button"
+            onClick={onEdit}
+            className="rounded-sm text-left after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:[outline:2px_solid_var(--accent)] focus-visible:[outline-offset:2px]"
+          >
+            {routine.name}
+          </button>
         </h3>
         {/* A manual routine has nothing to switch on, so the slot stays empty
             rather than holding the words "By hand" in the shape of a control —
@@ -489,7 +511,10 @@ function RoutineCard({
                AND bottom, so the row also stops being 44px tall to hold a
                22px title — the switch was quietly setting the height of the
                card's first line. */
-            className="-my-2.5 -mr-0.5"
+            /* `relative z-10`, because the card's overlay is positioned and
+               would otherwise take this switch's clicks — a toggle you cannot
+               reach without opening the editor first. */
+            className="relative z-10 -my-2.5 -mr-0.5"
             checked={enabled}
             label={`Run ${routine.name} on its schedule`}
             onChange={(nextValue) => {
@@ -654,15 +679,15 @@ function RoutineMenu({
     <DropdownMenuPrimitive.Root modal={false}>
       <DropdownMenuPrimitive.Trigger
         aria-label={`More actions for ${name}`}
-        /* `-my-1.5` PULLS THE TARGET'S SLACK, the way the switch above does.
-           A 36px button in a strip meant to read as a stamp was setting that
+        /* `-my-2` PULLS THE TARGET'S SLACK, the way the switch above does.
+           A 40px button in a strip meant to read as a stamp was setting that
            strip's height on its own, so the margin collapses its box to 24 —
            the height of the type beside it — while the button keeps all 36 to
            be hit. Shrinking the button instead would have bought the same
            tightness by making it harder to press, and nothing is drawn here
            until you touch it: the target's size is invisible, so there is no
            reason for it to be the thing that gives. */
-        className="-my-1.5 grid size-9 shrink-0 place-items-center rounded-lg text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] data-[state=open]:bg-sunken data-[state=open]:text-ink"
+        className="relative z-10 -my-2 grid size-10 shrink-0 place-items-center rounded-lg text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] data-[state=open]:bg-sunken data-[state=open]:text-ink"
       >
         <MoreHorizontal aria-hidden className="size-4" />
       </DropdownMenuPrimitive.Trigger>
@@ -748,7 +773,8 @@ function LastRun({ run }: { run: RunView }) {
           {" · "}
           <Link
             href={`/pipeline/${run.projectId}`}
-            className="underline underline-offset-2 hover:text-ink"
+            /* Above the card's overlay, or "open it" would open the editor. */
+            className="relative z-10 underline underline-offset-2 hover:text-ink"
           >
             open it
           </Link>
@@ -796,7 +822,8 @@ function Progress({ live }: { live: Live }) {
         <p className="mt-2 text-sm">
           <Link
             href={`/pipeline/${live.projectId}`}
-            className="inline-flex items-center gap-1.5 font-medium text-accent-ink underline-offset-4 hover:underline"
+            /* Above the card's overlay, or this would open the editor. */
+            className="relative z-10 inline-flex items-center gap-1.5 font-medium text-accent-ink underline-offset-4 hover:underline"
           >
             Read what it wrote
             <IconArrowRight width={14} height={14} />

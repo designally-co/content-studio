@@ -59,7 +59,7 @@ export function ConfirmDialog({
             </Dialog.Title>
             <Dialog.Close
               aria-label="Close"
-              className="-mr-1 -mt-1 grid size-9 shrink-0 place-items-center rounded-lg text-(--sheet-ink-2) transition-colors duration-(--duration-fast) hover:bg-black/5 hover:text-(--sheet-ink) focus-visible:outline-none focus-visible:[outline:2px_solid_#ef6148] focus-visible:[outline-offset:2px]"
+              className="-mr-1 -mt-1 grid size-10 shrink-0 place-items-center rounded-lg text-(--sheet-ink-2) transition-colors duration-(--duration-fast) hover:bg-black/5 hover:text-(--sheet-ink) focus-visible:outline-none focus-visible:[outline:2px_solid_#ef6148] focus-visible:[outline-offset:2px]"
             >
               <X aria-hidden className="size-5" />
             </Dialog.Close>

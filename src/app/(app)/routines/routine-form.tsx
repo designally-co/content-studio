@@ -172,7 +172,7 @@ export function RoutineForm({
             </Dialog.Title>
             <Dialog.Close
               aria-label="Close"
-              className="-mr-1 -mt-1 grid size-9 shrink-0 place-items-center rounded-lg text-(--sheet-ink-2) transition-colors duration-(--duration-fast) hover:bg-(--sheet-field) hover:text-(--sheet-ink) focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+              className="-mr-1 -mt-1 grid size-10 shrink-0 place-items-center rounded-lg text-(--sheet-ink-2) transition-colors duration-(--duration-fast) hover:bg-(--sheet-field) hover:text-(--sheet-ink) focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
             >
               <X aria-hidden className="size-5" />
             </Dialog.Close>

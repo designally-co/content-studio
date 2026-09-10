@@ -112,7 +112,7 @@ export function SettingsSheet({
                the old padded header, but here it puts the button 4px past the
                scroller's content box — enough to raise a horizontal scrollbar
                across the foot of every sheet. */
-            className="-mt-1 ml-3 mb-1 grid size-9 shrink-0 float-right place-items-center rounded-lg text-(--sheet-ink-2) transition-colors duration-(--duration-fast) hover:bg-chrome hover:text-(--sheet-ink) focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+            className="-mt-1 ml-3 mb-1 grid size-10 shrink-0 float-right place-items-center rounded-lg text-(--sheet-ink-2) transition-colors duration-(--duration-fast) hover:bg-chrome hover:text-(--sheet-ink) focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
           >
             <X aria-hidden className="size-5" />
           </Dialog.Close>

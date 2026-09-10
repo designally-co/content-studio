@@ -113,7 +113,13 @@ export function LibraryBar() {
               aria-label="Close search"
               /* Inside the pill's right end, in the padding reserved for it —
                  the way a field's own clear button sits, rather than as a
-                 second control after the box. */
+                 second control after the box.
+
+                 THE ONE ICON BUTTON THAT IS NOT 40, and it is not a standalone
+                 one: it lives INSIDE a 36px field, so 40 cannot fit and the
+                 40px rule does not reach it. Everything the rule covers is a
+                 control sitting beside other controls; this is a field's own
+                 affordance, and its size is set by the field. */
               className="absolute right-1 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full text-ink-3 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-chrome hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
             >
               <X aria-hidden className="size-4" />
