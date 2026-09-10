@@ -1515,6 +1515,48 @@ function PublishRail({
 
   const findings = review?.checks.filter((check) => check.status === "review") ?? [];
 
+  /* ONE DEFINITION, TWO HOMES — the rail panel on a desktop, the sheet's body
+     on a phone. It was written out twice, which is how the standing subline
+     came to appear both as the sheet's own subtitle and again inside it. The
+     subline stays with the rail, because the sheet has a place for it already. */
+  const brandBody = (
+    <>
+          {!anthropicReady && <p className="mt-2 text-sm text-ink-2">Configure Anthropic to run the review.</p>}
+          {reviewError && <p className="mt-2 text-sm text-danger" role="alert">{reviewError}</p>}
+          {review && (
+            <div className="mt-3" aria-live="polite">
+              <p className={`text-sm font-medium ${findings.length ? "text-ink" : "text-ok-ink"}`}>
+                {findings.length ? review.summary : "No issues need attention."}
+              </p>
+              {findings.length > 0 && (
+                <ul className="mt-3 space-y-3 border-t border-line pt-3">
+                  {findings.map((check, index) => (
+                    <li key={`${check.criterion}-${index}`}>
+                      <p className="text-sm font-semibold text-ink">{check.criterion}</p>
+                      <p className="mt-1 text-sm leading-relaxed text-ink-2">{check.finding}</p>
+                      <p className="mt-1.5 text-sm font-medium text-accent-ink">Suggested edit: {check.suggestion}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={reviewArticle}
+            disabled={reviewing || !anthropicReady}
+            /* The same treatment as Apply revision: this is its panel's own
+               action, and an outlined button is what that weight looks like
+               here. `cs-tool` is the borderless one, which the rail keeps for
+               the quiet action at the foot of a panel — Regenerate the draft. */
+            className="cs-btn mt-4 w-full justify-center"
+          >
+            {reviewing ? "Reviewing…" : review ? "Check again" : "Run brand check"}
+          </button>
+    </>
+  );
+
   return (
     <>
       <div aria-labelledby="publish-heading" className="hidden space-y-4 lg:block">
@@ -1672,44 +1714,12 @@ function PublishRail({
               other panel in the rail. Full width at the foot, like Regenerate
               in the Revise panel. */}
           <h3 className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">Brand check</h3>
-          {!anthropicReady && <p className="mt-2 text-sm text-ink-2">Configure Anthropic to run the review.</p>}
-          {reviewError && <p className="mt-2 text-sm text-danger" role="alert">{reviewError}</p>}
           {!review && anthropicReady && !reviewing && (
             <p className="mt-1 text-sm leading-relaxed text-ink-2">
               Reads the finished article against the brand profile before it goes out.
             </p>
           )}
-          {review && (
-            <div className="mt-3" aria-live="polite">
-              <p className={`text-sm font-medium ${findings.length ? "text-ink" : "text-ok-ink"}`}>
-                {findings.length ? review.summary : "No issues need attention."}
-              </p>
-              {findings.length > 0 && (
-                <ul className="mt-3 space-y-3 border-t border-line pt-3">
-                  {findings.map((check, index) => (
-                    <li key={`${check.criterion}-${index}`}>
-                      <p className="text-sm font-semibold text-ink">{check.criterion}</p>
-                      <p className="mt-1 text-sm leading-relaxed text-ink-2">{check.finding}</p>
-                      <p className="mt-1.5 text-sm font-medium text-accent-ink">Suggested edit: {check.suggestion}</p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={reviewArticle}
-            disabled={reviewing || !anthropicReady}
-            /* The same treatment as Apply revision: this is its panel's own
-               action, and an outlined button is what that weight looks like
-               here. `cs-tool` is the borderless one, which the rail keeps for
-               the quiet action at the foot of a panel — Regenerate the draft. */
-            className="cs-btn mt-4 w-full justify-center"
-          >
-            {reviewing ? "Reviewing…" : review ? "Check again" : "Run brand check"}
-          </button>
+          {brandBody}
         </div>
       </section>
       </div>
@@ -1766,44 +1776,7 @@ function PublishRail({
         title="Brand check"
         subtitle="Reads the finished article against the brand profile before it goes out."
       >
-          {!anthropicReady && <p className="mt-2 text-sm text-ink-2">Configure Anthropic to run the review.</p>}
-          {reviewError && <p className="mt-2 text-sm text-danger" role="alert">{reviewError}</p>}
-          {!review && anthropicReady && !reviewing && (
-            <p className="mt-1 text-sm leading-relaxed text-ink-2">
-              Reads the finished article against the brand profile before it goes out.
-            </p>
-          )}
-          {review && (
-            <div className="mt-3" aria-live="polite">
-              <p className={`text-sm font-medium ${findings.length ? "text-ink" : "text-ok-ink"}`}>
-                {findings.length ? review.summary : "No issues need attention."}
-              </p>
-              {findings.length > 0 && (
-                <ul className="mt-3 space-y-3 border-t border-line pt-3">
-                  {findings.map((check, index) => (
-                    <li key={`${check.criterion}-${index}`}>
-                      <p className="text-sm font-semibold text-ink">{check.criterion}</p>
-                      <p className="mt-1 text-sm leading-relaxed text-ink-2">{check.finding}</p>
-                      <p className="mt-1.5 text-sm font-medium text-accent-ink">Suggested edit: {check.suggestion}</p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={reviewArticle}
-            disabled={reviewing || !anthropicReady}
-            /* The same treatment as Apply revision: this is its panel's own
-               action, and an outlined button is what that weight looks like
-               here. `cs-tool` is the borderless one, which the rail keeps for
-               the quiet action at the foot of a panel — Regenerate the draft. */
-            className="cs-btn mt-4 w-full justify-center"
-          >
-            {reviewing ? "Reviewing…" : review ? "Check again" : "Run brand check"}
-          </button>
+        {brandBody}
       </StageSheet>
     </>
   );

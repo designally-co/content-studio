@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { X } from "lucide-react";
 
 /**
  * The action rail, on a phone.
@@ -17,8 +18,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * becomes a sheet on the floor of the screen that is pulled up when wanted.
  */
 
-/** How much of the sheet stays on screen when it is closed. */
-const PEEK = 56;
+/**
+ * How much of the sheet stays on screen when it is closed.
+ *
+ * The header's own height, measured: 12px above the handle, the 4px bar, then
+ * the title row. It was 56 while the handle sat inline with the title, and
+ * moving the handle to its own row above pushed the title's descenders below
+ * the fold — the sheet read as clipped rather than as resting.
+ */
+const PEEK = 70;
 
 /** Past this much drag, let go and it goes the rest of the way. */
 const THRESHOLD = 48;
@@ -110,6 +118,8 @@ export function StageSheet({
   const [open, setOpen] = useState(false);
   const [drag, setDrag] = useState<number | null>(null);
   const startY = useRef(0);
+  /** Which pointer owns the gesture, so a second finger cannot hijack it. */
+  const pointer = useRef<number | null>(null);
   const panel = useRef<HTMLDivElement>(null);
 
   const finish = useCallback(
@@ -147,9 +157,15 @@ export function StageSheet({
       {/* The way out, and the thing that says the sheet is modal-ish while it
           is open. Not rendered closed, so the page below stays usable. */}
       {open && (
-        <button
-          type="button"
-          aria-label={`Close ${title}`}
+        /* NOT A BUTTON, AND NOT NAMED. It was `<button aria-label="Close X">`,
+           which put a second control with the identical accessible name on the
+           screen — a 375x812 one — beside the X in the header. A screen reader
+           offering "Close Revise" twice cannot say which is which, and the
+           whole-screen one is the one nobody meant to reach.
+           Tapping outside still closes. The ways out that are ANNOUNCED are the
+           X and the Escape key, which is the pair every dialog offers. */
+        <div
+          aria-hidden
           onClick={() => setOpen(false)}
           className="fixed inset-0 z-(--z-sticky) bg-ink/20 lg:hidden motion-safe:animate-in motion-safe:fade-in-0"
         />
@@ -165,45 +181,80 @@ export function StageSheet({
           transition: drag === null ? "transform 260ms var(--ease-out)" : "none",
         }}
       >
-        {/* The whole header is the handle: a 4px bar is the right SIGN for a
-            drag and the wrong size for a target, so the name beside it drags
-            too, and tapping anywhere along it toggles. */}
-        <button
-          type="button"
-          aria-expanded={open}
-          onClick={() => drag === null && setOpen((v) => !v)}
+        {/* THE HANDLE IS ITS OWN ROW, CENTRED. It sat inline before the title
+            like a bullet, which is where a decoration goes and not where a
+            handle goes — every sheet anybody has used puts the bar in the
+            middle of the top edge, and that convention is doing the explaining.
+
+            The whole header still drags, title and all: a 4px bar is the right
+            SIGN for the gesture and much too small a target for it. */}
+        <div
           onPointerDown={(event) => {
             startY.current = event.clientY;
-            setDrag(0);
-            event.currentTarget.setPointerCapture(event.pointerId);
+            pointer.current = event.pointerId;
           }}
           onPointerMove={(event) => {
-            if (drag === null) return;
-            setDrag(event.clientY - startY.current);
+            if (pointer.current !== event.pointerId) return;
+            const delta = event.clientY - startY.current;
+            // Capture only once this is unmistakably a drag. Grabbing the
+            // pointer on contact would swallow the click on the close button
+            // sitting inside this same surface.
+            if (drag === null && Math.abs(delta) < 4) return;
+            if (drag === null) event.currentTarget.setPointerCapture(event.pointerId);
+            setDrag(delta);
           }}
           onPointerUp={(event) => {
-            const delta = event.clientY - startY.current;
-            event.currentTarget.releasePointerCapture(event.pointerId);
-            // A press that never moved is a tap: let the click handler have it.
-            if (Math.abs(delta) < 4) setDrag(null);
-            else finish(delta);
+            pointer.current = null;
+            if (drag === null) return;
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+              event.currentTarget.releasePointerCapture(event.pointerId);
+            }
+            finish(event.clientY - startY.current);
           }}
-          onPointerCancel={() => setDrag(null)}
-          className="flex h-14 shrink-0 touch-none select-none items-center gap-3 px-5 text-left"
+          onPointerCancel={() => {
+            pointer.current = null;
+            setDrag(null);
+          }}
+          className="shrink-0 touch-none select-none"
         >
-          <span aria-hidden className="h-1 w-9 shrink-0 rounded-full bg-line-strong" />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">
-              {title}
-            </span>
-          </span>
-        </button>
+          <div className="flex justify-center pb-1 pt-3">
+            <span aria-hidden className="h-1 w-9 rounded-full bg-line-strong" />
+          </div>
 
+          <div className="flex items-start gap-2 px-5">
+            <button
+              type="button"
+              aria-expanded={open}
+              onClick={() => drag === null && setOpen((v) => !v)}
+              className="min-w-0 flex-1 truncate pb-0.5 pt-2 text-left font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink"
+            >
+              {title}
+            </button>
+            {/* Only once there is something to close. At rest the sheet is a
+                title on a ledge, and an X beside it would be offering to
+                dismiss something that is not open. */}
+            {open && (
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label={`Close ${title}`}
+                className="-mr-1 -mt-0.5 grid size-9 shrink-0 place-items-center rounded-full text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+              >
+                <X aria-hidden className="size-5" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* PROXIMITY. The subline belongs to the heading above it, not to the
+            content below — it was 12px from its own title and 4px from the
+            first control, so it read as a caption on the wrong thing. Two
+            pixels up, sixteen down. */}
         {subtitle && (
-          <p className="shrink-0 px-5 pb-1 text-sm leading-relaxed text-ink-2">{subtitle}</p>
+          <p className="shrink-0 px-5 pt-0.5 text-sm leading-relaxed text-ink-2">{subtitle}</p>
         )}
         <div
-          className={`min-h-0 flex-1 overflow-y-auto pb-6 ${flush ? "" : "px-5"}`}
+          className={`min-h-0 flex-1 overflow-y-auto pb-6 pt-4 ${flush ? "" : "px-5"}`}
           aria-hidden={!open}
         >
           {children}
@@ -220,4 +271,4 @@ export function StageSheet({
  * the article — or the image dock, which lives at the foot of its own plate —
  * would sit permanently underneath it.
  */
-export const SHEET_CLEARANCE = "pb-16 lg:pb-0";
+export const SHEET_CLEARANCE = "pb-20 lg:pb-0";
