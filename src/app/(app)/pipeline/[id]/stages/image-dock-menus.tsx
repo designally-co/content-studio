@@ -26,7 +26,7 @@ const ITEM =
 /* No border. The shadow already separates it from the page, and a hairline as
    well makes a floating layer look like a boxed one. */
 const PANEL =
-  "z-(--z-dropdown) min-w-52 rounded-2xl bg-surface p-2 shadow-[var(--shadow-pop)] outline-none duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none";
+  "z-(--z-dropdown) rounded-2xl bg-surface p-2 shadow-[var(--shadow-pop)] outline-none duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none";
 
 /**
  * An outlined disc, the same one the send button is.
@@ -210,11 +210,15 @@ export function ImageSettingsMenu({
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         {/* Upwards: the dock sits at the foot of the stage, so a menu opening
-            downwards would leave the screen. `max-w` keeps the second level
-            inside a phone — it is the widest of the two, and the panel is one
-            element now rather than two side by side. */}
+            downwards would leave the screen.
+
+            AS WIDE AS ITS WIDEST ROW, no wider. A fixed 20rem was sized for
+            rows that carried a line of prose under every model name; with the
+            prose gone it was a third of a phone's width holding four short
+            labels and a lot of air. `w-max` lets the content decide and the
+            viewport cap stops it running off a narrow screen. */}
         <DropdownMenu.Content
-          className={`${PANEL} w-[min(20rem,calc(100vw-1.5rem))]`}
+          className={`${PANEL} w-max max-w-[calc(100vw-1.5rem)]`}
           side="top"
           align="start"
           sideOffset={8}
