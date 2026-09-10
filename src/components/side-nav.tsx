@@ -6,7 +6,7 @@ import { FlatMark } from "@/app/mark";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
-import { STAGE_CLOSE_BUTTON } from "@/app/(app)/pipeline/[id]/stages/stage-mobile";
+import { PAGE_CLOSE_BUTTON } from "./page-bar";
 import { AccountMenu } from "./account-menu";
 import { SettingsSheet } from "./settings/settings-sheet";
 import type { SettingsSection } from "./settings/sections";
@@ -170,7 +170,7 @@ export function SideNav({
                    constant, so the drawer's and the sheets' cannot drift. A
                    square-cornered ghost button was the only rounded-lg thing
                    on a surface of pills. */
-                className={`size-11 ${STAGE_CLOSE_BUTTON}`}
+                className={`size-11 ${PAGE_CLOSE_BUTTON}`}
                 aria-label="Close navigation"
               >
                 <X aria-hidden className="size-5" />

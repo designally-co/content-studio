@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 
+import { PAGE_ACTION_BUTTON, PAGE_CLOSE_BUTTON } from "@/components/page-bar";
+
 /**
  * The action rail, on a phone.
  *
@@ -52,22 +54,10 @@ const THRESHOLD = 48;
 export const STAGE_ACTION_SLOT =
   "fixed right-3 top-0 z-(--z-nav) flex h-12 items-center lg:hidden";
 
-export const STAGE_ACTION_BUTTON =
-  "grid size-10 place-items-center rounded-full bg-accent text-white shadow-[var(--shadow-card)] transition-colors duration-(--duration-fast) ease-(--ease-out) enabled:hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-chrome-active disabled:text-ink-3 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]";
-
-/** THE ONE CLOSE BUTTON, so the sheet's and the drawer's cannot drift apart.
- *  A soft grey disc with no outline: it is a dismissal, the quietest thing on
- *  any surface it appears on, and an outlined pill gave it the same weight as
- *  the controls it sits beside. The fill is what makes it findable without
- *  drawing a border around it — a bare glyph on a white sheet had no target
- *  you could see, only one you could hit. */
-/*  NO SIZE IN HERE. The sheet's close is 36 and the drawer's is 44, and
- *  stating a size in the constant meant each call site that wanted the other
- *  one put a second `size-*` on the same element — two utilities of equal
- *  specificity, so which of them wins is decided by the order Tailwind emits
- *  them in, not the order they are written. The caller owns the size. */
-export const STAGE_CLOSE_BUTTON =
-  "grid shrink-0 place-items-center rounded-full bg-chrome text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-chrome-active hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]";
+/* The two disc treatments live in @/components/page-bar now, because Library
+   and Routines put the same buttons on the same line as this one. Re-exported
+   under their old names so the stages importing them from here still can. */
+export { PAGE_ACTION_BUTTON as STAGE_ACTION_BUTTON, PAGE_CLOSE_BUTTON as STAGE_CLOSE_BUTTON };
 
 export function StageAction({
   label,
@@ -92,7 +82,7 @@ export function StageAction({
         /* Filled, unlike the menu button's outline: this is the one thing on
            the screen you are being invited to press, and the pair of discs
            either side of the stepper should not read as two of a kind. */
-        className={STAGE_ACTION_BUTTON}
+        className={PAGE_ACTION_BUTTON}
       >
         {children}
       </button>
@@ -280,7 +270,7 @@ export function StageSheet({
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label={`Close ${title}`}
-                className={`-mr-1 -mt-0.5 size-9 ${STAGE_CLOSE_BUTTON}`}
+                className={`-mr-1 -mt-0.5 size-9 ${PAGE_CLOSE_BUTTON}`}
               >
                 <X aria-hidden className="size-5" />
               </button>

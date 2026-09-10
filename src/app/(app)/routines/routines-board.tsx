@@ -12,9 +12,10 @@ import {
 } from "react";
 import { Button } from "@/components/ui/button";
 import { PageHeading } from "@/components/page-heading";
+import { PageBar, PAGE_ACTION_BUTTON } from "@/components/page-bar";
 import { EmptyState } from "@/components/empty-state";
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
-import { Clock, MoreHorizontal, Pencil, Play, Trash2 } from "lucide-react";
+import { Clock, MoreHorizontal, Pencil, Play, Plus, Trash2 } from "lucide-react";
 import { IconArrowRight } from "@/components/icons";
 import { Switch } from "@/components/switch";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -201,30 +202,62 @@ export function RoutinesBoard({
      right-hand side of the page. The container decides the width for both. */
   return (
     <div className="w-full space-y-4">
-      <PageHeading
+      {/* THE PAGE'S NAME AND ITS ONE ACTION, ON THE MENU BUTTON'S LINE. On a
+          phone the heading block below is a title, a sentence and a button
+          stacked above the list they describe — most of a small screen spent
+          introducing three routines you can already see. The bar carries the
+          name; the disc carries the action.
+
+          It lives in here rather than in the page because the action opens a
+          dialog this component owns. `PageBar` is fixed for exactly that
+          reason — it does not have to be the first thing on the page to sit on
+          the first line of it. */}
+      <PageBar
         title="Routines"
-        /* One line. It was three clauses naming every stage of a run — topic,
-           research, draft, cover — which the run itself reports while it
-           happens. What a reader needs before they have made one is what it
-           does and that nobody checks it. */
-        description="Each one writes an article and sends it to the Hub, unreviewed."
-        actions={
+        action={
           /* Nothing to add to yet, and the empty state below already offers
              exactly this. Two primary buttons on one screen, the same colour,
              doing the same thing, is a choice with nothing on either side. */
           routines.length > 0 ? (
-            <Button
+            <button
               type="button"
               onClick={() => {
                 setCreating(true);
                 setEditing(null);
               }}
+              aria-label="New routine"
+              title="New routine"
+              className={PAGE_ACTION_BUTTON}
             >
-              New routine
-            </Button>
+              <Plus aria-hidden className="size-5" />
+            </button>
           ) : undefined
         }
       />
+
+      <div className="hidden lg:block">
+        <PageHeading
+          /* NO DECK. It said the routine writes an article and sends it to the
+             Hub unreviewed — which is true, and is also what the Readiness
+             panel directly below states in the terms that can actually stop
+             you, with the switches to fix it. Two explanations of the same
+             risk, and only one of them is actionable. */
+          title="Routines"
+          actions={
+            routines.length > 0 ? (
+              <Button
+                type="button"
+                onClick={() => {
+                  setCreating(true);
+                  setEditing(null);
+                }}
+              >
+                New routine
+              </Button>
+            ) : undefined
+          }
+        />
+      </div>
 
       <Readiness anthropic={anthropicReady} hub={hubReady} cron={cronReady} />
 

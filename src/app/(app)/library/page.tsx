@@ -6,6 +6,7 @@ import { createSignedImageUrls } from "@/lib/image/storage";
 import { PageHeading } from "@/components/page-heading";
 import { EmptyState } from "@/components/empty-state";
 import { FilterBar } from "./filter-bar";
+import { LibraryBar } from "./library-bar";
 import { IconNew } from "@/components/icons";
 import { ArticleTable } from "./article-table";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -146,12 +147,6 @@ export default async function LibraryPage({
     if (n > 1) next.set("page", String(n));
     return next.size ? `/library?${next.toString()}` : "/library";
   };
-  const publishedCount = rows.filter(
-    (row) => row.status === "published",
-  ).length;
-  const draftCount = rows.length - publishedCount;
-  const noun = rows.length === 1 ? "article" : "articles";
-
   const toItemProps = (row: (typeof rows)[number]) => ({
     id: row.id,
     title: row.topic?.title || "Untitled project",
@@ -167,20 +162,20 @@ export default async function LibraryPage({
 
   return (
     <div className="min-h-svh bg-sunken">
+      {/* On a phone the name of the page goes on the menu button's line and
+          takes search with it; everything else in the header is a desktop
+          idea. See LibraryBar. */}
+      <LibraryBar />
+
       {/* Not sticky and no rule beneath it: the title is content, so it scrolls
           away like the heading on Create. Pinned to the top it also stacked
           under the app's mobile header and covered the hamburger. */}
-      <header className="mx-auto w-full max-w-7xl px-5 pt-10 sm:px-8 sm:pt-14 lg:px-12 xl:px-16">
-        <PageHeading
-          title="Everything on the desk."
-          /* The counts were already computed for the grid. Stating them costs
-             nothing and tells an editor more than a sentence of prose. */
-          description={
-            hasActiveFilters
-              ? `${rows.length} matching ${noun}.`
-              : `${rows.length} ${noun} — ${draftCount} in draft, ${publishedCount} published.`
-          }
-        />
+      <header className="mx-auto hidden w-full max-w-7xl px-3 pt-10 sm:px-8 sm:pt-14 lg:block lg:px-12 xl:px-16">
+        {/* IT IS CALLED LIBRARY. "Everything on the desk." was a line of voice
+            standing where the page's name goes — so the rail said Library, the
+            browser tab said Library, and the page itself said something else.
+            A title names the place; the voice can live in the writing. */}
+        <PageHeading title="Library" />
 
         <div className="mt-7">
           <FilterBar
@@ -189,7 +184,7 @@ export default async function LibraryPage({
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl px-5 pb-24 pt-8 sm:px-8 sm:pt-10 lg:px-12 xl:px-16">
+      <main className="mx-auto w-full max-w-7xl px-3 pb-24 pt-4 sm:px-8 sm:pt-10 lg:px-12 xl:px-16">
         {rows.length === 0 ? (
           <EmptyState
             title={hasActiveFilters ? "Nothing matches those filters" : "Nothing here yet"}

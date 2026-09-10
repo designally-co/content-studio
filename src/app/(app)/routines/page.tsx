@@ -67,7 +67,7 @@ export default async function RoutinesPage() {
     <div className="min-h-svh bg-sunken">
       {/* The same container Library opens with, so the two pages start on one
           left edge instead of each inventing their own. */}
-      <div className="mx-auto w-full max-w-7xl px-5 pb-24 pt-10 sm:px-8 sm:pt-14 lg:px-12 xl:px-16">
+      <div className="mx-auto w-full max-w-7xl px-3 pb-24 pt-4 sm:px-8 sm:pt-14 lg:px-12 xl:px-16">
         <RoutinesBoard
           routines={routines}
           history={history}

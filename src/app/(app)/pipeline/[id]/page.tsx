@@ -6,6 +6,7 @@ import { isAnthropicConfigured } from "@/lib/anthropic";
 import { isHubConfigured } from "@/lib/hub";
 import { imageGenerationOptions } from "@/lib/image/registry";
 import { Stepper } from "@/components/stepper";
+import { TopBlur } from "@/components/page-bar";
 import { PrepareDraftStage } from "./stages/prepare-draft-stage";
 import { DraftsStage } from "./stages/drafts-stage";
 import { PublishStage } from "./stages/publish-stage";
@@ -106,31 +107,7 @@ export default async function PipelinePage({
           against the button while scrolling. Above `lg` the rail is a sidebar,
           there is no button, and the row goes back to its own line. */}
       <div className="sticky top-0 z-(--z-sticky) mx-auto -mt-12 w-full max-w-7xl px-3 py-2 sm:px-8 lg:mt-0 lg:px-12 lg:py-3 xl:px-16">
-        {/* PROGRESSIVE BLUR, NOT A LID. This was `bg-bg` — an opaque band the
-            width of the page, so the article did not pass under the stepper so
-            much as get chopped off by it, and the bar read as a second surface
-            floating over the page rather than as part of it.
-
-            Three stacked layers, each blurring harder and stopping sooner: at
-            the top all three apply, a third of the way down only the softest
-            still does, and by the bottom edge there is none. That gradient is
-            what makes it read as depth — the text is visibly still there,
-            going out of focus as it slides underneath, instead of vanishing at
-            a hard line.
-
-            Blur alone would leave the type legible enough to compete with the
-            steps, so each layer carries a wash of the page's own ground with
-            it. `-z-10` keeps the whole stack behind the steps while staying
-            inside this element's own stacking context, which `sticky` plus a
-            z-index has already created. */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[calc(100%+1.25rem)]"
-        >
-          <div className="absolute inset-0 bg-bg/35 backdrop-blur-[2px] [mask-image:linear-gradient(to_bottom,#000_0,#000_62%,transparent_100%)]" />
-          <div className="absolute inset-0 bg-bg/35 backdrop-blur-[8px] [mask-image:linear-gradient(to_bottom,#000_0,#000_38%,transparent_74%)]" />
-          <div className="absolute inset-0 bg-bg/35 backdrop-blur-[16px] [mask-image:linear-gradient(to_bottom,#000_0,#000_16%,transparent_46%)]" />
-        </div>
+        <TopBlur />
         <Stepper
           projectId={id}
           current={current}
