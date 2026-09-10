@@ -67,7 +67,13 @@ export async function goToFinalizeAction(formData: FormData) {
   const projectId = String(formData.get("projectId"));
   await bumpStage(projectId, 6);
   revalidatePath(`/pipeline/${projectId}`);
-  redirect(`/pipeline/${projectId}?stage=6`);
+  /* SAY WHICH VIEW, because stage 6 is two of them. With no `view` the page
+     falls back to "wherever this article belongs", which for a PUBLISHED one is
+     the Publish view — so a button that says Continue to images skipped the
+     image stage entirely, but only for articles that had already gone out. That
+     default is right for arriving at stage 6 from the Library, and wrong here:
+     this button names its destination, so it states it. */
+  redirect(`/pipeline/${projectId}?stage=6&view=images`);
 }
 
 /** Session-checked wrapper. The work lives in @/lib/pipeline/image-prompt. */
