@@ -1808,14 +1808,22 @@ function PublishRail({
             {busy ? (
               <LoaderCircle aria-hidden className="size-5 animate-spin motion-reduce:animate-none" />
             ) : (
-              /* OPTICALLY CENTRED, NOT GEOMETRICALLY. The paper plane's mass
-                 sits low and left — the tail is empty space in the top-right of
-                 its own box — so centring the BOX leaves the glyph looking like
-                 it has slipped down and back. A pixel each way puts it where
-                 the eye expects it. The spinner is radially symmetric and takes
-                 no correction, which is why the nudge is on the glyph rather
-                 than on the button. */
-              <Send aria-hidden className="size-5 translate-x-px -translate-y-px" />
+              /* OPTICALLY CENTRED, NOT GEOMETRICALLY — and measured rather
+                 than guessed, because guessing got the direction backwards
+                 first time. The plane's INK BOX is dead centre in the 24-unit
+                 frame (2 to 22 on both axes), which is exactly why centring
+                 the box looks wrong: the shape inside it is a triangle with
+                 its tip in the top-right corner and its swallowtail notch at
+                 the bottom-left, so the area it actually covers is weighted
+                 high and right. Sampling the closed outline puts the centroid
+                 at (13.8, 10.2) against a frame centre of (12, 12).
+
+                 Moving the glyph by that difference — 1.5px left, 1.5px down
+                 at this size — lands the mass on the middle of the disc. It is
+                 the same correction a play triangle needs, in two axes instead
+                 of one. The spinner is radially symmetric and takes none,
+                 which is why this rides on the glyph and not the button. */
+              <Send aria-hidden className="size-5 translate-x-[-1.5px] translate-y-[1.5px]" />
             )}
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
