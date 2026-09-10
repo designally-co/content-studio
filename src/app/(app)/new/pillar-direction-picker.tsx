@@ -5,6 +5,11 @@ import { Check, ChevronLeft, ChevronRight, Layers, Newspaper, Palette, Shapes, S
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
 import type { PillarGroup } from "./setup-form";
 
+/* The shared dropdown panel — the settings menus draw themselves with this and
+   so does this one. */
+const PANEL =
+  "z-(--z-dropdown) rounded-2xl bg-surface p-2 shadow-[var(--shadow-pop)] outline-none duration-(--motion-enter) ease-(--ease-out) data-closed:duration-(--motion-exit) data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none";
+
 const PILLAR_ICONS: Record<string, LucideIcon> = {
   design: Palette,
   "new-update": Newspaper,
@@ -62,15 +67,34 @@ export function PillarDirectionPicker({
       <DropdownMenuPrimitive.Portal>
         <DropdownMenuPrimitive.Content
           ref={contentRef}
-          side="bottom"
+          /* UPWARD, AND ALLOWED TO MOVE. `side="bottom"` was right when the
+             composer floated in the middle of the screen; the dock sits at the
+             FOOT of a phone now, so opening downwards put the menu below the
+             fold — and `avoidCollisions={false}` was the instruction not to
+             correct for exactly that. Both were true of a layout that no
+             longer exists.
+
+             `side="top"` is where the room is, and collisions are Radix's to
+             handle again: on a wide screen with the dock centred it can flip
+             back down if that is where the space is, which is the whole point
+             of letting it decide. */
+          side="top"
           align="start"
           sideOffset={8}
-          avoidCollisions={false}
-          className="z-(--z-dropdown) max-h-[calc(50svh-2rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-y-auto rounded-2xl border border-line bg-surface p-1.5 text-ink shadow-[0_4px_8px_rgba(36,31,28,0.08),0_12px_32px_rgba(36,31,28,0.12)] outline-none duration-(--motion-enter) ease-(--ease-out) data-closed:duration-(--motion-exit) data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none"
+          collisionPadding={12}
+          /* THE SETTINGS MENU'S PANEL, exactly — same ground, same radius, same
+             shadow, no border. Two dropdowns in one product drawn as two
+             different objects is two products. It was a bordered plate with a
+             bespoke two-layer shadow and 6px padding; this is the shared one. */
+          className={`${PANEL} w-max max-w-[calc(100vw-1.5rem)] text-ink`}
           aria-label={activePillar ? `${activePillar.name} directions` : "Content direction"}
         >
           {activePillar ? (
-            <div key={activePillar.id} className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-right-2 motion-safe:duration-150">
+            /* Capped against the height Radix measured between the trigger and
+               the edge of the screen, rather than a guess at half the viewport
+               — the old `50svh` was a number chosen for a composer that sat in
+               the middle of the display. */
+            <div key={activePillar.id} className="max-h-[min(60svh,var(--radix-dropdown-menu-content-available-height,60svh))] overflow-y-auto [scrollbar-width:none] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-right-2 motion-safe:duration-150 [&::-webkit-scrollbar]:hidden">
               <MenuItem
                 onSelect={(event) => {
                   event.preventDefault();
@@ -94,7 +118,7 @@ export function PillarDirectionPicker({
               ))}
             </div>
           ) : (
-            <div key="pillars" className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-left-2 motion-safe:duration-150">
+            <div key="pillars" className="max-h-[min(60svh,var(--radix-dropdown-menu-content-available-height,60svh))] overflow-y-auto [scrollbar-width:none] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-left-2 motion-safe:duration-150 [&::-webkit-scrollbar]:hidden">
               <DropdownMenuPrimitive.Label className="px-3 pb-1.5 pt-2 text-xs font-semibold text-ink-3">
                 Content direction
               </DropdownMenuPrimitive.Label>
@@ -109,10 +133,11 @@ export function PillarDirectionPicker({
                     carries a 16px icon, and a larger one would push this row's
                     text 4px out of the column they all share. */}
                 <Sparkle aria-hidden className="size-4 shrink-0 text-ink-3" fill="currentColor" strokeWidth={0} />
-                <span className="min-w-0 flex-1">
-                  <span className="block leading-snug">Auto direction</span>
-                  <span className="mt-0.5 block text-xs font-normal leading-snug text-ink-3">Choose the best fit from your input</span>
-                </span>
+                {/* NO DECK. "Choose the best fit from your input" explained a
+                    row whose two words already say it, and it was the only
+                    entry in the list with a second line — so the one option
+                    that needs no explaining was the one drawn largest. */}
+                <span className="min-w-0 flex-1">Auto direction</span>
                 {!selection.directionId && <Check aria-hidden className="size-4 shrink-0 text-accent-press" />}
               </MenuItem>
               <DropdownMenuPrimitive.Separator className="my-1 h-px bg-line" />
