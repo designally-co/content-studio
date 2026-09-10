@@ -128,7 +128,7 @@ export function LibraryBar() {
         ) : (
           <>
             <div aria-hidden />
-            <h1 className="min-w-0 truncate text-center font-heading text-base font-semibold tracking-tight text-ink">
+            <h1 className="min-w-0 truncate text-center font-heading text-base font-medium tracking-tight text-ink">
               Library
             </h1>
             <button

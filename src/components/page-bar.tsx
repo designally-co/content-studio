@@ -25,12 +25,18 @@ export const PAGE_ACTION_BUTTON =
  *  has that problem — it sits ON a surface, in a corner, and its soft grey
  *  fill is enough on its own.
  *
+ *  `--line` rather than `--line-strong`: the edge only has to close the shape,
+ *  not draw attention to it. At #e0e0e0 the hairline was the loudest thing on
+ *  a bar whose whole job is to stay out of the way of the article under it;
+ *  at #f0f0f0 it is nearly invisible against the disc and does the one thing
+ *  it is there for — stopping the white from dissolving into the page.
+ *
  *  40px, like every other icon button. The size lives HERE rather than at the
  *  call sites now that there is only one of it — a caller cannot drift from a
  *  number it does not state, and the two-`size-*`-utilities trap this used to
  *  invite needs two sizes to exist before it can happen. */
 export const PAGE_ACTION_BUTTON_QUIET =
-  "grid size-10 place-items-center rounded-full border border-line-strong bg-surface text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-chrome hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]";
+  "grid size-10 place-items-center rounded-full border border-line bg-surface text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-chrome hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]";
 
 /*  40, THE SAME AS EVERY OTHER ICON BUTTON. The sheet's close was 36 and the
  *  drawer's 44, which is why the size used to live at the call sites; with one
@@ -110,7 +116,7 @@ export function PageBar({
             block it used to open with is a desktop idea. Truncated rather than
             wrapped: the bar is one line tall and a second one would push it
             off the button's line. */}
-        <h1 className="min-w-0 truncate text-center font-heading text-base font-semibold tracking-tight text-ink">
+        <h1 className="min-w-0 truncate text-center font-heading text-base font-medium tracking-tight text-ink">
           {title}
         </h1>
         <div className="justify-self-end">{action}</div>

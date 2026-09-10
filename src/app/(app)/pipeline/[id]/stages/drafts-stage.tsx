@@ -406,7 +406,7 @@ export function DraftsStage({
                    carries its own fill and hairline because it now has article
                    text passing beneath it; `cs-tool` is drawn for a toolbar,
                    where the surface behind it is known to be empty. */
-                className="grid size-9 shrink-0 place-items-center rounded-full border border-line-strong bg-surface/90 text-ink-2 shadow-[var(--shadow-card)] backdrop-blur-sm transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:cursor-not-allowed disabled:opacity-40 aria-pressed:bg-sunken aria-pressed:text-ink"
+                className="grid size-10 shrink-0 place-items-center rounded-full border border-line bg-surface/90 text-ink-2 shadow-[var(--shadow-card)] backdrop-blur-sm transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)] disabled:cursor-not-allowed disabled:opacity-40 aria-pressed:bg-sunken aria-pressed:text-ink"
                 aria-pressed={editing}
                 aria-label="Edit the Markdown"
                 title={editing ? "Preview the article" : "Edit the Markdown"}
@@ -486,7 +486,7 @@ export function DraftsStage({
                   Revise, Brand check — so this one is too. It names the next
                   stage's WORK rather than repeating the button underneath it,
                   which already says where the button goes. */}
-              <h3 className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">
+              <h3 className="font-heading text-[length:var(--text-h3)] font-medium tracking-tight text-ink">
                 Add a cover image
               </h3>
               {/* Says why the button is unavailable rather than just being grey:
@@ -529,7 +529,7 @@ export function DraftsStage({
           >
             <div className="cs-bezel-core">
               <div className="px-5 pb-4 pt-5">
-                <h3 className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">Revise</h3>
+                <h3 className="font-heading text-[length:var(--text-h3)] font-medium tracking-tight text-ink">Revise</h3>
                 <p className="mt-1 text-sm leading-relaxed text-ink-2">One focused change at a time.</p>
               </div>
 

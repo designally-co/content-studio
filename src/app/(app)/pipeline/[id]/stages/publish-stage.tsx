@@ -221,7 +221,7 @@ function ArticlePanel({
     return (
       <section className="cs-card overflow-hidden">
         <div className="border-b border-line px-5 py-3">
-          <h3 className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">Final content</h3>
+          <h3 className="font-heading text-[length:var(--text-h3)] font-medium tracking-tight text-ink">Final content</h3>
         </div>
         <div className="px-6 py-5">
           <p className="text-sm text-ink-3">No draft was selected.</p>
@@ -295,7 +295,7 @@ function ContentPanel({
   return (
     <section className="cs-card overflow-hidden">
       <div className="flex flex-wrap items-center gap-3 border-b border-line px-6 py-4">
-        <span className="inline-flex h-6 items-center rounded-full bg-accent-soft px-2.5 font-heading text-xs font-semibold text-accent-press">
+        <span className="inline-flex h-6 items-center rounded-full bg-accent-soft px-2.5 font-heading text-xs font-medium text-accent-press">
           Draft
         </span>
         <span className="num text-[length:var(--text-sm)] text-ink-3">
@@ -754,7 +754,7 @@ function ImagePanel({
               ARTICLE is named nowhere, and it is the article that carries over
               from the screen before. Matching that screen's h1 is what makes it
               read as the same piece rather than as a note about one. */}
-          <p className="font-heading text-[length:var(--text-h2)] font-semibold leading-tight tracking-tight text-ink">
+          <p className="font-heading text-[length:var(--text-h2)] font-medium leading-tight tracking-tight text-ink">
             {title}
           </p>
 
@@ -1104,7 +1104,7 @@ function ImagePanel({
             {/* Named by the work you do next, like every other panel in the
                 rail — see the fuller note on the draft stage, where this same
                 heading appeared word for word. */}
-            <h3 className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">
+            <h3 className="font-heading text-[length:var(--text-h3)] font-medium tracking-tight text-ink">
               Review and publish
             </h3>
             {/* "Generate an image, or continue without one" restated the two
@@ -1133,7 +1133,7 @@ function ImagePanel({
             nothing else about the page changes. */}
         <section className="cs-bezel" aria-label="Generated images">
           <div className="cs-bezel-core p-5">
-            <h3 className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">
+            <h3 className="font-heading text-[length:var(--text-h3)] font-medium tracking-tight text-ink">
               Generated images
             </h3>
             <p className="mt-1 text-sm leading-relaxed text-ink-2">{imagesNote}</p>
@@ -1632,7 +1632,7 @@ function PublishRail({
       <section className="cs-bezel">
         <div className="cs-bezel-core p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 id="publish-heading" className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">Publish to the Hub</h2>
+            <h2 id="publish-heading" className="font-heading text-[length:var(--text-h3)] font-medium tracking-tight text-ink">Publish to the Hub</h2>
             {isLive ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-ok-soft px-2.5 py-1 text-xs font-semibold text-ok-ink">
                 <span className="size-1.5 rounded-full bg-ok" aria-hidden="true" />
@@ -1782,7 +1782,7 @@ function PublishRail({
               panel's only action at a different width and altitude from every
               other panel in the rail. Full width at the foot, like Regenerate
               in the Revise panel. */}
-          <h3 className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">Brand check</h3>
+          <h3 className="font-heading text-[length:var(--text-h3)] font-medium tracking-tight text-ink">Brand check</h3>
           {!review && anthropicReady && !reviewing && (
             <p className="mt-1 text-sm leading-relaxed text-ink-2">
               Reads the finished article against the brand profile before it goes out.

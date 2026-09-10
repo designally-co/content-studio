@@ -55,7 +55,7 @@ export function ConfirmDialog({
           className="fixed left-1/2 top-1/2 z-(--z-modal) w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-(--sheet-bg) p-5 shadow-[var(--shadow-pop)] outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none sm:p-6"
         >
           <div className="flex items-start justify-between gap-4">
-            <Dialog.Title className="font-heading text-[length:var(--text-h2)] font-semibold tracking-tight text-(--sheet-ink)">
+            <Dialog.Title className="font-heading text-[length:var(--text-h2)] font-medium tracking-tight text-(--sheet-ink)">
               {title}
             </Dialog.Title>
             <Dialog.Close

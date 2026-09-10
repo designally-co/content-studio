@@ -211,7 +211,7 @@ export function SideNav({
           /* 40 like every other icon button, and `-right-5` with it: the offset
              is half the width, which is what keeps the handle centred on the
              rail's edge. Left at -4 it would have sat 4px inside the rail. */
-          className="absolute -right-5 top-5 z-10 grid size-10 place-items-center rounded-full border border-line-strong bg-bg text-ink-2 shadow-[var(--shadow-card)] transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+          className="absolute -right-5 top-5 z-10 grid size-10 place-items-center rounded-full border border-line bg-bg text-ink-2 shadow-[var(--shadow-card)] transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
@@ -234,7 +234,7 @@ export function SideNav({
               <p className="text-xs font-semibold uppercase tracking-[var(--tracking-caps)] text-ink-3">
                 Designally
               </p>
-              <p className="font-heading text-base font-semibold tracking-tight text-ink">
+              <p className="font-heading text-base font-medium tracking-tight text-ink">
                 Article Studio
               </p>
             </div>
@@ -279,7 +279,7 @@ function MobileBrand() {
         <p className="text-xs font-semibold uppercase tracking-[var(--tracking-caps)] text-ink-3">
           Designally
         </p>
-        <p className="truncate font-heading text-base font-semibold tracking-tight text-ink">
+        <p className="truncate font-heading text-base font-medium tracking-tight text-ink">
           Article Studio
         </p>
       </div>

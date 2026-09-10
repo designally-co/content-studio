@@ -168,7 +168,7 @@ export function RoutineForm({
           aria-describedby={undefined}
         >
           <div className="mb-6 flex items-start justify-between gap-4">
-            <Dialog.Title className="font-heading text-[length:var(--text-h2)] font-semibold tracking-tight text-(--sheet-ink)">
+            <Dialog.Title className="font-heading text-[length:var(--text-h2)] font-medium tracking-tight text-(--sheet-ink)">
               {title}
             </Dialog.Title>
             <Dialog.Close

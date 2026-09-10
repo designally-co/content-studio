@@ -1199,12 +1199,18 @@ main:has(.cs-create-page),
   h4 {
     font-family: var(--font-heading);
     color: var(--ink);
-    /* 600, not 700. Zalando Sans at 700 is a poster weight, and every heading
-       in a product screen wearing it leaves nothing for a heading that is
-       genuinely louder than its neighbours to do. Hierarchy comes from size
-       and colour; weight is the smallest of the three levers and was being
-       spent first. */
-    font-weight: 600;
+    /* 500, AND IT WENT 700 -> 600 -> 500 FOR THE SAME REASON EACH TIME.
+       Zalando Sans at 700 is a poster weight; at 600 every heading on a
+       product screen still arrives shouting, which leaves nothing for a
+       heading that is genuinely louder than its neighbours to do. Hierarchy
+       comes from size and colour, and weight is the smallest of the three
+       levers — it was being spent first.
+
+       500 is a real face here rather than a request the browser rounds off;
+       loading it is what made this step available at all. Decks stay at 400,
+       so the gap between a heading and the sentence under it is one step and
+       is carried by size as much as by weight. */
+    font-weight: 500;
     letter-spacing: var(--tracking-heading);
     line-height: var(--leading-tight);
     text-wrap: balance;

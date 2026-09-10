@@ -27,7 +27,7 @@ export function PageHeading({
   return (
     <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
       <div className="min-w-0">
-        <h1 className="font-heading text-[length:var(--text-h1)] font-semibold leading-[1.1] tracking-[-0.02em] text-ink sm:text-[length:var(--text-hero)]">
+        <h1 className="font-heading text-[length:var(--text-h1)] font-medium leading-[1.1] tracking-[-0.02em] text-ink sm:text-[length:var(--text-hero)]">
           {title}
         </h1>
         {description && (

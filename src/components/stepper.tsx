@@ -191,8 +191,14 @@ export function Stepper({
                        page's #f8f8f7 ground is a five-value difference — at the
                        top of a page, before anything has scrolled under the
                        blur, the pill had no edge at all once the shadow came
-                       off. A hairline states it flatly instead of lifting it. */
-                    "border-line-strong bg-surface font-medium text-ink"
+                       off. A hairline states it flatly instead of lifting it.
+
+                       `--line`, the same edge every card and icon button uses.
+                       At `--line-strong` this pill was outlined more heavily
+                       than the containers below it, which made the progress
+                       row read as the most important thing on a screen it is
+                       supposed to sit quietly at the top of. */
+                    "border-line bg-surface font-medium text-ink"
                   : navigable
                     ? "border-transparent text-ink-3 hover:bg-chrome-hover hover:text-ink"
                     : "border-transparent text-ink-3 opacity-60"

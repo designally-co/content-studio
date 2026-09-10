@@ -64,7 +64,7 @@ function DraftProgress({ title }: { title: string }) {
     <div className="cs-bezel mx-auto max-w-2xl">
       <div className="cs-bezel-core px-6 py-7 sm:px-8 sm:py-9">
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-3">Preparing</p>
-        <h3 className="mt-3 font-heading text-[length:var(--text-h3)] font-semibold leading-snug tracking-tight text-ink">
+        <h3 className="mt-3 font-heading text-[length:var(--text-h3)] font-medium leading-snug tracking-tight text-ink">
           {title}
         </h3>
 
@@ -219,7 +219,7 @@ export function PrepareDraftStage({
       <StageShell title="Draft" wide>
         <div className="cs-bezel mx-auto max-w-2xl">
           <div className="cs-bezel-core px-6 py-7 sm:px-8 sm:py-9">
-            <h3 className="font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink">
+            <h3 className="font-heading text-[length:var(--text-h3)] font-medium tracking-tight text-ink">
               The draft did not start
             </h3>
             <p className="mt-3 text-sm leading-relaxed text-ink-2">{error}</p>

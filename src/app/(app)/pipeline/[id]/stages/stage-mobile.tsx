@@ -258,7 +258,7 @@ export function StageSheet({
               type="button"
               aria-expanded={open}
               onClick={() => drag === null && setOpen((v) => !v)}
-              className="min-w-0 flex-1 truncate pb-0.5 pt-2 text-left font-heading text-[length:var(--text-h3)] font-semibold tracking-tight text-ink"
+              className="min-w-0 flex-1 truncate pb-0.5 pt-2 text-left font-heading text-[length:var(--text-h3)] font-medium tracking-tight text-ink"
             >
               {title}
             </button>

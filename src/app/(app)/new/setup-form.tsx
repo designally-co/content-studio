@@ -143,7 +143,7 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
             {/* One line, one colour. The supporting sentence moved into the
                 field's own placeholder, where it explains the input at the
                 moment the editor is looking at the input. */}
-            <h1 className="mx-auto max-w-2xl text-balance font-heading text-[length:var(--text-h1)] font-semibold leading-[1.1] tracking-[-0.02em] text-ink motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-200 sm:text-[length:var(--text-hero)]">
+            <h1 className="mx-auto max-w-2xl text-balance font-heading text-[length:var(--text-h1)] font-medium leading-[1.1] tracking-[-0.02em] text-ink motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-200 sm:text-[length:var(--text-hero)]">
               What should the industry read next?
             </h1>
           </div>
@@ -293,7 +293,7 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                the canvas and centre itself the way the composer it replaced did. */
             <div className="flex min-h-[calc(100svh-4rem)] flex-col items-center justify-center text-center motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200 lg:min-h-svh">
               <div className="px-6">
-                <p className="font-heading text-[length:var(--text-h2)] font-semibold leading-tight tracking-tight text-ink">
+                <p className="font-heading text-[length:var(--text-h2)] font-medium leading-tight tracking-tight text-ink">
                   Searching creative-industry sources…
                 </p>
                 <p className="mx-auto mt-2.5 min-h-6 max-w-md text-balance leading-relaxed text-ink-2">
@@ -310,7 +310,7 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                   live here: a different set of ideas, or back to writing your
                   own. Without these the results are a dead end. */}
               <header className="mb-8 sm:mb-10">
-                <h2 className="max-w-2xl text-balance font-heading text-[length:var(--text-h1)] font-semibold leading-[1.1] tracking-[-0.02em] text-ink sm:text-[length:var(--text-hero)]">
+                <h2 className="max-w-2xl text-balance font-heading text-[length:var(--text-h1)] font-medium leading-[1.1] tracking-[-0.02em] text-ink sm:text-[length:var(--text-hero)]">
                   Pick the one worth writing.
                 </h2>
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
@@ -363,7 +363,7 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                         className="group -mx-3 flex w-[calc(100%+1.5rem)] items-start gap-5 rounded-xl px-3 py-6 text-left transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-surface focus-visible:bg-surface focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:fill-mode-both motion-safe:duration-300 sm:-mx-4 sm:w-[calc(100%+2rem)] sm:px-4 sm:py-7"
                       >
                         <div className="min-w-0 flex-1">
-                          <p className={`max-w-2xl text-balance font-heading font-semibold leading-tight tracking-tight text-ink ${lead ? "text-[length:var(--text-h2)]" : "text-[length:var(--text-h3)]"}`}>
+                          <p className={`max-w-2xl text-balance font-heading font-medium leading-tight tracking-tight text-ink ${lead ? "text-[length:var(--text-h2)]" : "text-[length:var(--text-h3)]"}`}>
                             {topic.title}
                           </p>
                           {topic.angle && (
