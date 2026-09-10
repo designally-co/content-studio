@@ -440,7 +440,23 @@ function RoutineCard({
        Settings plate already are. The bordered box this used to be gave four
        routines four competing outlines on a page whose job is to be glanced
        at; the surface change carries the separation on its own. */
-    <section className="rounded-2xl border border-line bg-surface p-5 transition-shadow duration-(--duration-base) ease-(--ease-out) hover:shadow-[var(--shadow-card)]">
+    /* ONE PADDING, ALL THE WAY ROUND, AND THE SAME 12 THE LIBRARY CARDS USE.
+       At 20 with a 14px gap under the rule this measured 199px to carry a
+       name, two lines of description and a schedule — and the footer row sat
+       14 from the rule above it and 20 from the edge below, so the strip was
+       visibly lopsided. Most of the remaining height is not type but the menu
+       button: a 36px target with padding either side of it, which is why
+       trimming 20 to 16 barely moved the card and 12 does.
+
+       12 everywhere — above the title, beside it, above the rule, below it,
+       and under the footer — so nothing on this card is a distance that
+       exists only here, and a routine is the same object as an article in the
+       Library rather than a roomier cousin of one.
+
+       16 from `sm` up, where the card is the width of the page rather than
+       the width of a phone: 12 is compact against 351px and mean against
+       1100. */
+    <section className="rounded-2xl border border-line bg-surface p-3 transition-shadow duration-(--duration-base) ease-(--ease-out) hover:shadow-[var(--shadow-card)] sm:p-4">
       <div className="flex items-start justify-between gap-4">
         <h3 className="min-w-0 flex-1 font-heading text-[length:var(--text-h3)] font-semibold leading-snug tracking-tight text-ink">
           {routine.name}
@@ -490,8 +506,13 @@ function RoutineCard({
       {/* EDGE TO EDGE. The rule was inside the card's padding, so it stopped
           short of both sides and read as an underline beneath the description
           rather than as a line dividing the card in two. Pulled out by the
-          card's own padding and given it back as its own, it cuts. */}
-      <div className="-mx-5 mt-4 flex items-center justify-between gap-3 border-t border-line px-5 pt-3.5">
+          card's own padding and given it back as its own, it cuts.
+
+          Which means these three numbers are the card's padding written again,
+          and they have to be changed together — a `-mx-5` left behind by a
+          card that became `p-3` would hang the rule two pixels over each
+          edge. */}
+      <div className="-mx-3 mt-3 flex items-center justify-between gap-3 border-t border-line px-3 pt-3 sm:-mx-4 sm:mt-4 sm:px-4 sm:pt-4">
         {/* The icon marks the line as a time rather than as one more sentence
             about the routine — the only thing distinguishing metadata from
             prose once the card is down to two facts. Decorative: the words
