@@ -150,8 +150,20 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                 text — it is read in one glance rather than line by line — and
                 at 2xl this one broke across two lines on a phone with room to
                 spare on both sides of it. */}
-            <h1 className="mx-auto max-w-3xl text-balance font-heading text-[length:var(--text-h1)] font-medium leading-[1.1] tracking-[-0.02em] text-ink motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-200 sm:text-[length:var(--text-hero)]">
-              What should the industry read next?
+            <h1 className="mx-auto max-w-3xl font-heading text-[length:var(--text-h1)] font-medium leading-[1.1] tracking-[-0.02em] text-ink motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-200 sm:text-balance sm:text-[length:var(--text-hero)]">
+              {/* BROKEN WHERE THE SENTENCE BREAKS, on a phone. `text-balance`
+                  was evening the two lines by width and landing on "What
+                  should the / industry read next?" — which splits the subject
+                  from its verb and puts the emphasis on "industry" rather than
+                  on what is being asked. It was never a width problem: at this
+                  size "What should the industry" is 249px in a 351px column.
+
+                  So the break is stated, and balance is left to `sm` and up
+                  where the line does not need one — above `sm` the whole
+                  question fits on a single line and the `br` is not rendered. */}
+              What should the industry{" "}
+              <br className="sm:hidden" />
+              read next?
             </h1>
           </div>
 
@@ -178,7 +190,7 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                 field.style.height = `${inputExpanded ? field.scrollHeight : Math.min(field.scrollHeight, 320)}px`;
               }}
               className={`cs-dock-input ${inputNeedsExpansion ? "cs-dock-input--scrollable pr-12" : ""} ${inputExpanded ? "max-h-none" : ""}`}
-              placeholder="Describe a topic, or paste a full brief — either works…"
+              placeholder="Describe a topic, or paste a full brief…"
             />
             </div>
             {inputNeedsExpansion && (
@@ -407,7 +419,11 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
           </div>
 
           {!generatingTopics && topics.length === 0 && !hasInput && (
-            <p className="text-center text-sm leading-relaxed text-ink-3">
+            /* BALANCED, so it does not wrap to a line holding one word. At the
+               dock's width this sentence broke after "design", leaving "press."
+               alone underneath — which reads as a mistake rather than as a
+               second line. */
+            <p className="text-balance text-center text-sm leading-relaxed text-ink-3">
               No idea yet? Generate ideas searches the design press.
             </p>
           )}
