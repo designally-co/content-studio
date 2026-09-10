@@ -34,30 +34,39 @@ export function Pagination({
 }) {
   if (pageCount <= 1) return null;
 
-  /* TWO DISCS, NO WORDS. "Previous" and "Next" beside arrows pointing the way
+  /* TWO ARROWS, NO WORDS. "Previous" and "Next" beside arrows pointing the way
      they already point is the label saying what the glyph says; the pair took
-     most of the width of a phone to carry four characters of meaning. White
-     with a hairline, matching the cards they page through rather than the
-     chrome at the top of the screen. The names live in `aria-label`, so
-     nothing is lost to anyone who cannot see the arrow. */
+     most of the width of a phone to carry four characters of meaning. The
+     names live in `aria-label`, so nothing is lost to anyone who cannot see
+     the arrow.
+
+     NO EDGE OF THEIR OWN, either: the pill they sit in is the surface, and a
+     bordered white disc on a bordered white pill is two outlines a few pixels
+     apart drawing the same shape. They are targets on that surface, marked on
+     touch by the ground going grey under them. */
   const step =
-    "grid size-9 place-items-center rounded-full border border-line bg-surface text-ink-2 transition-colors duration-(--duration-fast) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:[outline:2px_solid_var(--accent)] focus-visible:[outline-offset:2px]";
+    "grid size-9 place-items-center rounded-full text-ink-2 transition-colors duration-(--duration-fast) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:[outline:2px_solid_var(--accent)] focus-visible:[outline-offset:-2px]";
   const spent = `${step} pointer-events-none opacity-40`;
 
   return (
     <nav
       aria-label="Library pages"
-      /* ON THE CONTENT'S EDGE, NOT THE CARD'S. The bar ran to the same left
-         edge as the cards above it, so the range lined up with their OUTLINE
-         while every word inside them started 12px further in — the text of the
-         page had two left edges. The padding matches whatever is above it: the
-         card's own gutter below `sm`, the table cell's from `sm` up. */
-      className="mt-4 flex flex-wrap items-center justify-between gap-3 px-3 sm:px-4"
+      /* A PILL, LIKE EVERYTHING ELSE IT SITS UNDER. The paging line was loose
+         type and two floating buttons on the page ground — the one part of the
+         screen that was not on a surface, under a stack of cards that all are.
+         Enclosing it makes it one object: the range and the way to move it,
+         rather than a sentence that happens to have arrows near it.
+
+         `pr-1` against `pl-4`, because an arrow is a 36px target with its glyph
+         in the middle and the range is type that starts where its first letter
+         does. Equal padding would have left the right arrow looking pushed in.
+         No wrapping: the pill is one line by construction. */
+      className="mt-4 flex items-center justify-between gap-3 rounded-full border border-line bg-surface py-1 pl-4 pr-1"
     >
       <p className="text-sm text-ink-3">
         {from}–{to} of {total}
       </p>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         {hrefFor.previous ? (
           <Link href={hrefFor.previous} className={step} rel="prev" aria-label="Previous page">
             <ChevronLeft aria-hidden className="size-4" />
