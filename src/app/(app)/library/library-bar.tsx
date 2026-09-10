@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search, X } from "lucide-react";
 
-import { PAGE_ACTION_BUTTON, TopBlur } from "@/components/page-bar";
+import { PAGE_ACTION_BUTTON_QUIET, TopBlur } from "@/components/page-bar";
 
 /**
  * Library's phone bar: the page's name on the menu button's line, and the one
@@ -70,8 +70,14 @@ export function LibraryBar() {
   return (
     <div className="fixed inset-x-0 top-0 z-(--z-sticky) lg:hidden">
       <TopBlur />
-      {/* `pl-14` reserves the menu button's disc and the gutter it sits in. */}
-      <div className="mx-auto flex h-12 w-full max-w-7xl items-center gap-2 px-3 pl-14 sm:px-8 sm:pl-[4.5rem]">
+      {/* Three columns with matching outer widths, so the title lands in the
+          middle of the display rather than beside the menu button. The left
+          column is empty: it reserves the button's space, and the button
+          itself belongs to the navigation and paints above this. Searching,
+          the field spans the middle and the right, since a search box the
+          width of a title with a gap after it is not a search box. */}
+      <div className="mx-auto grid h-12 w-full max-w-7xl grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-2 px-3 sm:px-8">
+        <div aria-hidden />
         {searching ? (
           <>
             <input
@@ -85,27 +91,41 @@ export function LibraryBar() {
                  search does not make the band taller and shift the list. The
                  field is white on the blur, which is the one surface treatment
                  the stepper's current pill already uses on this line. */
-              className="h-9 min-w-0 flex-1 rounded-full bg-surface px-4 text-sm text-ink outline-none placeholder:text-ink-3 focus-visible:shadow-[var(--shadow-focus)] [&::-webkit-search-cancel-button]:hidden"
+              /* PLACED, NOT AUTO-FLOWED. The close button below is explicitly
+                 in column 3, and grid places explicit items before auto ones —
+                 so an auto `col-span-2` found only column 2 free on this row
+                 and wrapped to a second one, putting the field under the menu
+                 button and doubling the bar's height. Stating its columns lets
+                 the two share column 3, which is the point: the X rides on the
+                 field's right end, inside the padding reserved for it. */
+              className="col-start-2 col-end-4 row-start-1 h-9 min-w-0 rounded-full bg-surface px-4 pr-11 text-sm text-ink outline-none placeholder:text-ink-3 focus-visible:shadow-[var(--shadow-focus)] [&::-webkit-search-cancel-button]:hidden"
             />
             <button
               type="button"
               onClick={closeSearch}
               aria-label="Close search"
-              className="grid size-9 shrink-0 place-items-center rounded-full bg-chrome text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-chrome-active hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
+              /* Inside the field's right end rather than beside it: the
+                 field already spans to the gutter, and a disc after it would
+                 have made the box shorter than the title it replaced. */
+              className="col-start-3 row-start-1 mr-1 justify-self-end grid size-7 place-items-center rounded-full text-ink-3 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-chrome hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
             >
-              <X aria-hidden className="size-5" />
+              <X aria-hidden className="size-4" />
             </button>
           </>
         ) : (
           <>
-            <h1 className="min-w-0 truncate font-heading text-base font-semibold tracking-tight text-ink">
+            <h1 className="min-w-0 truncate text-center font-heading text-base font-semibold tracking-tight text-ink">
               Library
             </h1>
             <button
               type="button"
               onClick={() => setSearching(true)}
               aria-label="Search articles"
-              className={`ml-auto ${PAGE_ACTION_BUTTON}`}
+              /* White, not accent. Search commits nothing — it narrows a
+                 list — and the accent disc is the one you press to make
+                 something happen. It matches the menu button at the other end
+                 of the same line. */
+              className={`justify-self-end ${PAGE_ACTION_BUTTON_QUIET}`}
             >
               <Search aria-hidden className="size-5" />
             </button>

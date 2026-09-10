@@ -13,6 +13,16 @@
 export const PAGE_ACTION_BUTTON =
   "grid size-10 place-items-center rounded-full bg-accent text-white shadow-[var(--shadow-card)] transition-colors duration-(--duration-fast) ease-(--ease-out) enabled:hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-chrome-active disabled:text-ink-3 focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]";
 
+/** The same disc, for an action that commits nothing — search, filters, a
+ *  view switch. White rather than accent, because the accent is what you press
+ *  to make something happen and a page that colours everything that way has
+ *  said nothing about any of it. It is also the treatment the menu button on
+ *  the other end of this line already uses, and both sit over scrolling
+ *  content rather than on a surface: white is what stays legible over moving
+ *  text, where the close discs' grey would smudge into it. */
+export const PAGE_ACTION_BUTTON_QUIET =
+  "grid size-10 place-items-center rounded-full bg-surface text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-chrome hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]";
+
 /*  NO SIZE IN HERE. The sheet's close is 36 and the drawer's is 44, and
  *  stating a size in the constant meant each call site that wanted the other
  *  one put a second `size-*` on the same element — two utilities of equal
@@ -76,19 +86,27 @@ export function PageBar({
   return (
     <div className="fixed inset-x-0 top-0 z-(--z-sticky) lg:hidden">
       <TopBlur />
-      {/* `pl-14` is the menu button's 44px disc plus the 12px gutter it sits
-          in, so the title starts where the button ends rather than underneath
-          it. The button belongs to the navigation and paints a layer above
-          this, which is why the space for it is reserved rather than shared. */}
-      <div className="mx-auto flex h-12 w-full max-w-7xl items-center gap-3 px-3 pl-14 sm:px-8 sm:pl-[4.5rem]">
+      {/* IN THE MIDDLE OF THE SCREEN, NOT AFTER THE BUTTON. Padded to clear the
+          menu disc, the title started 56px in and sat off toward the left with
+          a wide empty gap before the action — it read as a label attached to
+          the hamburger rather than as the name of the page.
+
+          Three columns, and the outer two are the SAME WIDTH, which is what
+          actually centres it: a title in the middle column is in the middle of
+          the display whether or not there is an action on the right, and it
+          does not shift when one appears. The left column is empty — the menu
+          button belongs to the navigation and paints a layer above this — so
+          the column is there to reserve its space, not to hold it. */}
+      <div className="mx-auto grid h-12 w-full max-w-7xl grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-2 px-3 sm:px-8">
+        <div aria-hidden />
         {/* The page's h1 — the only one it has below `lg`, since the heading
             block it used to open with is a desktop idea. Truncated rather than
             wrapped: the bar is one line tall and a second one would push it
             off the button's line. */}
-        <h1 className="min-w-0 truncate font-heading text-base font-semibold tracking-tight text-ink">
+        <h1 className="min-w-0 truncate text-center font-heading text-base font-semibold tracking-tight text-ink">
           {title}
         </h1>
-        {action && <div className="ml-auto shrink-0">{action}</div>}
+        <div className="justify-self-end">{action}</div>
       </div>
     </div>
   );
