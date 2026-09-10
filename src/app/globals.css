@@ -900,7 +900,13 @@
 .cs-dock-input {
   display: block;
   width: 100%;
-  min-height: 5.25rem;
+  /* TWO LINES AT REST, NOT THREE. The field grows on `input`, so the resting
+     height is not room to write in — it is a claim about how much writing is
+     expected, and three empty lines under a one-line placeholder read as a
+     form asking for a paragraph. 48px is two lines of --leading-body plus the
+     4px that sits under the last one; the third line arrives the moment it is
+     needed, and the dock is 36px shorter until then. */
+  min-height: 3rem;
   max-height: 20rem;
   padding: 0 1rem 0.25rem;
   background: transparent;

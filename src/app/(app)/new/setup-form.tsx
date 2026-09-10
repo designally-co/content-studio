@@ -178,7 +178,10 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
               ref={inputRef}
               id="article-input"
               name="articleInput"
-              rows={3}
+              /* Matches the CSS floor, so the first paint and every paint
+                 after it agree — `rows` sets the intrinsic height before the
+                 `input` handler has ever run. */
+              rows={2}
               value={articleInput}
               onChange={(event) => setArticleInput(event.target.value)}
               onInput={(event) => {
