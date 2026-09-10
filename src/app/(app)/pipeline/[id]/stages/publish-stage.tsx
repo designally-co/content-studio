@@ -1818,12 +1818,19 @@ function PublishRail({
                  high and right. Sampling the closed outline puts the centroid
                  at (13.8, 10.2) against a frame centre of (12, 12).
 
-                 Moving the glyph by that difference — 1.5px left, 1.5px down
-                 at this size — lands the mass on the middle of the disc. It is
-                 the same correction a play triangle needs, in two axes instead
-                 of one. The spinner is radially symmetric and takes none,
+                 HALF OF THAT, THOUGH, NOT ALL OF IT. Moving the glyph by the
+                 full difference is what the arithmetic says and it reads
+                 over-corrected: the eye does not weigh a pointed shape purely
+                 by ink, it also tracks how close the TIP comes to the edge, and
+                 the full shift leaves the plane sitting low and left with the
+                 tip stranded in open space. Rendered side by side at 4x, zero
+                 sits high-right, the full correction sits low-left, and half of
+                 it is the one that reads centred — which is the same rule of
+                 thumb a play triangle follows.
+
+                 The spinner is radially symmetric and takes no correction,
                  which is why this rides on the glyph and not the button. */
-              <Send aria-hidden className="size-5 translate-x-[-1.5px] translate-y-[1.5px]" />
+              <Send aria-hidden className="size-5 translate-x-[-0.75px] translate-y-[0.75px]" />
             )}
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
