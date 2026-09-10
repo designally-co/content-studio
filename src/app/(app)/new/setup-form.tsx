@@ -323,11 +323,17 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                   // It is the only control here when it shows, so it always
                   // carries its label — the responsive swap that traded words
                   // for room existed because a submit sat beside it.
-                  className="cs-btn cs-dock-btn cs-dock-btn--wide shrink-0 border-[var(--orange-200)] bg-accent-soft text-accent-press enabled:hover:border-[var(--orange-300)] enabled:hover:bg-[var(--orange-200)]"
+                  /* FILLED, NOT TINTED. It was the accent at its palest with
+                     an outline holding it together — which is what a secondary
+                     action looks like, and this is the only thing on the dock
+                     you are being invited to press. On the accent proper it
+                     needs no border to state its edge, and the label and the
+                     orb go white with it. */
+                  className="cs-btn cs-dock-btn cs-dock-btn--wide shrink-0 border-transparent bg-accent text-white enabled:hover:border-transparent enabled:hover:bg-accent-hover"
                   aria-label="Generate ideas"
                   title="Generate ideas"
                 >
-                  <AccentOrb />
+                  <AccentOrb tone="on-accent" />
                   <span className="whitespace-nowrap pl-2">Generate</span>
                 </button>
                 ) : (

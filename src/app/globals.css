@@ -1109,12 +1109,25 @@
     min-height: 44px;
   }
 
-  /* Raising the shared size variable moves the height and the square floor
-     together. Setting min-height here alone is what left these controls 44 tall
-     and 40 wide, and a pill radius renders that as an oval. */
+  /* THE DOCK'S ACTIONS DO NOT GROW ON TOUCH ANY MORE. They used to take 44
+     here while every icon button in the app is 40, so on a phone the Generate
+     pill stood 4px taller than the control beside it in the same dock — a
+     mismatch you see as a wobble along the row's baseline rather than as a
+     size. 40 is the app's one control height, and it holds on every device.
+
+     `min-height` has to be stated, not just the variable: `.cs-btn` sets 44 a
+     few lines above this, and two single-class selectors are the same
+     specificity, so the later one wins. Setting the variable alone left these
+     40 tall by `height` and 44 by `min-height` — which is the same bug the old
+     comment here described, in the other direction.
+
+     Raising the shared variable is still what moves the height and the square
+     floor together; a pill radius on a box whose two axes disagree renders as
+     an oval. */
   .cs-dock-btn,
   .cs-dock-btn-icon {
-    --dock-btn-size: 44px;
+    --dock-btn-size: 2.5rem;
+    min-height: var(--dock-btn-size);
   }
 
   [data-slot="button"],
