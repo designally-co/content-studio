@@ -9,7 +9,8 @@ export type GeneratedImage = {
   /** raw image bytes */
   data: Buffer;
   mimeType: string;
-  ext: "png" | "jpg";
+  /** `webp` is what a GENERATED image becomes on the way into storage. */
+  ext: "png" | "jpg" | "webp";
 };
 
 export type ImageResult = {

@@ -3,6 +3,7 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import type { GeneratedImage } from "./providers";
+import { loadSharp } from "./sharp";
 
 /**
  * Persist a generated image. Uses Supabase Storage when configured, otherwise
@@ -10,6 +11,14 @@ import type { GeneratedImage } from "./providers";
  * /api/images/[id] route resolves back to bytes.
  */
 export type StoredRef = { storagePath: string };
+
+/** What was actually written, for the caller that has to record it. */
+export type StoredImage = StoredRef & {
+  data: Buffer;
+  mimeType: string;
+  width: number;
+  height: number;
+};
 
 const LOCAL_DIR = path.join(process.cwd(), "data", "images");
 
@@ -39,6 +48,57 @@ function supabaseUploadHeaders(key: string, mimeType: string): HeadersInit {
     "content-type": mimeType,
     "x-upsert": "true",
   };
+}
+
+/**
+ * The longest edge a stored cover needs to be.
+ *
+ * The Hub's widest content column is well under this, and it derives its own
+ * responsive sizes from whatever it receives — so anything above 1600 is
+ * carried, paid for and thrown away. Generated originals arrive at 2048 and up.
+ */
+const DELIVERY_MAX_WIDTH = 1600;
+
+/** WebP quality. 80 is the knee: visually indistinguishable, a fraction of PNG. */
+const DELIVERY_QUALITY = 80;
+
+/**
+ * Store a generated image as a resized WebP — never the original.
+ *
+ * WHY THIS EXISTS RATHER THAN JUST CALLING `saveImage`. A generated PNG at
+ * native size runs to several megabytes, and every one of them is paid for
+ * three times over: once into Supabase, once out of it when the Hub fetches the
+ * cover, and once again by every reader the Hub serves it to. Nothing in the
+ * chain wants the original — the Hub re-encodes to its own responsive sizes
+ * from whatever it is given.
+ *
+ * It returns the bytes it actually wrote along with their dimensions, because
+ * the caller records width and height on the row. Measuring the input would
+ * file the ORIGINAL's dimensions against a file that is no longer that size —
+ * and dimensions drive the cover's aspect ratio on the Hub, so the error would
+ * surface as a cropped or letterboxed cover rather than as a wrong number.
+ *
+ * Deliberately NOT applied to reference photographs, which take the same
+ * `saveImage` path: those are material handed BACK to an image provider, and
+ * they are normalised to PNG on purpose so every provider gets one predictable,
+ * metadata-free format.
+ *
+ * sharp is required here. There is no degrade-to-the-original branch, because
+ * uploading the original is the thing this function exists to prevent — if the
+ * binary cannot load, the failure should be loud and at the point of cause.
+ */
+export async function saveGeneratedImage(img: GeneratedImage): Promise<StoredImage> {
+  const sharp = await loadSharp();
+  const { data, info } = await sharp(img.data)
+    // `withoutEnlargement` so a provider that returns something small is stored
+    // as it came, rather than upscaled into a bigger file that shows less.
+    .rotate()
+    .resize({ width: DELIVERY_MAX_WIDTH, withoutEnlargement: true })
+    .webp({ quality: DELIVERY_QUALITY })
+    .toBuffer({ resolveWithObject: true });
+
+  const ref = await saveImage({ data, mimeType: "image/webp", ext: "webp" });
+  return { ...ref, data, mimeType: "image/webp", width: info.width, height: info.height };
 }
 
 export async function saveImage(img: GeneratedImage): Promise<StoredRef> {
@@ -79,7 +139,11 @@ export async function resolveImage(
     const full = path.join(LOCAL_DIR, safe);
     try {
       const data = await fs.readFile(full);
-      const mimeType = safe.endsWith(".jpg") ? "image/jpeg" : "image/png";
+      const mimeType = safe.endsWith(".webp")
+        ? "image/webp"
+        : safe.endsWith(".jpg")
+          ? "image/jpeg"
+          : "image/png";
       return { kind: "bytes", data, mimeType };
     } catch {
       return null;

@@ -53,6 +53,17 @@ export async function generateDek(
  */
 
 /**
+ * The extension a stored image was written with — `webp` for anything
+ * generated since covers started being re-encoded, `png`/`jpg` for the ones
+ * stored before that. Falls back to `jpg` only if a path carries no extension
+ * at all, which no path this function is given ever has.
+ */
+function extensionOf(storagePath: string): string {
+  const match = /\.([a-z0-9]{3,4})$/i.exec(storagePath);
+  return match ? match[1].toLowerCase() : "jpg";
+}
+
+/**
  * Publishing, with no session check.
  *
  * Out of the stage's `"use server"` module because every exported async
@@ -121,7 +132,13 @@ export async function publishToHubCore(
         : undefined;
 
       if (signed) {
-        const ext = signed.includes(".png") ? "png" : signed.includes(".webp") ? "webp" : "jpg";
+        /* FROM THE STORED PATH, NOT THE SIGNED URL. This read the extension out
+           of the URL — and a signed URL ends in a JWT, whose segments are
+           separated by dots and can begin with any base64url characters. A
+           token segment starting "png" would have made `.png` appear in a URL
+           pointing at a WebP, and the Hub would have been handed a filename
+           that disagreed with the bytes. The path is what was written. */
+        const ext = extensionOf(chosen.storagePath);
         coverMediaId = await uploadImageToHubByUrl({
           url: signed,
           filename: `${projectId}-cover.${ext}`,

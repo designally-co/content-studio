@@ -127,6 +127,36 @@ async function checkHub(): Promise<ProviderCheck & { account?: string }> {
   return result;
 }
 
+/**
+ * Can this runtime actually load sharp?
+ *
+ * IT COULD NOT, ON VERCEL, FOR MONTHS. The Next file tracer ships sharp's
+ * `.node` binding but not the libvips shared object it links against, so every
+ * call died with `ERR_DLOPEN_FAILED: libvips-cpp.so`. That was survivable while
+ * sharp was optional everywhere it appeared — each caller degraded to the
+ * original bytes. Generated images are now resized and re-encoded through it
+ * before they are stored, and that path has no fallback by design, so whether
+ * the binary loads is no longer a detail: it decides whether image generation
+ * works at all in a given deployment.
+ *
+ * A load is not a render, so this also runs the smallest possible pipeline — a
+ * 1×1 recolour — because dlopen succeeding and libvips working are two claims,
+ * and only the second one matters here.
+ */
+async function checkSharp(): Promise<{ ok: boolean; version?: string; error?: string }> {
+  try {
+    const sharp = (await import("sharp")).default;
+    await sharp({
+      create: { width: 1, height: 1, channels: 3, background: { r: 0, g: 0, b: 0 } },
+    })
+      .webp()
+      .toBuffer();
+    return { ok: true, version: sharp.versions?.sharp };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message.slice(0, 200) : "unknown" };
+  }
+}
+
 export async function GET() {
   const started = Date.now();
 
@@ -170,7 +200,7 @@ export async function GET() {
       ? `supabase:${process.env.SUPABASE_STORAGE_BUCKET || "content-studio-images"}`
       : "local (ephemeral on Vercel — covers will not reach the Hub)";
 
-  const [anthropic, hub] = await Promise.all([checkAnthropic(), checkHub()]);
+  const [anthropic, hub, sharp] = await Promise.all([checkAnthropic(), checkHub(), checkSharp()]);
 
   let database: { ok: boolean; ms?: number; error?: string };
   let schema: SchemaCheck = { ok: null, expected: expectedMigrationCount, note: "not checked" };
@@ -204,7 +234,8 @@ export async function GET() {
       schema.ok !== false &&
       env.AUTH_GOOGLE_ID &&
       env.AUTH_SECRET &&
-      anthropic.ok !== false,
+      anthropic.ok !== false &&
+      sharp.ok,
     commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "local",
     branch: process.env.VERCEL_GIT_COMMIT_REF ?? null,
     environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? null,
@@ -212,6 +243,10 @@ export async function GET() {
     database,
     schema,
     anthropic,
+    // PART OF `ok`, unlike the Hub below: generated images are resized through
+    // sharp on the way into storage, so a runtime that cannot load it cannot
+    // make an image at all.
+    sharp,
     // Deliberately NOT part of `ok`. A Hub that is down or a key that has gone
     // stale stops publishing; it does not stop researching, drafting, or
     // generating images, which is most of what this app is. Reporting the whole

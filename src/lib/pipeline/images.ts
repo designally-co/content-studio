@@ -4,8 +4,8 @@ import { getDb } from "@/db";
 import { imageReferences, images, projects } from "@/db/schema";
 import { loadProject } from "@/lib/projects";
 import { getImageProvider } from "@/lib/image/registry";
-import { loadStoredImage, saveImage } from "@/lib/image/storage";
-import { imageSize } from "@/lib/image/dimensions";
+import { loadStoredImage, saveGeneratedImage, saveImage } from "@/lib/image/storage";
+import { loadSharp } from "@/lib/image/sharp";
 import type { ImageAspectRatio, ReferenceImageInput } from "@/lib/image/providers";
 import { IMAGE_ASPECT_RATIOS } from "@/lib/image/providers";
 import { findReferenceCandidates } from "@/lib/image/reference-sources";
@@ -43,24 +43,8 @@ export const referenceView = (row: typeof imageReferences.$inferSelect): Uploade
   license: row.license,
 });
 
-/**
- * sharp, loaded only when an image is actually being handled.
- *
- * It used to be a top-level import, and that broke drafting in production.
- * Next bundles every "use server" module on a page into one server bundle, so
- * `POST /pipeline/[id]` — which is *any* action on this page, including the
- * research plan and the draft — loaded sharp before running a line of its own.
- * On Vercel's linux-x64 runtime sharp could not dlopen (`libvips-cpp.so`
- * missing) and the request 500'd with nothing to do with images in it.
- * Locally the darwin binaries are present, so it never failed here.
- *
- * Importing it inside the functions that need it keeps a native module off the
- * path of every other action on the page. Worth doing on its own merits: no
- * action should pay to load a binary it never calls.
- */
-export async function loadSharp() {
-  return (await import("sharp")).default;
-}
+/** Re-exported so existing importers keep their path; see `@/lib/image/sharp`. */
+export { loadSharp };
 
 /**
  * Find photographs of the scene this article's image should show.
@@ -272,8 +256,10 @@ export async function generateImagesCore(
   const out: GeneratedImageView[] = [];
 
   for (const { image: img, variationNo, prompt: usedPrompt } of generated) {
-    const { storagePath } = await saveImage(img);
-    const metadata = imageSize(img.data) ?? { width: null, height: null };
+    /* RESIZED AND RE-ENCODED BEFORE IT IS STORED — the original never leaves
+       this function. Its dimensions come back from the same call, because they
+       are the STORED file's, not the provider's. */
+    const { storagePath, width, height } = await saveGeneratedImage(img);
     const [row] = await db
       .insert(images)
       .values({
@@ -284,8 +270,8 @@ export async function generateImagesCore(
         // the only record of why a given variation looks the way it does.
         prompt: usedPrompt,
         aspectRatio: request.aspectRatio,
-        width: metadata.width ?? null,
-        height: metadata.height ?? null,
+        width,
+        height,
         variationNo,
         referenceIds,
         storagePath,
