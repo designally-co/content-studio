@@ -14,6 +14,9 @@ import {
 } from "@/lib/autopilot/schedule";
 import type { RoutineView } from "@/lib/autopilot/views";
 import { PAGE_CLOSE_BUTTON } from "@/components/page-bar";
+/* Title and Close still come from Radix: they read the Dialog context the
+   shell provides, so they work anywhere inside it. */
+import { SheetDialog } from "@/components/sheet-dialog";
 
 /**
  * One routine's settings, as a dialog.
@@ -39,20 +42,6 @@ import { PAGE_CLOSE_BUTTON } from "@/components/page-bar";
  * stays a decision about this sheet instead of drifting into the rest of the
  * product: the cards behind it are still on the warm ramp.
  */
-const SHEET = {
-  "--sheet-bg": "#f8f8f7",
-  "--sheet-field": "#f0f0ef",
-  "--sheet-plate": "#ffffff",
-  "--sheet-line": "#f0f0f0",
-  "--sheet-placeholder": "#a6a6a6",
-  "--sheet-ink": "#1a1a1a",
-  "--sheet-ink-2": "#737373",
-  /* The brand orange itself. The global focus ring is `--orange-200`, a wash
-     that reads as a smudge around a field rather than as a ring somebody
-     drew; at the real value the focus is unmistakably where you are. */
-  "--sheet-ring": "#ef6148",
-} as React.CSSProperties;
-
 /** A filled control on the dialog's own ground: no border, the fill is the field. */
 const RING =
   "focus-visible:[outline:2px_solid_var(--sheet-ring)] focus-visible:[outline-offset:2px]";
@@ -159,18 +148,23 @@ export function RoutineForm({
   const scheduled = kind !== "manual";
 
   return (
-    <Dialog.Root open onOpenChange={(open) => !open && onCancel()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-(--z-backdrop) bg-ink/25 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 motion-reduce:animate-none" />
-        <Dialog.Content
-          style={SHEET}
-          className="fixed left-1/2 top-1/2 z-(--z-modal) max-h-[92svh] w-[min(46rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl bg-(--sheet-bg) p-5 shadow-[var(--shadow-pop)] outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none sm:p-7"
-          aria-describedby={undefined}
-        >
+    <SheetDialog onClose={onCancel}>
           <div className="mb-6 flex items-start justify-between gap-4">
-            <Dialog.Title className="font-heading text-[length:var(--text-h2)] font-medium tracking-tight text-(--sheet-ink)">
-              {title}
-            </Dialog.Title>
+            <div className="min-w-0">
+              <Dialog.Title className="font-heading text-[length:var(--text-h2)] font-medium tracking-tight text-(--sheet-ink)">
+                {title}
+              </Dialog.Title>
+              {/* A DECK, LIKE EVERY SECTION IN SETTINGS. "New routine" and
+                  "Edit routine" name the act and say nothing about what is
+                  being asked for, so the form opened with four fields and no
+                  statement of what they add up to. A phrase, at the length the
+                  settings decks settled on — it names what the section holds
+                  and stops. The same line for both titles, because it is the
+                  same form either way. */}
+              <p className="mt-1 text-sm leading-relaxed text-(--sheet-ink-2)">
+                What it writes, and when
+              </p>
+            </div>
             <Dialog.Close
               aria-label="Close"
             /* THE SHEET'S CLOSE, from the one constant every close in the app
@@ -179,7 +173,10 @@ export function RoutineForm({
                find rather than see. The dialog's ground is the app's own
                (#f8f8f7), so the disc's grey lands on it exactly as it does on
                a bottom sheet. */
-              className={`-mr-1 -mt-1 ${PAGE_CLOSE_BUTTON}`}
+              /* No negative right margin: the sheet's corner radius is derived
+                 from this disc's distance to the edge, and pulling it 4px
+                 further out would leave the two curves disagreeing. */
+              className={`-mt-1 ${PAGE_CLOSE_BUTTON}`}
             >
               <X aria-hidden className="size-5" />
             </Dialog.Close>
@@ -409,9 +406,7 @@ export function RoutineForm({
 
             <Footer submitLabel={submitLabel} onCancel={onCancel} />
           </form>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+    </SheetDialog>
   );
 }
 
