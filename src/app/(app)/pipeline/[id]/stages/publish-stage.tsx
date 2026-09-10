@@ -1351,8 +1351,21 @@ function PublishComposer({
           sheet's own scroller and the stepper already made the same call.
 
           The padding is the closed sheet plus a little, so the last line of the
-          article can be scrolled out from under it rather than stranded there. */}
-      <div className="min-w-0 h-[calc(100svh-5rem)] overflow-y-auto pb-[4.75rem] [scrollbar-width:none] lg:h-auto lg:overflow-visible lg:pb-0 [&::-webkit-scrollbar]:hidden">
+          article can be scrolled out from under it rather than stranded there.
+
+          AND IT REACHES UP BEHIND THE STEPPER, the same way the draft does. A
+          scroll box that begins below the bar can never send anything under it:
+          the article simply stopped at the bar's lower edge, so the blur had
+          nothing to blur and read as a plain band. The negative margin puts the
+          top of the SCROLL AREA at the top of the display — behind a bar that
+          outranks it on --z-sticky — and the matching top padding puts the
+          first line back where it was at rest. Same position when still, and
+          the article now goes out of focus as it slides underneath.
+
+          The two numbers are one number said twice: 48 for the bar and 32 for
+          the shell's own top padding, which is where this column used to
+          start. */}
+      <div className="min-w-0 -mt-20 h-svh overflow-y-auto pb-[4.75rem] pt-20 [scrollbar-width:none] lg:mt-0 lg:h-auto lg:overflow-visible lg:pb-0 lg:pt-0 [&::-webkit-scrollbar]:hidden">
         <HubPreviewFrame>
           <HubArticlePreview
             title={title}

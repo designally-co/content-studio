@@ -109,13 +109,15 @@ export function SideNav({
              for a progress indicator you rarely press; this is the only way to
              reach the rest of the app from a phone, it is pressed constantly,
              and it sits in the top corner where a thumb is least accurate. */
-          /* THE DISC THAT CLOSES IT, OPENING IT. Outlined and lifted, it was
-             the heaviest thing on the top of the screen — a hairline, a
-             shadow and a fill competing with the stepper beside it for a
-             control you press twice a session. The same soft grey disc as
-             every close button in the app: one shape for "the menu", pressed
-             either way. */
-          className={`size-11 ${STAGE_CLOSE_BUTTON}`}
+          /* WHITE, WHERE THE CLOSE DISCS ARE GREY — and the exception is the
+             point. Every close button sits ON a surface, so a soft grey fill
+             is enough to find it. This one sits over the ARTICLE, which now
+             scrolls underneath it: grey on moving text is a smudge, and the
+             hairline and shadow it used to carry made it the heaviest thing
+             on the screen for a control pressed twice a session. White is the
+             same answer the stepper's current pill reached for the same
+             reason, on the same line, against the same moving text. */
+          className="grid size-11 place-items-center rounded-full bg-surface text-ink-2 transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-chrome hover:text-ink focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus)]"
           aria-label="Open navigation"
           aria-expanded={open}
           aria-controls="mobile-navigation"
