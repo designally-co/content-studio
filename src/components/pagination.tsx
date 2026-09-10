@@ -2,7 +2,13 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 /**
- * Which slice of the library you are looking at, and how to move.
+ * Which slice of a list you are looking at, and how to move.
+ *
+ * SHARED, BECAUSE PAGING IS NOT A LIBRARY IDEA. It began there and reads the
+ * same wherever a list is longer than a page — Library at every width, and the
+ * routines history next. The one thing that was actually about the Library was
+ * the nav's accessible name, which is now the caller's to state; everything
+ * else was already general.
  *
  * IT STATES THE RANGE, NOT JUST THE PAGE. "Page 2 of 4" tells you where you
  * are in a sequence nobody can picture; "21–40 of 73" tells you how much there
@@ -21,16 +27,20 @@ export function Pagination({
   from,
   to,
   hrefFor,
+  label,
 }: {
-  /* `page` still arrives with the rest and is deliberately unread: the range
-     below states where you are, and the guard below only needs the count. */
-  page?: number;
   pageCount: number;
+  /** How many there are in total, not on this page. */
   total: number;
+  /** The first and last of this page, counting from one. */
   from: number;
   to: number;
-  /** Prebuilt on the server, so the other filters survive the move. */
+  /** Prebuilt by the caller, so whatever else is in the URL survives the move. */
   hrefFor: { previous: string | null; next: string | null };
+  /** Names the nav for assistive technology — "Library pages", "Run pages".
+   *  A page with two of these needs them told apart, and "pagination" would
+   *  not do it. */
+  label: string;
 }) {
   if (pageCount <= 1) return null;
 
@@ -42,14 +52,18 @@ export function Pagination({
 
      Each on its own disc, matching the pill beside them: same white, same
      hairline, same fully-rounded edge. Three objects on one line, not one
-     enclosure containing three things. */
+     enclosure containing three things.
+
+     The same at every width. A phone and a desktop are both asking "how far
+     in am I, and how do I move" — there is no version of that question that
+     needs the word "Previous" spelled out beside a left-pointing arrow. */
   const step =
     "grid size-9 place-items-center rounded-full border border-line bg-surface text-ink-2 transition-colors duration-(--duration-fast) hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:[outline:2px_solid_var(--accent)] focus-visible:[outline-offset:2px]";
   const spent = `${step} pointer-events-none opacity-40`;
 
   return (
     <nav
-      aria-label="Library pages"
+      aria-label={label}
       /* The row itself carries nothing — no ground, no edge, no padding. What
          sits on it does: a pill holding the count, and two discs to move by.
          Enclosing the whole line instead made the range and the arrows one

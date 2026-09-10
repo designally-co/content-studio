@@ -10,7 +10,7 @@ import { LibraryBar } from "./library-bar";
 import { IconNew } from "@/components/icons";
 import { ArticleTable } from "./article-table";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Pagination } from "./pagination";
+import { Pagination } from "@/components/pagination";
 
 export const dynamic = "force-dynamic";
 
@@ -209,7 +209,7 @@ export default async function LibraryPage({
 
         {rows.length > 0 && (
           <Pagination
-            page={page}
+            label="Library pages"
             pageCount={pageCount}
             total={total}
             from={start + 1}
