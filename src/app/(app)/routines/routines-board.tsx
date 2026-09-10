@@ -453,10 +453,18 @@ function RoutineCard({
        exists only here, and a routine is the same object as an article in the
        Library rather than a roomier cousin of one.
 
-       16 from `sm` up, where the card is the width of the page rather than
-       the width of a phone: 12 is compact against 351px and mean against
-       1100. */
-    <section className="rounded-2xl border border-line bg-surface p-3.5 transition-shadow duration-(--duration-base) ease-(--ease-out) hover:shadow-[var(--shadow-card)] sm:p-5">
+       20 from `sm` up, where the card is the width of the page rather than
+       the width of a phone: 14 is comfortable against 351px and mean against
+       1100.
+
+       THE BOTTOM IS THE EXCEPTION, AND IT IS 8 AT BOTH SIZES. Everything above
+       the rule is content and takes the card's own margin; below it is a
+       stamp — one line of 11px type and a menu — and holding that off the edge
+       by a full gutter made the card look like it had run out of things to say
+       rather than finished saying them. `sm:pb-2` is stated as well as `pb-2`,
+       because `sm:p-5` sets all four sides inside a media query and would
+       otherwise win the bottom back on a wide screen. */
+    <section className="rounded-2xl border border-line bg-surface p-3.5 pb-2 transition-shadow duration-(--duration-base) ease-(--ease-out) hover:shadow-[var(--shadow-card)] sm:p-5 sm:pb-2">
       <div className="flex items-start justify-between gap-4">
         {/* MEDIUM, NOT SEMIBOLD. A card carrying one name does not need weight
             to say which line is the name — position already does — and five
@@ -534,13 +542,16 @@ function RoutineCard({
           and they have to be changed together — a `-mx-5` left behind by a
           card that became `p-3` would hang the rule two pixels over each
           edge. */}
-      {/* The strip gets TIGHTER BY BEING SHORTER, not by being padded less. Its
-          top padding is the card's own, the way every other edge here is — the
-          earlier lopsided version had 14 above the row and 20 below, and
-          trimming this to 8 only put the same fault the other way round. What
-          shrinks is the ROW: 11px type and a menu button pulled back to the
-          height of its glyph, so the strip is 52 where it was 60. */}
-      <div className="-mx-3.5 mt-3.5 flex items-center justify-between gap-3 border-t border-line px-3.5 pt-3.5 sm:-mx-5 sm:mt-5 sm:px-5 sm:pt-5">
+      {/* 8 ABOVE THE ROW AND 8 BELOW IT — the card's `pb-2` is the other half
+          of this pair, and the two only read as even if they are changed
+          together. The strip is a stamp, not a section: it holds one line of
+          11px type and a menu whose box is pulled to the height of its glyph,
+          so a gutter's worth of air around it was spacing for content that
+          is not there.
+
+          The horizontal numbers still track the card's padding, because they
+          exist to cancel it — that is what makes the rule cut edge to edge. */}
+      <div className="-mx-3.5 mt-3.5 flex items-center justify-between gap-3 border-t border-line px-3.5 pt-2 sm:-mx-5 sm:mt-5 sm:px-5">
         {/* The icon marks the line as a time rather than as one more sentence
             about the routine — the only thing distinguishing metadata from
             prose once the card is down to two facts. Decorative: the words
