@@ -1,5 +1,5 @@
 import "server-only";
-import { eq, asc, desc } from "drizzle-orm";
+import { and, eq, asc, desc, isNull } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   projects,
@@ -59,7 +59,11 @@ export async function loadProject(id: string) {
       db
         .select()
         .from(imageReferences)
-        .where(eq(imageReferences.projectId, id))
+        /* Swept references are excluded rather than deleted: the row survives
+           for its licence and its link from a cover, but the file is gone, so
+           offering it would draw a broken thumbnail and hand a generator an
+           address with nothing behind it. */
+        .where(and(eq(imageReferences.projectId, id), isNull(imageReferences.sweptAt)))
         .orderBy(asc(imageReferences.createdAt)),
     ]);
 

@@ -437,6 +437,16 @@ export const imageReferences = pgTable("image_references", {
    */
   license: text("license"),
   attribution: text("attribution"),
+  /**
+   * When the bytes were discarded, having done their job.
+   *
+   * Set once the article publishes: nothing regenerates a cover for a live
+   * article, and these files are the biggest thing left in the bucket. The ROW
+   * stays — it is 1.3kB against a 190kB photograph, and it carries the licence,
+   * the attribution and the link from `images.reference_ids` back to the source
+   * a cover was drawn from. Null means the file is still there.
+   */
+  sweptAt: timestamp("swept_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

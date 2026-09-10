@@ -11,6 +11,7 @@ import {
 } from "@/lib/hub";
 import { publishMetadata } from "@/lib/publish-meta";
 import { createSignedImageUrls, resolveImage } from "@/lib/image/storage";
+import { sweepPublishedReferences } from "@/lib/image/sweep-references";
 import { stripTitleHeading } from "@/lib/markdown";
 import { splitSourcesSection } from "@/lib/outline";
 import { getModels, runText } from "@/lib/anthropic";
@@ -217,6 +218,13 @@ export async function publishToHubCore(
       updatedAt: new Date(),
     })
     .where(eq(projects.id, projectId));
+
+  /* THE REFERENCES HAVE DONE THEIR JOB. Only on a live publish: a Hub draft is
+     still being worked on, and its cover may yet be regenerated from these
+     photographs. Deliberately after the project row is updated and deliberately
+     unawaited-for-failure inside — the article is already on the Hub by now, and
+     no amount of storage trouble should turn that into a failed publish. */
+  if (status === "published") await sweepPublishedReferences(projectId);
 
   /*
    * NO revalidatePath HERE.

@@ -1,0 +1,15 @@
+-- When a reference's bytes were discarded.
+--
+-- Reference photographs guide image generation and are useless once the article
+-- is published: nothing regenerates a cover for a live article, and the files
+-- are the largest thing in the bucket after the covers themselves.
+--
+-- THE ROW SURVIVES, ONLY THE FILE GOES. The weight is entirely in storage --
+-- 62 rows are 80kB of Postgres against 11.6MB of objects -- so deleting rows
+-- would reclaim nothing measurable while losing two things worth keeping: the
+-- licence and attribution recorded against each photograph, and the
+-- images.reference_ids link that says which source produced which cover.
+--
+-- Null means the file is still there. A timestamp means it was swept, and the
+-- reference is no longer offered for generation or drawn in the stage.
+ALTER TABLE "image_references" ADD COLUMN IF NOT EXISTS "swept_at" timestamp with time zone;
