@@ -52,7 +52,7 @@ export function BrandEditor({ brand }: { brand: Brand }) {
 
       <Section
         title="Brand identity"
-        description="How the brand is identified across the app."
+        description="Name and internal description"
       >
         <div className="space-y-5">
           <Field label="Name" htmlFor="brand-name" required>
@@ -71,7 +71,7 @@ export function BrandEditor({ brand }: { brand: Brand }) {
 
       <Section
         title="Writing guidelines"
-        description="Applied alongside tone and terminology."
+        description="Applied with tone and terms"
       >
         {/* NO FIELD LABEL. "Writing guidelines", then "Applied alongside tone
             and terminology", then "Additional writing guidance" — three lines
@@ -92,7 +92,7 @@ export function BrandEditor({ brand }: { brand: Brand }) {
 
       <Section
         title="Tone of voice"
-        description="The personality and language the model follows."
+        description="The personality and language"
       >
         <div className="space-y-5">
           <Field label="Descriptors">
@@ -115,7 +115,7 @@ export function BrandEditor({ brand }: { brand: Brand }) {
 
       <Section
         title="Audience"
-        description="Who the articles are written for."
+        description="Who the articles are for"
       >
         {/* "Audience" over "Target audience" was the same word twice. */}
         <Textarea
@@ -129,7 +129,7 @@ export function BrandEditor({ brand }: { brand: Brand }) {
 
       <SettingsPanel
         title="Terminology and rules"
-        description="Exact wording, preferred phrases, and boundaries."
+        description="Exact wording and boundaries"
       >
         {/* Stacked, not two columns. Half-width tag fields put a growing list
             of rules in a narrow well beside another one, so each wrapped after

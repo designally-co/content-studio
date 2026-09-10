@@ -129,11 +129,15 @@
   /* ONE RADIUS FOR EVERY BOTTOM SHEET. The stage sheets and the settings sheet
      are the same object — a surface that rises from the bottom edge and covers
      most of the screen — and they were rounded by two different classes that
-     happened to agree. 28: `--radius-3xl` is 20, which on something 375 wide
-     reads as a square with its corners knocked off, and the dock beside it is
-     already 30. A sheet is the largest surface in the product with corners at
-     all, and it should look it. */
-  --radius-sheet: 1.75rem;
+     happened to agree.
+
+     40, AND THE NUMBER IS DERIVED, not chosen: the close disc inside is 40
+     across — a 20px radius — and it sits 20 from the sheet's edge. Outer
+     equals inner plus the gap, which is the rule the dock already follows. At
+     anything less the sheet's corner turns tighter than the disc a few pixels
+     inside it, and two curves that near each other read as one shape or as a
+     mistake. */
+  --radius-sheet: 2.5rem;
   --dock-radius: 1.875rem;
   --dock-border: var(--border);
   --dock-border-focus: #bdbdbd;

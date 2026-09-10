@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Dialog } from "radix-ui";
 import { X } from "lucide-react";
 import { loadSettingsAction, type SettingsData } from "./actions";
 import { SECTION_LABELS, type SettingsSection } from "./sections";
+import { claimSheet, registerSheet, releaseSheet } from "@/components/sheet-stack";
 import { BrandEditor } from "./brand-editor";
 import { Directions } from "./directions";
 import { ArticleTemplateCard } from "./article-template-card";
@@ -87,6 +88,27 @@ export function SettingsSheet({
      the bar and the behaviour arrive together or not at all.
      Only downward: this sheet has one open height, unlike the stage sheets
      which have a closed ledge to travel back to. */
+  /* ONE SHEET AT A TIME. This mounts only while it is open, so claiming on
+     mount is the whole of it — whatever stage sheet was holding the bottom of
+     the screen closes as this one arrives. `onClose` goes through a ref so a
+     new function identity each render does not re-claim the floor. */
+  const sheetId = useId();
+  const close = useRef(onClose);
+  // In an effect, not during render: a ref written while rendering is a value
+  // React has not agreed to yet, and the rule that forbids it is pointing at
+  // exactly this shape.
+  useEffect(() => {
+    close.current = onClose;
+  }, [onClose]);
+  useEffect(() => {
+    const unregister = registerSheet(sheetId, () => close.current());
+    claimSheet(sheetId);
+    return () => {
+      releaseSheet(sheetId);
+      unregister();
+    };
+  }, [sheetId]);
+
   const [drag, setDrag] = useState<number | null>(null);
   const startY = useRef(0);
   /** Which pointer owns the gesture, so a second finger cannot hijack it. */

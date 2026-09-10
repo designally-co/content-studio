@@ -43,7 +43,7 @@ export function ApiKeys({ keys, onSaved }: { keys: SavedApiKey[]; onSaved: () =>
   return (
     <Section
       title="API keys"
-      description="For image generation. Encrypted, and never shown again."
+      description="For image generation, encrypted"
     >
       <div className="space-y-4">
         {keys.length > 0 && (
@@ -77,7 +77,11 @@ export function ApiKeys({ keys, onSaved }: { keys: SavedApiKey[]; onSaved: () =>
               const form = event.currentTarget;
               submit(saveApiKeyAction, new FormData(form), form);
             }}
-            className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end"
+            /* THE BUTTON SITS BESIDE THE FIELD AT EVERY WIDTH. It stacked
+               below on a phone, which put a full-width outlined button under a
+               single input and made a two-part form look like two things. The
+               pair is one action: paste, save. */
+            className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3"
           >
             <input type="hidden" name="provider" value="fal" />
             <div className="grid gap-2">
@@ -92,15 +96,19 @@ export function ApiKeys({ keys, onSaved }: { keys: SavedApiKey[]; onSaved: () =>
                 className="font-mono"
               />
             </div>
+            {/* "Save", not "Save key". It is the only thing on this row and
+                the field beside it is labelled Fal.ai API key — the noun was
+                being said twice, and it was what pushed the button wide enough
+                to need its own line. */}
             <Button type="submit" variant="outline" disabled={pending}>
-              {pending ? "Saving…" : "Save key"}
+              {pending ? "Saving…" : "Save"}
             </Button>
             {/* Beside the one key field, because this is where the question is
                 actually asked: why is there nowhere to put the Anthropic key?
                 It was a third sentence in the section subline, where it made
                 the heading three lines deep to answer something nobody had
                 thought to wonder yet. */}
-            <p className="text-xs text-ink-3 sm:col-span-2">
+            <p className="col-span-2 text-xs text-ink-3">
               Anthropic is configured in the server environment, not here.
             </p>
           </form>

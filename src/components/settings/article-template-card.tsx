@@ -58,7 +58,7 @@ export function ArticleTemplateCard({
   return (
     <SettingsPanel
       title="Article template"
-      description="The instructions every article is written from."
+      description="Structure every article follows"
     >
       <form onSubmit={onSubmit} className="grid gap-5">
         <div className="grid gap-2">

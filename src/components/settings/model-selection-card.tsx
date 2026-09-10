@@ -53,7 +53,7 @@ export function ModelSelectionCard({
   return (
     <Section
       title="Model selection"
-      description="Which model runs the fast work, and which the careful work."
+      description="Models for fast and careful work"
     >
       <form action={saveModelSettingsAction} className="grid gap-5">
         <input type="hidden" name="research" value={research} />

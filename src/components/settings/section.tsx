@@ -15,6 +15,21 @@ export function Section({
   children,
 }: {
   title: string;
+  /**
+   * A PHRASE, NOT A SENTENCE, and roughly the length of its neighbours.
+   *
+   * These were nine sentences between 32 and 59 characters — "How the brand is
+   * identified across the app.", "Which model runs the fast work, and which the
+   * careful work." Stacked down one column they read as nine separate small
+   * paragraphs, each asking to be finished before the heading below it could be
+   * scanned, and the ragged right edge made the column look unconsidered before
+   * a word of it was read.
+   *
+   * A settings deck is a label on a heading, not prose: it names what the
+   * section holds and stops. Kept to 25-33 characters they form an even second
+   * column that the eye can skip, which is what a deck is for — there when you
+   * need it, silent when you do not.
+   */
   description?: string;
   action?: React.ReactNode;
   children: React.ReactNode;

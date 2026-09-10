@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { X } from "lucide-react";
 
 import { PAGE_ACTION_BUTTON, PAGE_CLOSE_BUTTON } from "@/components/page-bar";
+import { claimSheet, registerSheet, releaseSheet } from "@/components/sheet-stack";
 
 /**
  * The action rail, on a phone.
@@ -135,6 +136,16 @@ export function StageSheet({
 }) {
   const [open, setOpen] = useState(false);
   const [drag, setDrag] = useState<number | null>(null);
+  /* ONE SHEET AT A TIME. The settings sheet arrives from this same edge and
+     knows nothing about this one; without the registry both sat on the bottom
+     of the screen at once. See @/components/sheet-stack. */
+  const sheetId = useId();
+  useEffect(() => registerSheet(sheetId, () => setOpen(false)), [sheetId]);
+  useEffect(() => {
+    if (!open) return;
+    claimSheet(sheetId);
+    return () => releaseSheet(sheetId);
+  }, [open, sheetId]);
   const startY = useRef(0);
   /** Which pointer owns the gesture, so a second finger cannot hijack it. */
   const pointer = useRef<number | null>(null);
@@ -269,7 +280,10 @@ export function StageSheet({
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label={`Close ${title}`}
-                className={`-mr-1 -mt-0.5 ${PAGE_CLOSE_BUTTON}`}
+                /* No negative right margin: the corner radius is derived from
+                   this disc's distance to the sheet's edge, so pulling it 4px
+                   further out would leave the two curves disagreeing. */
+                className={`-mt-0.5 ${PAGE_CLOSE_BUTTON}`}
               >
                 <X aria-hidden className="size-5" />
               </button>
