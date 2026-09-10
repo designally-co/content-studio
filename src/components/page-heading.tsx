@@ -25,7 +25,12 @@ export function PageHeading({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+    /* BOTTOM ALIGNED, NOT TOP. The heading block is two lines and the controls
+       beside it are one, so aligning their tops left the buttons floating level
+       with the title while the deck ran on underneath them — two things on one
+       row that did not look like a row. Sitting them on a common baseline is
+       what makes the header read as a single line of the page. */
+    <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
       <div className="min-w-0">
         <h1 className="font-heading text-[length:var(--text-h1)] font-medium leading-[1.1] tracking-[-0.02em] text-ink sm:text-[length:var(--text-hero)]">
           {title}

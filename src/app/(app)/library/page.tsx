@@ -184,13 +184,16 @@ export default async function LibraryPage({
             line used to do. A count is already down the page in the range on
             the paging pill, and it changes as you filter — a deck that moves
             while you type is a deck you learn to stop reading. */}
-        <PageHeading title="Library" description="Every article, drafted or out" />
-
-        <div className="mt-7">
-          <FilterBar
-            categories={cats.map((c) => ({ value: c.id, label: c.name }))}
-          />
-        </div>
+        {/* The controls sit ON the heading's line rather than in a band under
+            it. Search and two filters is not a section of the page — it is the
+            heading's action, the way "New routine" is on Routines. */}
+        <PageHeading
+          title="Library"
+          description="Every article, drafted or out"
+          actions={
+            <FilterBar categories={cats.map((c) => ({ value: c.id, label: c.name }))} />
+          }
+        />
       </header>
 
       <main className="mx-auto w-full max-w-7xl px-3 pb-24 pt-4 sm:px-8 sm:pt-10 lg:px-12 xl:px-16">

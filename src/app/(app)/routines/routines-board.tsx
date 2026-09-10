@@ -235,7 +235,19 @@ export function RoutinesBoard({
         }
       />
 
-      <div className="hidden lg:block">
+      {/* THE SAME AIR LIBRARY LEAVES. The board's `space-y-4` put 16px between
+          the heading and the first routine, where Library leaves 41 — so two
+          pages with the same shape opened differently, and this one read as
+          the list starting before the header had finished. 16 from the stack
+          Desktop only, like the header it belongs to: on a phone the name is
+          in the bar and there is no heading to space from.
+
+          40 AND NOT 24, because these margins COLLAPSE. The board stacks with
+          `space-y-4`, which is a `margin-top` on every sibling after the
+          first — adjacent vertical margins in normal flow resolve to the
+          larger of the two, not their sum. `mb-6` against that 16 produced 24
+          and not the 40 the arithmetic promised. */}
+      <div className="hidden lg:mb-10 lg:block">
         <PageHeading
           /* A PHRASE, NOT THE WARNING. This said the routine writes an article
              and sends it to the Hub unreviewed — true, and also what the

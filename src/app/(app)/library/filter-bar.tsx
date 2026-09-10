@@ -83,8 +83,13 @@ export function FilterBar({ categories }: { categories: Option[] }) {
     filters.some((f) => params.get(f.key)) || Boolean(queryParam);
 
   return (
-    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-      <div className="relative col-span-2 sm:w-64">
+    /* A ROW, BESIDE THE HEADING. This was a two-column grid stacked under the
+       title, sized for a phone — which no longer sees it at all: the phone has
+       the search disc in its bar, and this bar is `lg` and up. So it stops
+       being a block that spans the page and becomes what it is, a set of
+       controls sitting at the end of the heading's own line. */
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      <div className="relative w-56">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-3" />
         <input
           type="search"
@@ -106,13 +111,13 @@ export function FilterBar({ categories }: { categories: Option[] }) {
         )}
       </div>
       {filters.map((f) => (
-        <div key={f.key} className="col-span-1 sm:w-auto">
+        <div key={f.key}>
           <MenuSelect
             placeholder={f.label}
             ariaLabel={f.label}
             searchable={f.searchable}
             allowClear
-            className="cs-field-outline w-full text-sm sm:!h-9 sm:w-auto"
+            className="cs-field-outline !h-9 text-sm"
             value={params.get(f.key) ?? ""}
             options={f.options}
             onChange={(value) => update(f.key, value)}
@@ -128,32 +133,11 @@ export function FilterBar({ categories }: { categories: Option[] }) {
             next.delete("page");
             router.push(next.size ? `${pathname}?${next.toString()}` : pathname);
           }}
-          className="cs-btn col-span-2 text-sm sm:!h-9 sm:ml-1"
+          className="cs-btn !h-9 text-sm"
         >
           Clear filters
         </button>
       )}
-      {/* Beside the filters, not opposite them. It sat behind a "Sort by"
-          label and an `ml-auto` that pushed it to the far side of the bar, so
-          three controls doing the same job — narrowing what the table shows —
-          were split across the width of the screen with a word between them.
-          Its own value already says what it is, the way the other two do. */}
-      <div className="col-span-1 sm:w-auto">
-        <MenuSelect
-          ariaLabel="Sort articles"
-          className="cs-field-outline w-full text-sm sm:!h-9 sm:w-auto"
-          value={params.get("sort") ?? "updated_desc"}
-          options={[
-            { value: "updated_desc", label: "Recently edited" },
-            { value: "created_desc", label: "Newest created" },
-            { value: "title_asc", label: "Title A–Z" },
-            { value: "title_desc", label: "Title Z–A" },
-          ]}
-          onChange={(value) =>
-            update("sort", value === "updated_desc" ? "" : value)
-          }
-        />
-      </div>
     </div>
   );
 }
