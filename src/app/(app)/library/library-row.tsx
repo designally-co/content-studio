@@ -204,7 +204,11 @@ export function LibraryItem({
       data-selected={selected || undefined}
       /* `relative` is what lets the title's stretched link cover the whole
          item rather than just its own line. */
-      className="relative flex items-center gap-3 px-3 py-3 data-selected:bg-sunken"
+      /* Its own plate. `border-line-strong` on selection rather than a fill:
+         the card is white on the page's near-white ground, so `bg-sunken`
+         alone made a picked article read as a HOLE in the stack rather than as
+         one that is picked. The edge states it without changing the surface. */
+      className="relative flex items-center gap-3 rounded-2xl border border-line bg-surface px-3 py-3 transition-colors duration-(--duration-fast) ease-(--ease-out) data-selected:border-line-strong data-selected:bg-sunken"
     >
       {/* Above the stretched link, or the link swallows the tick and opens the
           article instead. */}

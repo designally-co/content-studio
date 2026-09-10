@@ -118,8 +118,15 @@ export function ArticleTable({ rows }: { rows: ArticleRow[] }) {
           Status — at 375px the title had about seven characters before the
           ellipsis. Below `sm` the same rows render as list items instead; from
           `sm` up the table is what it always was, since by then there is width
-          for columns to mean something. */}
-      <ul className="overflow-hidden rounded-2xl border border-line bg-surface [&>li+li]:border-t [&>li+li]:border-line sm:hidden">
+          for columns to mean something.
+
+          EACH ONE ON ITS OWN CARD, rather than ruled lines inside a single
+          plate. A row is a row because the things beside it line up into
+          columns; with the columns gone there is nothing to line up, and a
+          hairline between two titles was left drawing a boundary that no
+          longer separated anything. Cards say what is actually true — that
+          these are ten separate articles, each a thing you open. */}
+      <ul className="space-y-2 sm:hidden">
         {rows.map((row) => (
           <LibraryItem
             key={row.id}
