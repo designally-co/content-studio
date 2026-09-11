@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, LoaderCircle, Maximize2, Minimize2, Send, Sparkle } from "lucide-react";
+import { LoaderCircle, Maximize2, Minimize2, RefreshCw, Send, Sparkle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeading } from "@/components/page-heading";
+import { PageBar, PAGE_ACTION_BUTTON } from "@/components/page-bar";
 import { AccentOrb } from "@/components/accent-orb";
 import OrbitingCirclesGlobe from "@/components/ui/orbiting-circles-02";
 import { createProjectAction, inferArticleSetupAction } from "./actions";
@@ -145,6 +148,128 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
     }
   }
 
+  /* THE LIST IS A PAGE, NOT A STATE OF THE COMPOSER. It used to render inside
+     the composer's column with a heading of its own invention, so it was the
+     one list in the app that did not look like Library or Routines. It now
+     opens the way those two do: the name in the bar on a phone, the heading
+     with its deck and its actions on one line on a desktop, the same container,
+     and one card per idea in the card the routines use. */
+  if (topics.length > 0) {
+    const directionCount = new Set(topics.map((topic) => topic.directionName)).size;
+    const deck = `${topics.length} ideas across ${directionCount} direction${directionCount === 1 ? "" : "s"}${ideasPillar ? ` in ${ideasPillar.name}` : ""}`;
+    const startOver = () => {
+      setTopics([]);
+      setError(null);
+    };
+    return (
+      <div className="mx-auto w-full max-w-7xl px-3 pb-24 pt-4 sm:px-8 sm:pt-14 lg:px-12 xl:px-16">
+        <div className="w-full space-y-4">
+          {/* The phone's one action is another set; the way back is at the foot
+              of the list, where you arrive having read it. */}
+          <PageBar
+            title="Ideas"
+            action={
+              <button
+                type="button"
+                onClick={() => void generateTopics()}
+                disabled={ideasBusy}
+                aria-label="Regenerate ideas"
+                title="Regenerate ideas"
+                className={PAGE_ACTION_BUTTON}
+              >
+                <RefreshCw aria-hidden className="size-5" />
+              </button>
+            }
+          />
+
+          <div className="hidden lg:mb-10 lg:block">
+            <PageHeading
+              title="Ideas"
+              description={deck}
+              actions={
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" onClick={startOver} disabled={pending}>
+                    Start over
+                  </Button>
+                  <Button type="button" onClick={() => void generateTopics()} disabled={ideasBusy}>
+                    Regenerate
+                  </Button>
+                </div>
+              }
+            />
+          </div>
+
+          {error && (
+            <p className="rounded-xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{error}</p>
+          )}
+
+          {/* One card per idea, and the title is the control — the same shape
+              Routines uses: a stretched pseudo-element under the whole card,
+              so the accessible name is the idea rather than a card's worth of
+              text.
+
+              THE RECOMMENDATION IS THE LINE, NOT A WORD. The lead idea draws
+              its hairline in a light tint of the accent instead of carrying
+              a "Recommended" tag: the same 1px, one colour off, which is
+              enough to pick it out of a column without adding a label to
+              read. The 300 step, not the fill: at full strength the line
+              read as a warning, and a hairline needs far less colour than a
+              button does to be seen. No arrow: on a
+              card that is entirely a target it was saying what the card's
+              shape already says. The direction is a chip, the one the
+              publish stage uses, under the text. */}
+          {topics.map((topic, index) => {
+            const lead = index === 0;
+            const sources = topic.researchSources?.map((source) => source.name).join(", ") || null;
+            return (
+              <section
+                key={`${topic.title}-${index}`}
+                style={{ animationDelay: `${Math.min(index, 7) * 45}ms` }}
+                className={`relative rounded-2xl border bg-surface p-3.5 transition-shadow duration-(--duration-base) ease-(--ease-out) hover:shadow-[var(--shadow-card)] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:fill-mode-both motion-safe:duration-300 sm:p-5 ${lead ? "border-(--orange-300)" : "border-line"}`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="max-w-3xl text-balance font-heading text-[length:var(--text-h3)] font-medium leading-snug tracking-tight text-ink">
+                      <button
+                        type="button"
+                        onClick={() => void submitArticle(topic)}
+                        disabled={pending}
+                        className="rounded-sm text-left after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:[outline:2px_solid_var(--accent)] focus-visible:[outline-offset:2px] disabled:cursor-not-allowed"
+                      >
+                        {topic.title}
+                      </button>
+                    </h3>
+                    {topic.angle && (
+                      <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-2">{topic.angle}</p>
+                    )}
+                    {/* The lead entry makes the full case; the rest give just
+                        enough to judge. */}
+                    {lead && topic.whyTimely && (
+                      <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-2">{topic.whyTimely}</p>
+                    )}
+                    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                      <span className="inline-flex items-center rounded-full bg-sunken px-2.5 py-1 text-xs font-semibold text-ink-2">
+                        {topic.directionName}
+                      </span>
+                      {sources && <span className="text-xs font-semibold text-ink-3">{sources}</span>}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            );
+          })}
+
+          {/* The way back, on a phone. The desktop heading carries it. */}
+          <div className="pt-2 lg:hidden">
+            <Button type="button" variant="outline" className="w-full" onClick={startOver} disabled={pending}>
+              Start over
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <form
       onSubmit={(event) => {
@@ -175,9 +300,10 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
       className="mx-auto flex min-h-[calc(100dvh-3rem)] w-full max-w-7xl flex-col px-3 pb-4 sm:px-6 sm:pb-8 lg:min-h-svh lg:px-12 lg:pb-10 xl:px-16"
       /* The composer and the search stage fill the screen exactly, so on a
          phone the page is locked in its frame while either is up (see the
-         rule in globals.css). The list of ideas is taller than the screen by
-         design, and the lock lifts the moment it arrives. */
-      data-fits-viewport={topics.length === 0 ? "" : undefined}
+         rule in globals.css). The list of ideas is its own page, rendered
+         above instead of this form, and carries no marker: it is taller than
+         the screen by design. */
+      data-fits-viewport=""
     >
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col">
         {showComposer && (
@@ -465,9 +591,8 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
           {/* The search stage is sized to the viewport, so it takes no top
               offset and cancels the form's bottom padding exactly (pb-4/8/10
               above) — otherwise that padding counts as content and pushes the
-              stage upward. The results list still needs a top offset now that
-              the composer is gone. */}
-          <div className={showComposer ? "mt-6" : generatingTopics ? "-mb-4 sm:-mb-8 lg:-mb-10" : "pt-8 sm:pt-10"}>
+              stage upward. The list of ideas is its own page above. */}
+          <div className={showComposer ? "mt-6" : "-mb-4 sm:-mb-8 lg:-mb-10"}>
           <div aria-live="polite">
           {generatingTopics ? (
             /* The globe orbits the very publications this call is searching, so
@@ -509,107 +634,9 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                 <OrbitingCirclesGlobe />
               </div>
             </div>
-          ) : topics.length > 0 ? (
-            <div>
-              {/* The composer is gone at this point, so the only routes onward
-                  live here: a different set of ideas, or back to writing your
-                  own. Without these the results are a dead end. */}
-              <header className="mb-8 sm:mb-10">
-                <h2 className="max-w-2xl text-balance font-heading text-[length:var(--text-h1)] font-medium leading-[1.1] tracking-[-0.02em] text-ink sm:text-[length:var(--text-hero)]">
-                  Pick the one worth writing.
-                </h2>
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-sm text-ink-2">
-                    {topics.length} ideas across {new Set(topics.map((topic) => topic.directionName)).size} directions
-                    {ideasPillar ? ` in ${ideasPillar.name}` : ""}.
-                  </p>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <button type="button" onClick={() => void generateTopics()} disabled={ideasBusy} className="cs-btn !h-9 text-sm">
-                      Regenerate
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setTopics([]);
-                        setError(null);
-                      }}
-                      disabled={pending}
-                      className="cs-btn !h-9 text-sm"
-                    >
-                      Start over
-                    </button>
-                  </div>
-                </div>
-              </header>
-
-              {/* One control per idea: the row is the target, so the eight
-                  repeated "Select topic" buttons go. `Recommended` sits below
-                  the title rather than above it — a label above a heading is a
-                  kicker, and the title has to lead. */}
-              <ul className="border-t border-line">
-                {topics.map((topic, index) => {
-                  const lead = index === 0;
-                  const meta = [
-                    lead ? "Recommended" : null,
-                    topic.directionName,
-                    topic.researchSources?.map((source) => source.name).join(", ") || null,
-                  ].filter(Boolean);
-                  return (
-                    <li key={`${topic.title}-${index}`} className="border-b border-line">
-                      <button
-                        type="button"
-                        onClick={() => void submitArticle(topic)}
-                        disabled={pending}
-                        style={{ animationDelay: `${Math.min(index, 7) * 45}ms` }}
-                        // The fill is pulled wider than the content it wraps and
-                        // given a radius, so hover reads as a highlight behind
-                        // the row rather than a slab cut to the rules. The
-                        // negative margin keeps titles on the same left edge as
-                        // the heading above; only the fill overhangs.
-                        className="group -mx-3 flex w-[calc(100%+1.5rem)] items-start gap-5 rounded-xl px-3 py-6 text-left transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-surface focus-visible:bg-surface focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:fill-mode-both motion-safe:duration-300 sm:-mx-4 sm:w-[calc(100%+2rem)] sm:px-4 sm:py-7"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className={`max-w-2xl text-balance font-heading font-medium leading-tight tracking-tight text-ink ${lead ? "text-[length:var(--text-h2)]" : "text-[length:var(--text-h3)]"}`}>
-                            {topic.title}
-                          </p>
-                          {topic.angle && (
-                            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-2">{topic.angle}</p>
-                          )}
-                          {/* The lead entry makes the full case; the rest give
-                              just enough to judge. whyTimely now opens with the
-                              date the development actually happened. */}
-                          {lead && topic.whyTimely && (
-                            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-2">{topic.whyTimely}</p>
-                          )}
-                          {meta.length > 0 && (
-                            <p className="mt-3 text-xs font-semibold text-ink-3">
-                              {meta.map((part, partIndex) => (
-                                <span key={part as string}>
-                                  {partIndex > 0 && <span aria-hidden className="px-1.5 text-line-strong">/</span>}
-                                  <span className={partIndex === 0 && lead ? "text-accent-ink" : undefined}>{part}</span>
-                                </span>
-                              ))}
-                            </p>
-                          )}
-                        </div>
-                        <ArrowRight
-                          aria-hidden
-                          className="mt-1 size-5 shrink-0 text-ink-3 transition-transform duration-(--duration-base) ease-(--ease-out) group-hover:translate-x-1 group-hover:text-accent-press"
-                        />
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
           ) : null}
           </div>
 
-          {/* The composer shows its own copy above the dock; this one serves
-              the search stage and the list, where there is no dock. */}
-          {error && !showComposer && (
-            <p className="mt-4 rounded-xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{error}</p>
-          )}
           </div>
       </div>
     </form>
