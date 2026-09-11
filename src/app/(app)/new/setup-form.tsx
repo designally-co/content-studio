@@ -226,7 +226,7 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                 Under the headline rather than beside the dock: they are a way
                 to begin, not a setting on the field, and the welcome is where
                 a beginning is offered. */}
-            <div className="mx-auto mt-8 grid w-full max-w-3xl grid-cols-2 gap-3 text-left sm:mt-10 lg:grid-cols-4">
+            <div className="mx-auto mt-8 grid w-full max-w-3xl grid-cols-2 gap-2 text-left sm:mt-10 lg:grid-cols-4">
               {pillars.map((pillar, index) => {
                 const Icon = pillarIcon(pillar.slug);
                 return (
