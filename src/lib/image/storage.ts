@@ -4,11 +4,28 @@ import fs from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import type { GeneratedImage } from "./providers";
 import { loadSharp } from "./sharp";
+import {
+  R2_VARS,
+  currentPublicUrl,
+  deleteR2Object,
+  getR2Object,
+  isR2Url,
+  putR2Object,
+  r2Config,
+  r2KeyFromUrl,
+} from "./r2";
 
 /**
- * Persist a generated image. Uses Supabase Storage when configured, otherwise
- * the local filesystem (self-host friendly). Returns a storage path that the
- * /api/images/[id] route resolves back to bytes.
+ * Where images are kept, and how to get them back.
+ *
+ * A row's `storage_path` names the store its file is in, by its shape:
+ *
+ *   https://…               Cloudflare R2 — every image written now, stored as
+ *                           its full public URL.
+ *   supabase:<bucket>/<f>   Supabase Storage — rows written before the move to
+ *                           R2. READ-ONLY: nothing uploads there any more, and
+ *                           nothing deletes from it.
+ *   local:<f>               ./data/images — local development and self-hosting.
  */
 export type StoredRef = { storagePath: string };
 
@@ -22,12 +39,12 @@ export type StoredImage = StoredRef & {
 
 const LOCAL_DIR = path.join(process.cwd(), "data", "images");
 
+/** Supabase credentials, used only to READ rows written before the move to R2. */
 function supabase() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const bucket = process.env.SUPABASE_STORAGE_BUCKET || "content-studio-images";
   if (!url || !key) return null;
-  return { url, key, bucket };
+  return { url, key };
 }
 
 function supabaseAuthHeaders(key: string): Record<string, string> {
@@ -40,14 +57,6 @@ function supabaseAuthHeaders(key: string): Record<string, string> {
     headers.authorization = `Bearer ${key}`;
   }
   return headers;
-}
-
-function supabaseUploadHeaders(key: string, mimeType: string): HeadersInit {
-  return {
-    ...supabaseAuthHeaders(key),
-    "content-type": mimeType,
-    "x-upsert": "true",
-  };
 }
 
 /**
@@ -67,7 +76,7 @@ const DELIVERY_QUALITY = 80;
  *
  * WHY THIS EXISTS RATHER THAN JUST CALLING `saveImage`. A generated PNG at
  * native size runs to several megabytes, and every one of them is paid for
- * three times over: once into Supabase, once out of it when the Hub fetches the
+ * three times over: once into storage, once out of it when the Hub fetches the
  * cover, and once again by every reader the Hub serves it to. Nothing in the
  * chain wants the original — the Hub re-encodes to its own responsive sizes
  * from whatever it is given.
@@ -102,25 +111,23 @@ export async function saveGeneratedImage(img: GeneratedImage): Promise<StoredIma
 }
 
 export async function saveImage(img: GeneratedImage): Promise<StoredRef> {
-  const sb = supabase();
+  // The naming it has always had: a random UUID and the extension, at the
+  // bucket's root.
   const filename = `${randomUUID()}.${img.ext}`;
 
-  if (sb) {
-    const res = await fetch(
-      `${sb.url}/storage/v1/object/${sb.bucket}/${filename}`,
-      {
-        method: "POST",
-        headers: supabaseUploadHeaders(sb.key, img.mimeType),
-        body: new Uint8Array(img.data),
-      }
+  if (r2Config()) {
+    return { storagePath: await putR2Object({ key: filename, body: img.data, contentType: img.mimeType }) };
+  }
+
+  /* NO R2 ON VERCEL IS AN ERROR, NOT A FALLBACK. The filesystem there lasts
+     one invocation: an image written to it is gone before publishing looks for
+     it, and the article reaches the Hub with no cover and no error. That
+     happened once, for ten days, because this function used to fall back
+     silently. Local disk stays the right answer everywhere that has one. */
+  if (process.env.VERCEL) {
+    throw new Error(
+      `Image storage is not configured on this deployment, so the image was not saved. Set ${R2_VARS.join(", ")} and redeploy.`,
     );
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      throw new Error(
-        `Supabase storage upload failed (${res.status}): ${detail.slice(0, 200)}`
-      );
-    }
-    return { storagePath: `supabase:${sb.bucket}/${filename}` };
   }
 
   await fs.mkdir(LOCAL_DIR, { recursive: true });
@@ -132,6 +139,11 @@ export async function saveImage(img: GeneratedImage): Promise<StoredRef> {
 export async function resolveImage(
   storagePath: string
 ): Promise<{ kind: "bytes"; data: Buffer; mimeType: string } | null> {
+  if (isR2Url(storagePath)) {
+    const object = await getR2Object(r2KeyFromUrl(storagePath));
+    return object ? { kind: "bytes", ...object } : null;
+  }
+
   if (storagePath.startsWith("local:")) {
     const filename = storagePath.slice("local:".length);
     // guard against traversal
@@ -169,27 +181,31 @@ export async function resolveImage(
 }
 
 /**
- * Batch-create signed URLs so the browser can fetch images straight from
- * Supabase Storage — bypassing our serverless functions and Postgres entirely.
- * A grid of N images otherwise costs N function invocations, each opening a DB
- * connection just to look up a storage path, which exhausts the pooler.
+ * URLs a browser or the Hub can fetch an image from directly, without going
+ * through this app — so a grid of N images is not N serverless invocations,
+ * each opening a database connection to look up a path, and a cover handed to
+ * the Hub is a few hundred bytes rather than the file.
  *
- * Returns storagePath -> absolute signed URL. Paths that aren't Supabase-backed
- * (legacy `local:`) or any failure are simply omitted; callers fall back to the
- * /api/images/[id] route for those. One request per bucket, not per image.
+ * R2 rows are public, so their URL is simply rebuilt against the current
+ * domain. Supabase-era rows are private and get signed URLs, one request per
+ * bucket. `local:` paths, and anything that fails to sign, are left out;
+ * callers fall back to /api/images/[id] for those.
  */
-export async function createSignedImageUrls(
+export async function fetchableImageUrls(
   storagePaths: string[],
   expiresInSeconds = 3600
 ): Promise<Map<string, string>> {
   const out = new Map<string, string>();
-  const sb = supabase();
-  if (!sb) return out;
 
   // bucket -> (objectName -> original storagePath)
   const byBucket = new Map<string, Map<string, string>>();
   for (const storagePath of new Set(storagePaths)) {
-    if (!storagePath?.startsWith("supabase:")) continue;
+    if (!storagePath) continue;
+    if (isR2Url(storagePath)) {
+      out.set(storagePath, currentPublicUrl(storagePath));
+      continue;
+    }
+    if (!storagePath.startsWith("supabase:")) continue;
     const relative = storagePath.slice("supabase:".length);
     const separator = relative.indexOf("/");
     if (separator <= 0) continue;
@@ -199,6 +215,9 @@ export async function createSignedImageUrls(
     if (!byBucket.has(bucket)) byBucket.set(bucket, new Map());
     byBucket.get(bucket)!.set(objectName, storagePath);
   }
+
+  const sb = supabase();
+  if (!sb) return out;
 
   await Promise.all(
     [...byBucket].map(async ([bucket, objects]) => {
@@ -236,37 +255,31 @@ export async function loadStoredImage(storagePath: string): Promise<{ data: Buff
   return { data: resolved.data, mimeType: resolved.mimeType };
 }
 
-/** Remove a generated or uploaded image from its configured backing store. */
-export async function deleteStoredImage(storagePath: string): Promise<void> {
+/**
+ * Remove a generated or uploaded image from its store. Resolves to whether the
+ * file is actually gone, because one kind of file is deliberately never
+ * removed and a caller that records deletions has to be able to tell.
+ */
+export async function deleteStoredImage(storagePath: string): Promise<boolean> {
+  if (isR2Url(storagePath)) {
+    await deleteR2Object(r2KeyFromUrl(storagePath));
+    return true;
+  }
+
   if (storagePath.startsWith("local:")) {
     const filename = path.basename(storagePath.slice("local:".length));
-    if (!filename) return;
+    if (!filename) return true;
     await fs.unlink(path.join(LOCAL_DIR, filename)).catch((error: NodeJS.ErrnoException) => {
       if (error.code !== "ENOENT") throw error;
     });
-    return;
+    return true;
   }
 
-  if (storagePath.startsWith("supabase:")) {
-    const sb = supabase();
-    if (!sb) throw new Error("Supabase storage is not configured.");
-    const relative = storagePath.slice("supabase:".length);
-    const separator = relative.indexOf("/");
-    const bucket = separator > 0 ? relative.slice(0, separator) : "";
-    const objectName = separator > 0 ? relative.slice(separator + 1) : "";
-    if (!bucket || !objectName) throw new Error("Invalid Supabase storage path.");
-    const response = await fetch(`${sb.url}/storage/v1/object/${bucket}`, {
-      method: "DELETE",
-      headers: {
-        ...supabaseAuthHeaders(sb.key),
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({ prefixes: [objectName] }),
-      signal: AbortSignal.timeout(30000),
-    });
-    if (!response.ok && response.status !== 404) {
-      const detail = await response.text().catch(() => "");
-      throw new Error(`Supabase storage deletion failed (${response.status}): ${detail.slice(0, 200)}`);
-    }
-  }
+  /* SUPABASE FILES ARE LEFT WHERE THEY ARE, ON PURPOSE. Decided when images
+     moved to R2 (September 2026): the rows written before the move still read
+     from Supabase, what it costs is egress rather than the space these occupy,
+     and deleting from the old store is not this app's job any more. The row
+     can still go — deleting an article is not refused over it — and the file
+     stays behind as an orphan. */
+  return false;
 }

@@ -38,9 +38,12 @@ export async function sweepPublishedReferences(projectId: string): Promise<{
     let swept = 0;
     for (const row of rows) {
       try {
-        await deleteStoredImage(row.storagePath);
         // Stamped only once the bytes are actually gone, so an interrupted
         // sweep leaves a row that still describes a file that still exists.
+        // A Supabase-era reference is never deleted — see `deleteStoredImage`
+        // — so it is never stamped either: that would record a deletion that
+        // did not happen.
+        if (!(await deleteStoredImage(row.storagePath))) continue;
         await db
           .update(imageReferences)
           .set({ sweptAt: new Date() })
