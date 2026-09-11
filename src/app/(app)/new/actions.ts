@@ -51,6 +51,7 @@ function extractEditorialPeriod(value: string): string | undefined {
 export async function generateTopicIdeasAction(input: {
   categoryId?: string;
   categoryName?: string;
+  pillarSlug?: string;
   language: Language;
 }): Promise<TopicIdea[]> {
   await requireUser();

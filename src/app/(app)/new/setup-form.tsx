@@ -32,6 +32,9 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
   const [topics, setTopics] = useState<TopicIdea[]>([]);
   const [generatingTopics, setGeneratingTopics] = useState(false);
   const [searchSlow, setSearchSlow] = useState(false);
+  // The pillar a shortcut card asked for, kept so Regenerate asks again for
+  // the same thing rather than silently widening to the whole territory.
+  const [ideasPillar, setIdeasPillar] = useState<PillarGroup | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -57,13 +60,20 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
     return () => clearTimeout(timer);
   }, [generatingTopics]);
 
-  async function generateTopics() {
+  /* Two ways in. The dock's button asks within the chosen direction, or the
+     whole territory if none is chosen. A pillar card asks within that pillar
+     and ignores the direction picker — the card is the scope, and having it
+     silently narrowed by a picker the editor set earlier would make the card
+     answer a question it did not ask. */
+  async function generateTopics(pillar: PillarGroup | null = ideasPillar) {
     setGeneratingTopics(true);
     setSearchSlow(false);
     setError(null);
+    setIdeasPillar(pillar);
     try {
       const result = await generateTopicIdeasAction({
-        categoryId: selection.directionId || undefined,
+        categoryId: pillar ? undefined : selection.directionId || undefined,
+        pillarSlug: pillar?.slug,
         language: "en",
       });
       if (result.length === 0) throw new Error("No topic ideas were returned. Try again or choose a direction.");
@@ -128,7 +138,12 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
          edge, which is why the dock's height had to be measured: half of it
          was a term in the offset. Flex does the same arithmetic without being
          told the number. */
-      className="mx-auto flex min-h-[calc(100svh-3rem)] w-full max-w-7xl flex-col px-3 pb-6 sm:px-6 sm:pb-20 lg:min-h-svh lg:px-12 lg:pb-24 xl:px-16"
+      /* THE FOOT IS THE FOOT ON EVERY SCREEN. The dock used to centre with
+         the welcome above `lg`; now it sits at the bottom everywhere, the
+         way a chat composer does, and the padding under it is the same kind
+         of gutter at every size — room to breathe, not a shelf. There is no
+         caption under the dock any more, so nothing else claims that space. */
+      className="mx-auto flex min-h-[calc(100svh-3rem)] w-full max-w-7xl flex-col px-3 pb-6 sm:px-6 sm:pb-8 lg:min-h-svh lg:px-12 lg:pb-10 xl:px-16"
       /* The composer and the search stage fill the screen exactly, so on a
          phone the page is locked in its frame while either is up (see the
          rule in globals.css). The list of ideas is taller than the screen by
@@ -137,24 +152,20 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
     >
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col">
         {showComposer && (
-        /* TWO ARRANGEMENTS OF THE SAME TWO THINGS. On a phone the dock goes to
-           the foot, where a thumb is, and the welcome keeps the space above it.
-           On a desktop there is no thumb and no bottom edge worth reaching for,
-           and a field pinned to the floor of a 1300px window is a long way from
-           the sentence that introduces it — so the pair centres together, which
-           is what this screen has always done there.
-
-           `justify-center` and the welcome's `lg:flex-none` are the whole
-           switch: below `lg` the welcome takes the slack and pushes the dock
-           down; above it, it takes only its own height and the two centre as
-           one group. */
-        <section className="relative flex flex-1 flex-col lg:justify-center">
+        /* ONE ARRANGEMENT AT EVERY SIZE. The dock goes to the foot and the
+           welcome — headline and the four pillar cards — centres in whatever
+           is left above it. This used to switch at `lg` to centring the pair
+           together, on the grounds that a field pinned to the floor of a tall
+           window is a long way from its headline; with the cards between them
+           the welcome is tall enough to carry the eye down, and a composer at
+           the bottom is where a composer is expected. */
+        <section className="relative flex flex-1 flex-col">
           {/* THE WELCOME KEEPS THE SPACE ABOVE, and is centred in whatever is
               left once the dock has taken the foot — so it holds its place on
               the screen rather than riding down with the thing it used to hang
               off. `pb` keeps it from settling onto the dock when the field
               grows and the space above shrinks. */}
-          <div className="flex flex-1 items-center justify-center pb-10 sm:pb-14 lg:flex-none">
+          <div className="flex flex-1 items-center justify-center pb-10 sm:pb-14">
           <div className="w-full text-center">
             {!anthropicReady && (
               <div className="mb-6 rounded-xl border border-warn/30 bg-warn-soft px-4 py-3.5 text-left text-sm text-ink-2">
@@ -183,6 +194,38 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
               <br className="sm:hidden" />
               read next?
             </h1>
+
+            {/* FOUR DOORS, ONE PER PILLAR. Each card asks for ideas from
+                across that pillar, so an editor with no topic in mind has
+                somewhere to start that is narrower than "anything" and wider
+                than one direction. Two per row on a phone, four on a desktop
+                — the row is the pillar doc's own order, 01 to 04.
+
+                Under the headline rather than beside the dock: they are a way
+                to begin, not a setting on the field, and the welcome is where
+                a beginning is offered. */}
+            <div className="mx-auto mt-8 grid w-full max-w-3xl grid-cols-2 gap-3 text-left sm:mt-10 lg:grid-cols-4">
+              {pillars.map((pillar, index) => {
+                const Icon = pillarIcon(pillar.slug);
+                return (
+                  <button
+                    key={pillar.id}
+                    type="button"
+                    onClick={() => void generateTopics(pillar)}
+                    disabled={ideasBusy}
+                    data-pillar={pillar.slug}
+                    style={{ animationDelay: `${index * 60}ms` }}
+                    className="cs-pillar-card motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:fill-mode-both motion-safe:duration-300"
+                    aria-label={`Generate ideas from the ${pillar.name} pillar`}
+                  >
+                    <span aria-hidden className="cs-pillar-card-icon">
+                      <Icon className="size-4" />
+                    </span>
+                    <span className="cs-pillar-card-name">{pillar.name}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
           </div>
 
@@ -336,7 +379,7 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                 {!hasInput ? (
                 <button
                   type="button"
-                  onClick={() => void generateTopics()}
+                  onClick={() => void generateTopics(null)}
                   disabled={ideasBusy}
                   // Markup Wash, not the saturated fill: a middle weight that
                   // gives the orb a ground to sit on, so the two read as one
@@ -421,7 +464,8 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                 </h2>
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                   <p className="text-sm text-ink-2">
-                    {topics.length} ideas across {new Set(topics.map((topic) => topic.directionName)).size} directions.
+                    {topics.length} ideas across {new Set(topics.map((topic) => topic.directionName)).size} directions
+                    {ideasPillar ? ` in ${ideasPillar.name}` : ""}.
                   </p>
                   <div className="flex shrink-0 items-center gap-2">
                     <button type="button" onClick={() => void generateTopics()} disabled={ideasBusy} className="cs-btn !h-9 text-sm">
