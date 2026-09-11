@@ -109,6 +109,18 @@ export function SheetDialog({
             utility, so the two cannot end at different times — which is what a
             modal looks like when it is wrong. */}
         <Dialog.Overlay ref={setOverlay} className="fixed inset-0 z-(--z-backdrop) bg-ink/25" />
+        {/* CENTRED BY A GRID, NOT BY A TRANSLATE. The desktop panel used to
+            sit at top-1/2 left-1/2 with a -50% translate on the `translate`
+            property — and GSAP, which animates the panel's `transform` for the
+            entrance and the drag, folds that property into its own transform
+            the first time it touches the element, baking the percentage into
+            pixels from whatever height the panel had at that instant. The
+            panel is measured before its content has settled, so the baked
+            offset was a fraction of the real one and the sheet hung well
+            below centre, growing downward off the screen. A grid cell centres
+            by layout, which GSAP never reads. The frame is inert to the
+            pointer so the scrim beneath still takes the click that closes. */}
+        <div className="pointer-events-none fixed inset-0 z-(--z-modal) lg:grid lg:place-items-center">
         <Dialog.Content
           ref={setPanel}
           /* The sheet's palette, plus wherever the drag has pushed it to. One
@@ -130,7 +142,7 @@ export function SheetDialog({
 
              THE FRAME DOES NOT SCROLL; THE COLUMN INSIDE IT DOES, so the
              handle stays put while the content moves under it. */
-          className="fixed inset-x-0 bottom-0 z-(--z-modal) flex max-h-[92svh] flex-col overflow-hidden rounded-t-(--radius-sheet) bg-(--sheet-bg) shadow-[var(--shadow-pop)] outline-none lg:inset-x-auto lg:bottom-auto lg:left-1/2 lg:top-1/2 lg:w-[min(46rem,calc(100vw-2rem))] lg:-translate-x-1/2 lg:-translate-y-1/2 lg:rounded-2xl"
+          className="pointer-events-auto fixed inset-x-0 bottom-0 flex max-h-[92svh] flex-col overflow-hidden rounded-t-(--radius-sheet) bg-(--sheet-bg) shadow-[var(--shadow-pop)] outline-none lg:static lg:inset-auto lg:w-[min(46rem,calc(100vw-2rem))] lg:rounded-2xl"
           aria-describedby={undefined}
         >
           {/* THE HANDLE, ON ITS OWN CENTRED ROW — the same bar, in the same
@@ -199,6 +211,7 @@ export function SheetDialog({
             {children}
           </div>
         </Dialog.Content>
+        </div>
       </Dialog.Portal>
     </Dialog.Root>
   );
