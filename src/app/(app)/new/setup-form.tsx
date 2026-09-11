@@ -377,24 +377,6 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
               </div>
             </div>
           </div>
-
-          {/* IT BELONGS TO THE DOCK, so it lives with the dock. After the
-              section it sat wherever the section ended — which on a phone is
-              directly under the dock and looks right, and on a desktop is the
-              bottom of a 1300px column while the dock is centred 500px above
-              it. A caption explaining a control has to be beside the control.
-
-              LONGER LINE FIRST. It breaks after "Generate ideas" rather than
-              after the question: a short line over a long one reads as a
-              heading somebody forgot to style, where a long line over a short
-              one reads as a sentence ending. */}
-          {!hasInput && (
-            <p className="mt-6 shrink-0 text-center text-sm leading-relaxed text-ink-3 sm:text-balance">
-              No idea yet? Generate ideas{" "}
-              <br className="sm:hidden" />
-              searches the design press.
-            </p>
-          )}
           </div>
         </section>
         )}
