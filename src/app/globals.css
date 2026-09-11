@@ -1330,6 +1330,19 @@ main:has(.cs-create-page),
   @media (max-width: 1023px) {
     html {
       overscroll-behavior-x: none;
+      /* THE REST OF THE APP FEEL, on every page and not only the locked
+         ones. `manipulation` keeps panning and pinching but drops the
+         double-tap zoom, which is the other way a phone ends up looking at a
+         magnified corner of a layout that was already sized for it — and it
+         removes the tap delay that double-tap detection needs. The grey
+         flash iOS paints on anything tapped is a web tell; an app answers a
+         tap with its own state, which every control here already does. The
+         text-size rule stops Safari inflating type when the phone turns
+         sideways. */
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
     }
     body {
       overflow-x: clip;

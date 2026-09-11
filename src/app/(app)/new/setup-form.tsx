@@ -164,8 +164,15 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
          the welcome above `lg`; now it sits at the bottom everywhere, the
          way a chat composer does, and the padding under it is the same kind
          of gutter at every size — room to breathe, not a shelf. There is no
-         caption under the dock any more, so nothing else claims that space. */
-      className="mx-auto flex min-h-[calc(100svh-3rem)] w-full max-w-7xl flex-col px-3 pb-6 sm:px-6 sm:pb-8 lg:min-h-svh lg:px-12 lg:pb-10 xl:px-16"
+         caption under the dock any more, so nothing else claims that space.
+
+         `dvh`, NOT `svh`, ON A PHONE. Safari's small viewport is measured
+         against its bottom bar at full height, and the bar is compact almost
+         all of the time — so `100svh` stopped some 40px short of the bar and
+         the dock hung above it over nothing. `dvh` is the viewport as it is
+         right now. The page is locked so the bar never collapses on scroll,
+         which is what makes the dynamic unit stable enough to build on. */
+      className="mx-auto flex min-h-[calc(100dvh-3rem)] w-full max-w-7xl flex-col px-3 pb-4 sm:px-6 sm:pb-8 lg:min-h-svh lg:px-12 lg:pb-10 xl:px-16"
       /* The composer and the search stage fill the screen exactly, so on a
          phone the page is locked in its frame while either is up (see the
          rule in globals.css). The list of ideas is taller than the screen by
@@ -471,7 +478,7 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                a card was only ever there to give that clip an edge to land on.
                A mask dissolves the cut instead, which frees the stage to sit on
                the canvas and centre itself the way the composer it replaced did. */
-            <div className="flex min-h-[calc(100svh-4rem)] flex-col items-center justify-center text-center motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200 lg:min-h-svh">
+            <div className="flex min-h-[calc(100dvh-4rem)] flex-col items-center justify-center text-center motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200 lg:min-h-svh">
               <div className="px-6">
                 <p className="font-heading text-[length:var(--text-h2)] font-medium leading-tight tracking-tight text-ink">
                   Searching creative-industry sources…

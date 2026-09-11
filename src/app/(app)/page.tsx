@@ -49,6 +49,8 @@ export default async function CreatePage() {
        scrolled by that much with nothing in the gap. The composer's own
        `50svh` maths is measured against the viewport, so it stays as it is;
        what was wrong was the box around it claiming a height it does not have.
+       (`dvh` rather than `svh` on a phone, for the reason given on the form:
+       Safari's small viewport leaves a shelf above its bottom bar.)
 
        NOT `overflow-hidden`, though, and not a fixed height. Clipping the page
        stops the composer scrolling — and stops the LIST OF TOPICS scrolling
@@ -56,7 +58,7 @@ export default async function CreatePage() {
        taller than the screen by design. A minimum height that is honest about
        the strip is the whole fix; the composer fills it exactly and so has
        nothing to scroll. */
-    <div className="cs-create-page min-h-[calc(100svh-3rem)] bg-sunken lg:min-h-svh">
+    <div className="cs-create-page min-h-[calc(100dvh-3rem)] bg-sunken lg:min-h-svh">
       <SetupForm pillars={groups} anthropicReady={anthropicReady} />
     </div>
   );
