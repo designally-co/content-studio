@@ -120,7 +120,16 @@ export function SheetDialog({
             below centre, growing downward off the screen. A grid cell centres
             by layout, which GSAP never reads. The frame is inert to the
             pointer so the scrim beneath still takes the click that closes. */}
-        <div className="pointer-events-none fixed inset-0 z-(--z-modal) lg:grid lg:place-items-center">
+        {/* LOCKED BEHIND, ON A PHONE. The marker is the one the create page
+            carries (globals.css): while this frame is in the document, root
+            and body stop scrolling on both axes and stop bouncing, so a drag
+            on the sheet cannot move the page under it. It is on the frame
+            rather than the page, because the sheet is the thing that wants
+            the lock and it is portalled to <body> — `:has()` finds it there. */}
+        <div
+          data-fits-viewport=""
+          className="pointer-events-none fixed inset-0 z-(--z-modal) lg:grid lg:place-items-center"
+        >
         <Dialog.Content
           ref={setPanel}
           /* The sheet's palette, plus wherever the drag has pushed it to. One
@@ -207,7 +216,11 @@ export function SheetDialog({
               the screen: without it the last control sits against the edge with
               no room to scroll past, and on a phone that edge is where the home
               indicator is. */}
-          <div className="cs-sheet-scroll min-h-0 flex-1 overflow-y-auto p-5 pb-10 pt-2 sm:p-7 lg:pb-7">
+          {/* `overscroll-contain` keeps a scroll that reaches the column's end
+              inside the column instead of handing it to the page; `overflow-x-
+              hidden` means a field or grid a few pixels too wide clips rather
+              than letting the whole sheet slide sideways under a thumb. */}
+          <div className="cs-sheet-scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain p-5 pb-10 pt-2 sm:p-7 lg:pb-7">
             {children}
           </div>
         </Dialog.Content>
