@@ -50,22 +50,58 @@ if (!url) {
   process.exit(1);
 }
 
-// max: 1 — one short-lived connection for one sequence of statements. This runs
-// in a build container, not in a request path, so there is nothing to pool.
-const client = postgres(url, { prepare: false, max: 1 });
+/**
+ * WHY IT FAILED, NOT JUST THAT IT DID. Drizzle wraps every error — a refused
+ * password, an unknown pooler user, a full pool, a dropped socket — in the same
+ * "Failed query: CREATE SCHEMA …", which is the first statement the migrator
+ * sends and says nothing about the cause. The real error is on `.cause`. This
+ * walks the chain and prints each code and first line, and never a connection
+ * string: build logs are more widely readable than the environment they were
+ * built in.
+ */
+function reason(error: unknown): string {
+  const parts: string[] = [];
+  let current: unknown = error;
+  for (let depth = 0; current && depth < 4; depth++) {
+    const err = current as { code?: string; message?: string; cause?: unknown };
+    const line = [err.code, err.message?.split("\n")[0]].filter(Boolean).join(" ");
+    if (line && !parts.includes(line)) parts.push(line);
+    current = err.cause;
+  }
+  return (parts.join(" <- ") || String(error)).replace(/postgres(ql)?:\/\/\S+/g, "<url>").slice(0, 400);
+}
 
-try {
-  const startedAt = Date.now();
-  await migrate(drizzle(client), { migrationsFolder: "drizzle" });
-  console.log(`[migrate-deploy] migrations applied in ${Date.now() - startedAt}ms`);
-} catch (error) {
-  // The message, never the connection string it came from — build logs are
-  // more widely readable than the environment they were built in.
-  console.error(
-    "[migrate-deploy] migration failed, so this build will not be deployed:",
-    error instanceof Error ? error.message : error
-  );
-  process.exitCode = 1;
-} finally {
-  await client.end({ timeout: 5 });
+async function migrateOnce(): Promise<void> {
+  // max: 1 — one short-lived connection for one sequence of statements. This
+  // runs in a build container, not in a request path, so there is nothing to pool.
+  const client = postgres(url!, { prepare: false, max: 1 });
+  try {
+    await migrate(drizzle(client), { migrationsFolder: "drizzle" });
+  } finally {
+    await client.end({ timeout: 5 });
+  }
+}
+
+/* ONE RETRY. A build's single connection to the pooler can fail for a moment —
+   265559c's did, a minute after ee5766f's succeeded against the same database
+   with the same URL. Migrations are idempotent (applied ones are recorded), so
+   trying again is safe; a real misconfiguration fails twice and still stops the
+   deploy, now with its reason in the log. */
+const startedAt = Date.now();
+for (let attempt = 1; attempt <= 2; attempt++) {
+  try {
+    await migrateOnce();
+    console.log(
+      `[migrate-deploy] migrations applied in ${Date.now() - startedAt}ms${attempt > 1 ? ` (on attempt ${attempt})` : ""}`
+    );
+    break;
+  } catch (error) {
+    if (attempt === 1) {
+      console.warn(`[migrate-deploy] attempt 1 failed — ${reason(error)} — retrying once in 10s`);
+      await new Promise((resolve) => setTimeout(resolve, 10_000));
+      continue;
+    }
+    console.error(`[migrate-deploy] migration failed, so this build will not be deployed — ${reason(error)}`);
+    process.exitCode = 1;
+  }
 }
