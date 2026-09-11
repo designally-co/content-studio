@@ -681,9 +681,10 @@
 .cs-pillar-card {
   --pillar-tint: var(--surface-deep);
   display: flex;
-  /* The dock's own hairline, so the cards and the field below them read as
-     the same family of object: a wash inside a line, not a wash alone. */
-  border: 1px solid var(--dock-border);
+  /* A white line, the dock's weight. The dock's grey hairline read as an
+     edge cut into the tint; white sits on it like a rim of light, which is
+     what a wash wants. Same 1px, so the two still share a weight. */
+  border: 1px solid var(--white);
   flex-direction: column;
   justify-content: space-between;
   align-items: flex-start;

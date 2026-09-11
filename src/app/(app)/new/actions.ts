@@ -11,7 +11,7 @@ import { getBrand } from "@/lib/brand";
 import { getArticleRules } from "@/lib/article-template";
 import { buildSystemPrompt, getModels, runJson } from "@/lib/anthropic";
 import { articleSetupTask } from "@/prompts/tasks";
-import { generateTopicIdeas, loadDirections } from "@/lib/pipeline/topics";
+import { loadDirections } from "@/lib/pipeline/topics";
 import type { TopicIdea } from "@/lib/pipeline/views";
 
 /**
@@ -48,16 +48,6 @@ function extractEditorialPeriod(value: string): string | undefined {
 }
 
 /** Session-checked wrapper. The work lives in @/lib/pipeline/topics. */
-export async function generateTopicIdeasAction(input: {
-  categoryId?: string;
-  categoryName?: string;
-  pillarSlug?: string;
-  language: Language;
-}): Promise<TopicIdea[]> {
-  await requireUser();
-  return generateTopicIdeas(input);
-}
-
 export type ArticleSetup = {
   inputKind: "topic" | "brief";
   directionId: string;
