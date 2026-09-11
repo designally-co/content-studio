@@ -141,9 +141,7 @@ used for usage logging.
    (that domain, with no path, is `R2_PUBLIC_URL`), and make an "Object Read &
    Write" API token scoped to it. Add the same hostname to the Hub's
    `MEDIA_FETCH_HOSTS`, or it refuses to fetch covers. Without R2, images are
-   written to `./data/images` — fine self-hosted, refused on Vercel. Images
-   stored before the move to R2 still read from Supabase Storage while
-   `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are set.
+   written to `./data/images` — fine self-hosted, refused on Vercel.
 
 The app uses the standard Node runtime, Postgres and S3-compatible storage only — no Vercel-exclusive
 features (Edge-only APIs, KV, Blob) — so it runs unchanged on Vercel now and on a
@@ -277,8 +275,8 @@ docker compose up --build
 
 The image builds the Next.js standalone output and runs `node server.js`. The
 `content_studio_data` volume persists local fallbacks (PGlite data, the dev auth
-secret, and on-disk images) across restarts; when `DATABASE_URL` and Supabase
-Storage are set, those local fallbacks are not used.
+secret, and on-disk images) across restarts; when `DATABASE_URL` and the `R2_*`
+variables are set, those local fallbacks are not used.
 
 ## Scripts
 

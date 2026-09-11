@@ -345,13 +345,11 @@ There is no webhook or outbound event system beyond the Hub publish. `publishToH
 | `R2_SECRET_ACCESS_KEY` | on Vercel | Paired with the above. |
 | `R2_BUCKET_NAME` | on Vercel | The bucket images are written to. |
 | `R2_PUBLIC_URL` | on Vercel | The bucket's custom domain, **no path**. Stored rows are this plus the key. Must also be in the Hub's `MEDIA_FETCH_HOSTS`. |
-| `SUPABASE_URL` | legacy | Read-only: loads images stored before the move to R2. Nothing is uploaded to or deleted from Supabase. |
-| `SUPABASE_SERVICE_ROLE_KEY` | legacy | Paired with the above. |
 | `CRON_SECRET` | for the autopilot | Shared secret for `/api/cron/autopilot`. `openssl rand -hex 32`. Unset → the endpoint answers `503` and the autopilot cannot run at all. Setting it starts nothing on its own; routines are created and switched on in the Routines tab. |
 | `SKIP_DB_MIGRATE` | recommended in prod | `1` stops every cold start running the migrator. See §10. |
 | `DB_FORCE_TRANSACTION_POOLER` | rarely | `1` rewrites a Supabase pooler URL `:5432` → `:6543`. **Off by default deliberately — see §11.** |
 
-If `SUPABASE_*` is unset, images are written to `./data/images` and served by the app — which requires a persistent volume.
+If the `R2_*` variables are unset, images are written to `./data/images` and served by the app — which requires a persistent volume, and is refused on Vercel.
 
 ---
 

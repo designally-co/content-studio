@@ -232,11 +232,6 @@ export async function GET() {
     R2_SECRET_ACCESS_KEY: Boolean(process.env.R2_SECRET_ACCESS_KEY),
     R2_BUCKET_NAME: Boolean(process.env.R2_BUCKET_NAME),
     R2_PUBLIC_URL: Boolean(process.env.R2_PUBLIC_URL),
-    // Read-only now: only images stored before the move to R2 are fetched from
-    // Supabase. Without these, those older images stop loading and nothing
-    // else changes.
-    SUPABASE_URL: Boolean(process.env.SUPABASE_URL),
-    SUPABASE_SERVICE_ROLE_KEY: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
     // Not a secret, and the single most useful thing to know when the schema
     // is behind: it says whether this deployment applies migrations at all.
     SKIP_DB_MIGRATE: process.env.SKIP_DB_MIGRATE === "1",

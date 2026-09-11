@@ -83,10 +83,9 @@ export async function uploadImageToHub(input: {
  * 4MB reached Payload, 5MB did not.
  *
  * A URL is a few hundred bytes, so the limit stops applying. The Hub fetches
- * the file server-side — from R2's public domain, which the Hub's
- * MEDIA_FETCH_HOSTS must name, or from a signed Supabase URL for an image
- * stored before the move — and returns Payload's own `{ doc: { id } }`, the
- * same shape as a direct upload.
+ * the file server-side from R2's public domain, which the Hub's
+ * MEDIA_FETCH_HOSTS must name, and returns Payload's own `{ doc: { id } }`,
+ * the same shape as a direct upload.
  */
 export async function uploadImageToHubByUrl(input: {
   url: string;

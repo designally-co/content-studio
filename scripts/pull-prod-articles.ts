@@ -19,11 +19,12 @@
  * take that id. Both columns are remapped: categories by name, the author to
  * whoever exists locally.
  *
- * Image bytes do not travel either. Rows carry `supabase:` paths, and local has
- * no Supabase credentials — `resolveImage` would return null for every one of
- * them and the Library would be a wall of broken thumbnails. Each file is
- * downloaded into `data/images/` and its path rewritten to `local:`, so the copy
- * is self-contained and keeps working with the network off.
+ * Image bytes do not travel either. Rows carry R2 URLs, and local has no R2
+ * credentials — `resolveImage` would fail for every one of them and the Library
+ * would be a wall of broken thumbnails. Each file is downloaded from the
+ * bucket's public domain (no credentials needed) into `data/images/` and its
+ * path rewritten to `local:`, so the copy is self-contained and keeps working
+ * with the network off.
  *
  * Ids are otherwise preserved, because things point at each other by id:
  * `images.reference_ids` names the references a cover came from, and
@@ -37,19 +38,9 @@ import { PGlite } from "@electric-sql/pglite";
 const LOCAL_DIR = path.join(process.cwd(), "data", "images");
 
 const DATABASE_URL = process.env.DATABASE_URL;
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!DATABASE_URL) {
   console.error("Need DATABASE_URL (production).");
   process.exit(1);
-}
-
-function authHeaders(): Record<string, string> {
-  const headers: Record<string, string> = { apikey: SERVICE_KEY! };
-  if (!SERVICE_KEY!.startsWith("sb_secret_") && !SERVICE_KEY!.startsWith("sb_publishable_")) {
-    headers.authorization = `Bearer ${SERVICE_KEY}`;
-  }
-  return headers;
 }
 
 const prod = postgres(DATABASE_URL, { max: 1 });
@@ -163,10 +154,6 @@ async function main() {
   );
 
   // ---- bring the bytes down too ---------------------------------------------
-  if (!SUPABASE_URL || !SERVICE_KEY) {
-    console.log("\nNo Supabase credentials — rows copied, but image files were not.");
-    return;
-  }
   console.log("\ndownloading image files…");
   let got = 0;
   let missing = 0;
@@ -176,13 +163,14 @@ async function main() {
     // licence it records, and loadProject already filters it out.
     const where = table === "image_references" ? "and swept_at is null" : "";
     const rows = (await local.query(
-      `select id, storage_path from ${table} where storage_path like 'supabase:%' ${where}`
+      `select id, storage_path from ${table} where storage_path like 'https://%' ${where}`
     )) as { rows: { id: string; storage_path: string }[] };
 
     for (const row of rows.rows) {
-      const rel = row.storage_path.slice("supabase:".length);
-      const filename = path.basename(rel);
-      const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${rel}`, { headers: authHeaders() });
+      // The object key is a UUID and the extension — unique already, so it
+      // doubles as the local filename.
+      const filename = path.basename(new URL(row.storage_path).pathname);
+      const res = await fetch(row.storage_path);
       if (!res.ok) {
         missing += 1;
         continue;

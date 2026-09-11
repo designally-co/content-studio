@@ -88,10 +88,9 @@ export default async function LibraryPage({
     }
   }
 
-  // The browser loads every card image straight from storage — R2's public
-  // domain, or a signed URL for a Supabase-era image. Without it, each card
-  // hits /api/images/[id], and a full grid means ~27 serverless invocations
-  // each opening a DB connection.
+  // The browser loads every card image straight from R2's public domain.
+  // Without it, each card hits /api/images/[id], and a full grid means ~27
+  // serverless invocations each opening a DB connection.
   const urlByPath = await fetchableImageUrls([
     ...latestImagePathByProject.values(),
   ]);
@@ -99,7 +98,7 @@ export default async function LibraryPage({
   for (const [projectId, imageId] of latestImageByProject) {
     const storagePath = latestImagePathByProject.get(projectId);
     const direct = storagePath ? urlByPath.get(storagePath) : undefined;
-    // Fall back to the API route for `local:` images or if signing failed.
+    // Fall back to the API route for `local:` images.
     imageUrlByProject.set(projectId, direct ?? `/api/images/${imageId}`);
   }
 

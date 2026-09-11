@@ -127,13 +127,13 @@ export async function publishToHubCore(
          A URL is a few hundred bytes, and the Hub fetches the file itself, so
          size stops being a factor.
 
-         An R2 cover is sent as its public URL, which the Hub will only fetch
+         The cover is sent as its public R2 URL, which the Hub will only fetch
          if the R2 domain is listed in its MEDIA_FETCH_HOSTS — otherwise its
-         refusal comes back as the cover warning, naming the variable. A
-         Supabase-era cover gets a ten-minute signed URL. `local:` paths have
-         no URL and fall through to the upload below, which is fine: that is
-         the self-hosted case, where the 4.5MB ceiling does not exist either. */
-      const fetchable = (await fetchableImageUrls([chosen.storagePath], 600)).get(chosen.storagePath);
+         refusal comes back as the cover warning, naming the variable. `local:`
+         paths have no URL and fall through to the upload below, which is fine:
+         that is the self-hosted case, where the 4.5MB ceiling does not exist
+         either. */
+      const fetchable = (await fetchableImageUrls([chosen.storagePath])).get(chosen.storagePath);
 
       if (fetchable) {
         /* FROM THE STORED PATH, NOT THE URL. This read the extension out of a
@@ -152,15 +152,11 @@ export async function publishToHubCore(
         const resolved = await resolveImage(chosen.storagePath);
         if (!resolved) {
           /* The single most useful thing this function can say. `resolveImage`
-             returns null when the bytes cannot be fetched — a `local:` file
-             that is not on this machine, or a Supabase-era file whose
-             credentials are no longer set. */
-          const backend = chosen.storagePath.startsWith("supabase:")
-            ? "Supabase Storage"
-            : "the local filesystem";
+             returns null when the bytes cannot be read — a `local:` file that
+             is not on this machine, or a path with no file behind it. */
           coverWarning =
-            `The cover image could not be read from ${backend} ` +
-            `(${chosen.storagePath.slice(0, 60)}), so the article was published without it.`;
+            `The cover image could not be read (${chosen.storagePath.slice(0, 60)}), ` +
+            "so the article was published without it.";
         } else {
           const ext = resolved.mimeType.includes("png")
             ? "png"

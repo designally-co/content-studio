@@ -20,12 +20,13 @@ import {
  *
  * A row's `storage_path` names the store its file is in, by its shape:
  *
- *   https://…               Cloudflare R2 — every image written now, stored as
- *                           its full public URL.
- *   supabase:<bucket>/<f>   Supabase Storage — rows written before the move to
- *                           R2. READ-ONLY: nothing uploads there any more, and
- *                           nothing deletes from it.
- *   local:<f>               ./data/images — local development and self-hosting.
+ *   https://…   Cloudflare R2 — every image, stored as its full public URL.
+ *   local:<f>   ./data/images — local development and self-hosting.
+ *
+ * Anything else has no file behind it: a swept reference photograph keeps its
+ * row, for the licence it records, but not its bytes (`swept:`). Supabase
+ * Storage held the files until 11 September 2026; they were copied to R2 and
+ * nothing reads Supabase Storage any more.
  */
 export type StoredRef = { storagePath: string };
 
@@ -38,26 +39,6 @@ export type StoredImage = StoredRef & {
 };
 
 const LOCAL_DIR = path.join(process.cwd(), "data", "images");
-
-/** Supabase credentials, used only to READ rows written before the move to R2. */
-function supabase() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return null;
-  return { url, key };
-}
-
-function supabaseAuthHeaders(key: string): Record<string, string> {
-  const headers: Record<string, string> = {
-    apikey: key,
-  };
-  // Legacy service-role keys are JWTs and are accepted as Bearer tokens. New
-  // sb_secret_* keys are API keys, not JWTs, and must only use `apikey`.
-  if (!key.startsWith("sb_secret_") && !key.startsWith("sb_publishable_")) {
-    headers.authorization = `Bearer ${key}`;
-  }
-  return headers;
-}
 
 /**
  * The longest edge a stored cover needs to be.
@@ -135,7 +116,7 @@ export async function saveImage(img: GeneratedImage): Promise<StoredRef> {
   return { storagePath: `local:${filename}` };
 }
 
-/** Resolve a stored path back into bytes. */
+/** Resolve a stored path back into bytes. Null for a path with no file behind it. */
 export async function resolveImage(
   storagePath: string
 ): Promise<{ kind: "bytes"; data: Buffer; mimeType: string } | null> {
@@ -162,21 +143,6 @@ export async function resolveImage(
     }
   }
 
-  if (storagePath.startsWith("supabase:")) {
-    const sb = supabase();
-    if (!sb) return null;
-    const rel = storagePath.slice("supabase:".length); // bucket/filename
-    const response = await fetch(`${sb.url}/storage/v1/object/${rel}`, {
-      headers: supabaseAuthHeaders(sb.key),
-      signal: AbortSignal.timeout(30000),
-    });
-    if (!response.ok) return null;
-    return {
-      kind: "bytes",
-      data: Buffer.from(await response.arrayBuffer()),
-      mimeType: response.headers.get("content-type") ?? "image/png",
-    };
-  }
   return null;
 }
 
@@ -186,65 +152,14 @@ export async function resolveImage(
  * each opening a database connection to look up a path, and a cover handed to
  * the Hub is a few hundred bytes rather than the file.
  *
- * R2 rows are public, so their URL is simply rebuilt against the current
- * domain. Supabase-era rows are private and get signed URLs, one request per
- * bucket. `local:` paths, and anything that fails to sign, are left out;
- * callers fall back to /api/images/[id] for those.
+ * R2 objects are public, so a row's URL is simply rebuilt against the current
+ * domain. `local:` paths are left out; callers fall back to /api/images/[id].
  */
-export async function fetchableImageUrls(
-  storagePaths: string[],
-  expiresInSeconds = 3600
-): Promise<Map<string, string>> {
+export async function fetchableImageUrls(storagePaths: string[]): Promise<Map<string, string>> {
   const out = new Map<string, string>();
-
-  // bucket -> (objectName -> original storagePath)
-  const byBucket = new Map<string, Map<string, string>>();
   for (const storagePath of new Set(storagePaths)) {
-    if (!storagePath) continue;
-    if (isR2Url(storagePath)) {
-      out.set(storagePath, currentPublicUrl(storagePath));
-      continue;
-    }
-    if (!storagePath.startsWith("supabase:")) continue;
-    const relative = storagePath.slice("supabase:".length);
-    const separator = relative.indexOf("/");
-    if (separator <= 0) continue;
-    const bucket = relative.slice(0, separator);
-    const objectName = relative.slice(separator + 1);
-    if (!objectName) continue;
-    if (!byBucket.has(bucket)) byBucket.set(bucket, new Map());
-    byBucket.get(bucket)!.set(objectName, storagePath);
+    if (storagePath && isR2Url(storagePath)) out.set(storagePath, currentPublicUrl(storagePath));
   }
-
-  const sb = supabase();
-  if (!sb) return out;
-
-  await Promise.all(
-    [...byBucket].map(async ([bucket, objects]) => {
-      try {
-        const response = await fetch(`${sb.url}/storage/v1/object/sign/${bucket}`, {
-          method: "POST",
-          headers: { ...supabaseAuthHeaders(sb.key), "content-type": "application/json" },
-          body: JSON.stringify({ expiresIn: expiresInSeconds, paths: [...objects.keys()] }),
-          signal: AbortSignal.timeout(15000),
-        });
-        if (!response.ok) return;
-        const rows = (await response.json()) as {
-          path?: string;
-          signedURL?: string;
-        }[];
-        if (!Array.isArray(rows)) return;
-        for (const row of rows) {
-          if (!row?.signedURL || !row.path) continue;
-          const storagePath = objects.get(row.path);
-          if (storagePath) out.set(storagePath, `${sb.url}/storage/v1${row.signedURL}`);
-        }
-      } catch {
-        // Signing is an optimisation — fall back to the API route silently.
-      }
-    })
-  );
-
   return out;
 }
 
@@ -256,9 +171,9 @@ export async function loadStoredImage(storagePath: string): Promise<{ data: Buff
 }
 
 /**
- * Remove a generated or uploaded image from its store. Resolves to whether the
- * file is actually gone, because one kind of file is deliberately never
- * removed and a caller that records deletions has to be able to tell.
+ * Remove a generated or uploaded image from its store. Resolves to whether a
+ * file was actually removed, because a caller that records deletions has to
+ * be able to tell.
  */
 export async function deleteStoredImage(storagePath: string): Promise<boolean> {
   if (isR2Url(storagePath)) {
@@ -275,11 +190,7 @@ export async function deleteStoredImage(storagePath: string): Promise<boolean> {
     return true;
   }
 
-  /* SUPABASE FILES ARE LEFT WHERE THEY ARE, ON PURPOSE. Decided when images
-     moved to R2 (September 2026): the rows written before the move still read
-     from Supabase, what it costs is egress rather than the space these occupy,
-     and deleting from the old store is not this app's job any more. The row
-     can still go — deleting an article is not refused over it — and the file
-     stays behind as an orphan. */
+  // A path with no file behind it — a swept reference. The row can still go;
+  // there is simply nothing in storage to remove.
   return false;
 }

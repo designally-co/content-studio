@@ -190,6 +190,13 @@
       "when": 1787464240704,
       "tag": "0026_sweep_published_references",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1789110000000,
+      "tag": "0027_clear_swept_supabase_paths",
+      "breakpoints": true
     }
   ]
 }
