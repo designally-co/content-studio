@@ -209,9 +209,12 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
               text.
 
               THE RECOMMENDATION IS THE LINE, NOT A WORD. The lead idea draws
-              its hairline in the accent instead of carrying a "Recommended"
-              tag: the same 1px, one colour off, which is enough to pick it
-              out of a column without adding a label to read. No arrow: on a
+              its hairline in a light tint of the accent instead of carrying
+              a "Recommended" tag: the same 1px, one colour off, which is
+              enough to pick it out of a column without adding a label to
+              read. The 300 step, not the fill: at full strength the line
+              read as a warning, and a hairline needs far less colour than a
+              button does to be seen. No arrow: on a
               card that is entirely a target it was saying what the card's
               shape already says. The direction is a chip, the one the
               publish stage uses, under the text. */}
@@ -222,7 +225,7 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
               <section
                 key={`${topic.title}-${index}`}
                 style={{ animationDelay: `${Math.min(index, 7) * 45}ms` }}
-                className={`relative rounded-2xl border bg-surface p-3.5 transition-shadow duration-(--duration-base) ease-(--ease-out) hover:shadow-[var(--shadow-card)] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:fill-mode-both motion-safe:duration-300 sm:p-5 ${lead ? "border-accent" : "border-line"}`}
+                className={`relative rounded-2xl border bg-surface p-3.5 transition-shadow duration-(--duration-base) ease-(--ease-out) hover:shadow-[var(--shadow-card)] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:fill-mode-both motion-safe:duration-300 sm:p-5 ${lead ? "border-(--orange-300)" : "border-line"}`}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
