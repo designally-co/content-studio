@@ -57,18 +57,22 @@ const plexThai = IBM_Plex_Sans_Thai({
 export const metadata: Metadata = {
   title: "Designally Article Studio",
   description: "Internal AI-powered content generation for the Designally team",
-  /* ON A HOME SCREEN. iOS reads its icon and its app-mode flags from the
-     page rather than the manifest, so both are stated here: the icon at the
-     180px iOS asks for, standalone so the app opens without Safari's chrome,
-     and the default status bar so the system clock sits on the app's own
-     ground. The manifest (manifest.ts) carries the same for Android. */
+  /* ON A HOME SCREEN. iOS reads its app-mode flags from the page rather
+     than the manifest, so they are stated here: standalone so the app opens
+     without Safari's chrome, and the default status bar so the system clock
+     sits on the app's own ground. The manifest (manifest.ts) carries the
+     same for Android.
+
+     THE ICONS ARE FILES, NOT CONFIG. `src/app/icon.png` (the favicon, the
+     D. mark) and `src/app/apple-icon.png` (the 180px home-screen icon) are
+     Next's file conventions and each emits its own <link>. An `icons`
+     object here REPLACES the file-based set — setting only `apple` in it
+     silently dropped the favicon link, which is how the site lost its
+     favicon for one deploy. */
   appleWebApp: {
     capable: true,
     title: "Article Studio",
     statusBarStyle: "default",
-  },
-  icons: {
-    apple: "/apple-touch-icon.png",
   },
 };
 
