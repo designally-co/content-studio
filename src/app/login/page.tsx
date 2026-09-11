@@ -33,7 +33,9 @@ export default async function LoginPage({
   if (user) redirect(target);
 
   return (
-    <main className="signin">
+    /* Sized to the window exactly, so on a phone it is locked in its frame
+       rather than left to bounce (the rule is in globals.css). */
+    <main className="signin" data-fits-viewport="">
       <div className="card">
         <div className="sl-cut">
           <Mark size={60} />
