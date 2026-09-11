@@ -67,6 +67,34 @@ type ImageModelOption = {
  */
 const PROMPT_COLLAPSED_MAX = 160;
 
+/* IN LINES ON A PHONE, NOT PIXELS. The screen there is the whole budget, and
+   an auto-drafted prompt is the longest text on the stage: at the 160px cap
+   the collapsed field took seven lines and the picture above it shrank to a
+   thumbnail; let out, it took the rest. Four lines closed is enough to see
+   what was written and that there is more; eight open is enough to read a
+   paragraph and still leaves the picture room. Both must match the `lh`
+   values on the field's classes, and the 4px is its own bottom padding. */
+const PROMPT_LINES_COLLAPSED = 4;
+const PROMPT_LINES_EXPANDED = 8;
+const PROMPT_FIELD_PADDING = 4;
+
+function isWideStage() {
+  return window.matchMedia("(min-width: 64rem)").matches;
+}
+function promptLine(field: HTMLTextAreaElement) {
+  return parseFloat(getComputedStyle(field).lineHeight) || 22;
+}
+/** The closed cap in px: four lines on a phone, the constant above `lg`. */
+function promptCollapsedMax(field: HTMLTextAreaElement) {
+  if (isWideStage()) return PROMPT_COLLAPSED_MAX;
+  return Math.round(PROMPT_LINES_COLLAPSED * promptLine(field) + PROMPT_FIELD_PADDING);
+}
+/** The open cap in px: eight lines on a phone, unbounded above `lg`. */
+function promptExpandedMax(field: HTMLTextAreaElement) {
+  if (isWideStage()) return Infinity;
+  return Math.round(PROMPT_LINES_EXPANDED * promptLine(field) + PROMPT_FIELD_PADDING);
+}
+
 /**
  * How tall a lone generated image is allowed to be.
  *
@@ -530,9 +558,10 @@ function ImagePanel({
     if (!field) return;
     const frame = requestAnimationFrame(() => {
       field.style.height = "auto";
-      const needsExpansion = field.scrollHeight > PROMPT_COLLAPSED_MAX;
+      const collapsedMax = promptCollapsedMax(field);
+      const needsExpansion = field.scrollHeight > collapsedMax;
       setPromptNeedsExpansion(needsExpansion);
-      field.style.height = `${promptExpanded ? field.scrollHeight : Math.min(field.scrollHeight, PROMPT_COLLAPSED_MAX)}px`;
+      field.style.height = `${Math.min(field.scrollHeight, promptExpanded ? promptExpandedMax(field) : collapsedMax)}px`;
     });
     return () => cancelAnimationFrame(frame);
   }, [prompt, promptExpanded]);
@@ -1051,14 +1080,15 @@ function ImagePanel({
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="Describe the image, or auto-draft one from the article…"
-              /* EXPANDED IS NOT UNBOUNDED ON A PHONE. The stage there is a
-                 clipped box the height of the screen, and an auto-drafted
-                 prompt let fully out ran past the top of it — taking the
-                 collapse control with it, so the field could not be closed
-                 again. 40dvh leaves the title and the picture their share on
-                 the shortest phone; the field scrolls inside that. Above `lg`
-                 the page grows with it and no cap is needed. */
-              className={`cs-dock-input ${promptNeedsExpansion ? "cs-dock-input--scrollable pr-12" : ""} ${promptExpanded ? "max-h-[40dvh] lg:max-h-none" : "max-h-40"}`}
+              /* FOUR LINES CLOSED, EIGHT OPEN, ON A PHONE. The stage there is
+                 a clipped box the height of the screen, and the field's height
+                 comes straight out of the picture's. An auto-drafted prompt
+                 let fully out once ran past the top of the box and took the
+                 collapse control with it. The caps are in `lh` so they are
+                 lines whatever the type size, and PROMPT_LINES_* above must
+                 say the same numbers. Above `lg` the page grows: 160 closed,
+                 unbounded open. */
+              className={`cs-dock-input ${promptNeedsExpansion ? "cs-dock-input--scrollable pr-12" : ""} ${promptExpanded ? "max-h-[calc(8lh+4px)] lg:max-h-none" : "max-h-[calc(4lh+4px)] lg:max-h-40"}`}
             />
           </div>
           {promptNeedsExpansion && (
@@ -1071,7 +1101,7 @@ function ImagePanel({
                   const field = promptRef.current;
                   if (!field) return;
                   field.style.height = "auto";
-                  field.style.height = `${nextExpanded ? field.scrollHeight : Math.min(field.scrollHeight, PROMPT_COLLAPSED_MAX)}px`;
+                  field.style.height = `${Math.min(field.scrollHeight, nextExpanded ? promptExpandedMax(field) : promptCollapsedMax(field))}px`;
                   field.focus();
                 });
               }}
