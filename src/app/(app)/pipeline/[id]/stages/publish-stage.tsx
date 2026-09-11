@@ -749,7 +749,15 @@ function ImagePanel({
        The choice sits in the middle at size, the rest of the set is a rail of
        thumbnails beside it, and the forward action is in a panel like every
        other stage's. */
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8">
+    /* LOCKED ON A PHONE. The stage is sized to the screen (see the section
+       below), so the page has nothing to scroll — but a document that merely
+       fits can still be dragged, and it bounced by the few pixels the sums
+       leave. The marker is what the create page and the sign-in door carry
+       (globals.css): root and body stop scrolling while this panel is on
+       screen. It is on the panel and not the route, because Draft and
+       Publish are documents and scroll like them. The sheet scrolls inside
+       itself and is unaffected. */
+    <div data-fits-viewport="" className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8">
       {/* NO PLATE HERE, unlike Draft and Publish. Those two hold a DOCUMENT —
           an article, a preview of one — and a plate is what a document sits on.
           This stage holds a picture and a box to describe it in, and both of
