@@ -138,7 +138,12 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
          edge, which is why the dock's height had to be measured: half of it
          was a term in the offset. Flex does the same arithmetic without being
          told the number. */
-      className="mx-auto flex min-h-[calc(100svh-3rem)] w-full max-w-7xl flex-col px-3 pb-6 sm:px-6 sm:pb-20 lg:min-h-svh lg:px-12 lg:pb-24 xl:px-16"
+      /* THE FOOT IS THE FOOT ON EVERY SCREEN. The dock used to centre with
+         the welcome above `lg`; now it sits at the bottom everywhere, the
+         way a chat composer does, and the padding under it is the same kind
+         of gutter at every size — room to breathe, not a shelf. There is no
+         caption under the dock any more, so nothing else claims that space. */
+      className="mx-auto flex min-h-[calc(100svh-3rem)] w-full max-w-7xl flex-col px-3 pb-6 sm:px-6 sm:pb-8 lg:min-h-svh lg:px-12 lg:pb-10 xl:px-16"
       /* The composer and the search stage fill the screen exactly, so on a
          phone the page is locked in its frame while either is up (see the
          rule in globals.css). The list of ideas is taller than the screen by
@@ -147,24 +152,20 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
     >
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col">
         {showComposer && (
-        /* TWO ARRANGEMENTS OF THE SAME TWO THINGS. On a phone the dock goes to
-           the foot, where a thumb is, and the welcome keeps the space above it.
-           On a desktop there is no thumb and no bottom edge worth reaching for,
-           and a field pinned to the floor of a 1300px window is a long way from
-           the sentence that introduces it — so the pair centres together, which
-           is what this screen has always done there.
-
-           `justify-center` and the welcome's `lg:flex-none` are the whole
-           switch: below `lg` the welcome takes the slack and pushes the dock
-           down; above it, it takes only its own height and the two centre as
-           one group. */
-        <section className="relative flex flex-1 flex-col lg:justify-center">
+        /* ONE ARRANGEMENT AT EVERY SIZE. The dock goes to the foot and the
+           welcome — headline and the four pillar cards — centres in whatever
+           is left above it. This used to switch at `lg` to centring the pair
+           together, on the grounds that a field pinned to the floor of a tall
+           window is a long way from its headline; with the cards between them
+           the welcome is tall enough to carry the eye down, and a composer at
+           the bottom is where a composer is expected. */
+        <section className="relative flex flex-1 flex-col">
           {/* THE WELCOME KEEPS THE SPACE ABOVE, and is centred in whatever is
               left once the dock has taken the foot — so it holds its place on
               the screen rather than riding down with the thing it used to hang
               off. `pb` keeps it from settling onto the dock when the field
               grows and the space above shrinks. */}
-          <div className="flex flex-1 items-center justify-center pb-10 sm:pb-14 lg:flex-none">
+          <div className="flex flex-1 items-center justify-center pb-10 sm:pb-14">
           <div className="w-full text-center">
             {!anthropicReady && (
               <div className="mb-6 rounded-xl border border-warn/30 bg-warn-soft px-4 py-3.5 text-left text-sm text-ink-2">
