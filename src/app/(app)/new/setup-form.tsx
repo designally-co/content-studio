@@ -4,11 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowRight, LoaderCircle, Maximize2, Minimize2, Send, Sparkle } from "lucide-react";
 import { AccentOrb } from "@/components/accent-orb";
 import OrbitingCirclesGlobe from "@/components/ui/orbiting-circles-02";
-import {
-  createProjectAction,
-  generateTopicIdeasAction,
-  inferArticleSetupAction,
-} from "./actions";
+import { createProjectAction, inferArticleSetupAction } from "./actions";
+import { streamNdjson } from "@/lib/ndjson-client";
 import { PillarDirectionPicker, pillarIcon } from "./pillar-direction-picker";
 import type { TopicIdea } from "@/lib/pipeline/views";
 
@@ -70,18 +67,43 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
     setSearchSlow(false);
     setError(null);
     setIdeasPillar(pillar);
+    const body = {
+      categoryId: pillar ? undefined : selection.directionId || undefined,
+      pillarSlug: pillar?.slug,
+      language: "en",
+    };
     try {
-      const result = await generateTopicIdeasAction({
-        categoryId: pillar ? undefined : selection.directionId || undefined,
-        pillarSlug: pillar?.slug,
-        language: "en",
-      });
+      const result = await requestTopicIdeas(body);
       if (result.length === 0) throw new Error("No topic ideas were returned. Try again or choose a direction.");
       setTopics(result);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not generate topic ideas.");
     } finally {
       setGeneratingTopics(false);
+    }
+  }
+
+  /* OVER A STREAM, WITH ONE RETRY. The ideas used to come back from a Server
+     Action that said nothing for the whole 20–35 seconds the model took, and
+     on a phone that silence is what the network gives up on — Safari reports
+     it as "Load failed" and the function log shows nothing, because the
+     function was still running when the phone stopped listening. The route
+     sends a heartbeat every few seconds instead, so the connection is never
+     idle. If the connection still drops (a tunnel, a network handoff), the
+     request is made once more before the editor is told. */
+  async function requestTopicIdeas(body: Record<string, unknown>, attempt = 1): Promise<TopicIdea[]> {
+    try {
+      for await (const event of streamNdjson<{ t: string; topics?: TopicIdea[]; m?: string }>("/api/topic-ideas", body)) {
+        if (event.t === "done") return event.topics ?? [];
+        if (event.t === "error") throw new Error(event.m || "Could not generate topic ideas.");
+      }
+      throw new Error("The connection closed before any ideas arrived. Try again.");
+    } catch (reason) {
+      // A TypeError from fetch is the network, not the server: "Load failed"
+      // on WebKit, "Failed to fetch" on Chromium. Anything else is an answer.
+      if (reason instanceof TypeError && attempt < 2) return requestTopicIdeas(body, attempt + 1);
+      if (reason instanceof TypeError) throw new Error("The connection dropped before the ideas arrived. Check your signal and try again.");
+      throw reason;
     }
   }
 
@@ -204,7 +226,7 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                 Under the headline rather than beside the dock: they are a way
                 to begin, not a setting on the field, and the welcome is where
                 a beginning is offered. */}
-            <div className="mx-auto mt-8 grid w-full max-w-3xl grid-cols-2 gap-3 text-left sm:mt-10 lg:grid-cols-4">
+            <div className="mx-auto mt-8 grid w-full max-w-3xl grid-cols-2 gap-2 text-left sm:mt-10 lg:grid-cols-4">
               {pillars.map((pillar, index) => {
                 const Icon = pillarIcon(pillar.slug);
                 return (
@@ -228,6 +250,15 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
             </div>
           </div>
           </div>
+
+          {/* ABOVE THE DOCK, NOT BELOW IT. The dock is the last thing on the
+              screen, so an answer to something the editor just did has to
+              land where the eye already is — between what they pressed and
+              what they will press next — rather than under the foot, where on
+              a locked phone screen it was pushing the dock up off its edge. */}
+          {error && (
+            <p className="mb-4 shrink-0 rounded-xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{error}</p>
+          )}
 
           {/* AT THE FOOT. `shrink-0` so the dock keeps its own height while the
               block above gives up whatever the column needs. */}
@@ -549,7 +580,9 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
           ) : null}
           </div>
 
-          {error && (
+          {/* The composer shows its own copy above the dock; this one serves
+              the search stage and the list, where there is no dock. */}
+          {error && !showComposer && (
             <p className="mt-4 rounded-xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{error}</p>
           )}
           </div>
