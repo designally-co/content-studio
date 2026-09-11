@@ -57,6 +57,19 @@ const plexThai = IBM_Plex_Sans_Thai({
 export const metadata: Metadata = {
   title: "Designally Article Studio",
   description: "Internal AI-powered content generation for the Designally team",
+  /* ON A HOME SCREEN. iOS reads its icon and its app-mode flags from the
+     page rather than the manifest, so both are stated here: the icon at the
+     180px iOS asks for, standalone so the app opens without Safari's chrome,
+     and the default status bar so the system clock sits on the app's own
+     ground. The manifest (manifest.ts) carries the same for Android. */
+  appleWebApp: {
+    capable: true,
+    title: "Article Studio",
+    statusBarStyle: "default",
+  },
+  icons: {
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 /* THE SCREEN IS THE SCREEN. On iOS, tapping any field set below 16px makes
@@ -73,6 +86,7 @@ export const metadata: Metadata = {
    the foot of the screen rises with the keyboard the way an app's does. iOS
    ignores it and pans instead, which is the best it offers. */
 export const viewport: Viewport = {
+  themeColor: "#f8f8f7",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
