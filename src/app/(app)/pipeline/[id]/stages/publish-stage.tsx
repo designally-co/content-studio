@@ -814,9 +814,15 @@ function ImagePanel({
 
           Clipped, so a tall image shrinks instead of pushing the dock off the
           bottom. Above `lg` it goes back to a minimum height and lets the page
-          grow. */}
+          grow.
+
+          `dvh`, NOT `svh`. Safari's small viewport is measured against its
+          bottom bar at full height, and the bar is compact almost all of the
+          time, so at 100svh the stage stopped some 40px short and the dock
+          hung that far above the sheet. The page is locked here, so the bar
+          never collapses on scroll and the dynamic unit is stable. */}
       <section
-        className="flex h-[calc(100svh-10.125rem)] flex-col overflow-hidden transition-transform duration-(--duration-base) ease-(--ease-out) lg:h-auto lg:min-h-[calc(100svh-9rem)] lg:translate-y-0 lg:overflow-visible"
+        className="flex h-[calc(100dvh-10.125rem)] flex-col overflow-hidden transition-transform duration-(--duration-base) ease-(--ease-out) lg:h-auto lg:min-h-[calc(100svh-9rem)] lg:translate-y-0 lg:overflow-visible"
         style={sheetLift ? { transform: `translateY(-${sheetLift}px)` } : undefined}
       >
           {/* THE ARTICLE'S NAME, which this stage used to be the only one
