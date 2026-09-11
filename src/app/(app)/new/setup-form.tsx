@@ -462,11 +462,12 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
         </section>
         )}
 
-          {/* The search stage centres against the viewport, so it takes no top
-              offset and cancels the form's bottom padding — otherwise that
-              padding counts as content and pushes the stage upward. The results
-              list still needs a top offset now that the composer is gone. */}
-          <div className={showComposer ? "mt-6" : generatingTopics ? "-mb-16 sm:-mb-20 lg:-mb-24" : "pt-8 sm:pt-10"}>
+          {/* The search stage is sized to the viewport, so it takes no top
+              offset and cancels the form's bottom padding exactly (pb-4/8/10
+              above) — otherwise that padding counts as content and pushes the
+              stage upward. The results list still needs a top offset now that
+              the composer is gone. */}
+          <div className={showComposer ? "mt-6" : generatingTopics ? "-mb-4 sm:-mb-8 lg:-mb-10" : "pt-8 sm:pt-10"}>
           <div aria-live="polite">
           {generatingTopics ? (
             /* The globe orbits the very publications this call is searching, so
@@ -478,16 +479,33 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                a card was only ever there to give that clip an edge to land on.
                A mask dissolves the cut instead, which frees the stage to sit on
                the canvas and centre itself the way the composer it replaced did. */
-            <div className="flex min-h-[calc(100dvh-4rem)] flex-col items-center justify-center text-center motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200 lg:min-h-svh">
-              <div className="px-6">
-                <p className="font-heading text-[length:var(--text-h2)] font-medium leading-tight tracking-tight text-ink">
-                  Searching creative-industry sources…
-                </p>
-                <p className="mx-auto mt-2.5 min-h-6 max-w-md text-balance leading-relaxed text-ink-2">
-                  {searchSlow ? "Still searching — this can take up to a minute." : "Reading what has actually happened recently."}
-                </p>
+            /* TWO COMPOSITIONS. On a phone the stage is the screen: the globe
+               sits on the bottom edge, edge to edge, its horizon on the edge
+               itself so the screen is the cut and no mask is needed, and the
+               text centres in the room above it. On a desktop the pair centres
+               together as before, with the mask dissolving the sphere's lower
+               half into the canvas.
+
+               The exact height (viewport minus the 3rem strip) rather than a
+               minimum: a minimum would let the globe push the column taller
+               than the screen, and the page is locked, so anything past the
+               edge is simply gone. */
+            <div className="flex h-[calc(100dvh-3rem)] flex-col text-center motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200 lg:h-auto lg:min-h-svh lg:items-center lg:justify-center">
+              <div className="flex min-h-0 flex-1 items-center justify-center px-6 lg:flex-none">
+                <div>
+                  <p className="font-heading text-[length:var(--text-h2)] font-medium leading-tight tracking-tight text-ink">
+                    Searching creative-industry sources…
+                  </p>
+                  <p className="mx-auto mt-2.5 min-h-6 max-w-md text-balance leading-relaxed text-ink-2">
+                    {searchSlow ? "Still searching — this can take up to a minute." : "Reading what has actually happened recently."}
+                  </p>
+                </div>
               </div>
-              <div className="mt-10 w-full [mask-image:linear-gradient(to_bottom,#000_72%,transparent_100%)]">
+              {/* Negative margins undo the form's side gutters (px-3, sm:px-6)
+                  so the rings run under both edges of the phone. Above `lg`
+                  the column is narrower than the window anyway, so the gutters
+                  stay and the mask returns. */}
+              <div className="-mx-3 shrink-0 sm:-mx-6 lg:mx-0 lg:mt-10 lg:w-full lg:[mask-image:linear-gradient(to_bottom,#000_72%,transparent_100%)]">
                 <OrbitingCirclesGlobe />
               </div>
             </div>
