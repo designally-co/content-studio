@@ -38,12 +38,18 @@ export default async function LoginPage({
 
   return (
     /* A CANVAS SURFACE, like Create: the page is the ground and one white
-       object sits on it, centred, holding all the attention. Sized to the
-       screen on a phone and locked in its frame (data-fits-viewport, the
-       rule in globals.css); centred in whatever window a desktop offers. */
+       object sits on it, holding all the attention. Sized to the screen on a
+       phone and locked in its frame (data-fits-viewport, the rule in
+       globals.css); centred in whatever window a desktop offers.
+
+       ABOVE CENTRE, NOT ON IT. A tall, narrow object centred by arithmetic
+       reads low, because the eye puts the optical centre above the geometric
+       one. The extra bottom padding — a tenth of the screen on a phone, an
+       eighth on a desktop — lifts the plate to roughly 45% of the window,
+       where it reads as centred. */
     <main
       data-fits-viewport=""
-      className="flex min-h-dvh items-center justify-center bg-bg px-3 py-6 sm:px-6 sm:py-10"
+      className="flex min-h-dvh items-center justify-center bg-bg px-3 pb-[calc(1rem+10dvh)] pt-4 sm:px-6 sm:pb-[calc(2.5rem+12dvh)] sm:pt-10"
     >
       {/* THE PLATE. The dock's own vocabulary — white, a hairline, the 16px
           corner — at the width of a form. No shadow: elevation here is
