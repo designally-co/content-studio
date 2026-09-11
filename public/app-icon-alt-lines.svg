@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- B "the lines": the article reduced to its type — a headline and two lines
+       in white on the orange, the full stop kept. -->
+  <rect width="512" height="512" fill="#ef6148"/>
+  <rect x="124" y="176" width="148" height="40" rx="20" fill="#ffffff"/>
+  <circle cx="312" cy="196" r="20" fill="#ffffff"/>
+  <rect x="124" y="252" width="264" height="24" rx="12" fill="#ffffff" opacity="0.9"/>
+  <rect x="124" y="308" width="200" height="24" rx="12" fill="#ffffff" opacity="0.9"/>
+</svg>
