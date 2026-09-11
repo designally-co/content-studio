@@ -1490,8 +1490,13 @@ function PublishComposer({
 
           The two numbers are one number said twice: 48 for the bar and 32 for
           the shell's own top padding, which is where this column used to
-          start. */}
-      <div className="min-w-0 -mt-20 h-svh overflow-y-auto pb-[4.75rem] pt-20 [scrollbar-width:none] lg:mt-0 lg:h-auto lg:overflow-visible lg:pb-0 lg:pt-0 [&::-webkit-scrollbar]:hidden">
+          start.
+
+          `dvh`, NOT `svh`, for the height: Safari's small viewport stops some
+          40px short of its compact bottom bar, so the scroll box ended above
+          the sheet's ledge with a band of ground showing under it instead of
+          running beneath the sheet. `dvh` is the screen as it is now. */}
+      <div className="min-w-0 -mt-20 h-dvh overflow-y-auto pb-[4.75rem] pt-20 [scrollbar-width:none] lg:mt-0 lg:h-auto lg:overflow-visible lg:pb-0 lg:pt-0 [&::-webkit-scrollbar]:hidden">
         <HubPreviewFrame>
           <HubArticlePreview
             title={title}
