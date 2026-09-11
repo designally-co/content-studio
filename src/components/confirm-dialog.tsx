@@ -59,10 +59,14 @@ export function ConfirmDialog({
     <Dialog.Root open onOpenChange={(next) => !next && onCancel()}>
       <Dialog.Portal>
         <Dialog.Overlay ref={setOverlay} className="fixed inset-0 z-(--z-backdrop) bg-ink/25" />
+        {/* Centred by a grid frame, not a translate — the same reason as the
+            sheet dialog: GSAP animates the panel's transform and folds a CSS
+            `translate` into it at whatever size the panel had at that instant. */}
+        <div className="pointer-events-none fixed inset-0 z-(--z-modal) grid place-items-center">
         <Dialog.Content
           ref={setPanel}
           style={SHEET}
-          className="fixed left-1/2 top-1/2 z-(--z-modal) w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-(--sheet-bg) p-5 shadow-[var(--shadow-pop)] outline-none sm:p-6"
+          className="pointer-events-auto w-[min(28rem,calc(100vw-2rem))] rounded-2xl bg-(--sheet-bg) p-5 shadow-[var(--shadow-pop)] outline-none sm:p-6"
         >
           <div className="flex items-start justify-between gap-4">
             <Dialog.Title className="font-heading text-[length:var(--text-h2)] font-medium tracking-tight text-(--sheet-ink)">
@@ -95,6 +99,7 @@ export function ConfirmDialog({
             </Button>
           </div>
         </Dialog.Content>
+        </div>
       </Dialog.Portal>
     </Dialog.Root>
   );
