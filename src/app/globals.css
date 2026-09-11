@@ -667,6 +667,75 @@
   box-shadow: var(--shadow-card);
 }
 
+/* ---- pillar cards (the composer's four doors) ----
+   A soft wash rather than a plate: no hairline, no shadow, a tint that fades
+   toward white so the four read as one row of colour rather than four boxes.
+   Each pillar takes one of the system's tints, so a card's colour is the same
+   one its ideas will carry later. The icon sits in a white square, which is
+   what keeps a line icon legible on a wash of any hue.
+
+   Compact on a phone on purpose. The composer page is locked to the screen
+   there (data-fits-viewport), so two rows of these have to fit above the dock
+   on the shortest phone in use — 96px each does, 140px each does not. */
+.cs-pillar-card {
+  --pillar-tint: var(--surface-deep);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-height: 6rem;
+  padding: 0.875rem;
+  border-radius: 1rem;
+  background: linear-gradient(160deg, var(--pillar-tint) 0%, color-mix(in srgb, var(--pillar-tint) 35%, var(--surface)) 100%);
+  color: var(--ink);
+  text-align: left;
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    filter var(--duration-fast) var(--ease-out);
+}
+@media (min-width: 640px) {
+  .cs-pillar-card {
+    min-height: 8rem;
+    padding: 1rem;
+  }
+}
+.cs-pillar-card:hover:not(:disabled) {
+  filter: saturate(1.15) brightness(0.985);
+}
+.cs-pillar-card:active:not(:disabled) {
+  transform: scale(0.985);
+}
+.cs-pillar-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+/* The same ring the dock's controls draw (`ring-3 ring-ring/50`). */
+.cs-pillar-card:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent);
+}
+.cs-pillar-card[data-pillar="design"] { --pillar-tint: var(--orange-100); }
+.cs-pillar-card[data-pillar="new-update"] { --pillar-tint: var(--blue-100); }
+.cs-pillar-card[data-pillar="creative-things"] { --pillar-tint: var(--amber-100); }
+.cs-pillar-card[data-pillar="ai-with-design"] { --pillar-tint: var(--green-100); }
+.cs-pillar-card-icon {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgb(27 29 35 / 0.06);
+}
+.cs-pillar-card-name {
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1.3;
+}
+
 /* ---- double bezel (draft stage only) ----
    A plate seated in a tray, so a working surface reads as an object rather than
    a rectangle. The radii are concentric — inner = outer minus the tray's

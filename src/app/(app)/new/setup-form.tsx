@@ -32,6 +32,9 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
   const [topics, setTopics] = useState<TopicIdea[]>([]);
   const [generatingTopics, setGeneratingTopics] = useState(false);
   const [searchSlow, setSearchSlow] = useState(false);
+  // The pillar a shortcut card asked for, kept so Regenerate asks again for
+  // the same thing rather than silently widening to the whole territory.
+  const [ideasPillar, setIdeasPillar] = useState<PillarGroup | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -57,13 +60,20 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
     return () => clearTimeout(timer);
   }, [generatingTopics]);
 
-  async function generateTopics() {
+  /* Two ways in. The dock's button asks within the chosen direction, or the
+     whole territory if none is chosen. A pillar card asks within that pillar
+     and ignores the direction picker — the card is the scope, and having it
+     silently narrowed by a picker the editor set earlier would make the card
+     answer a question it did not ask. */
+  async function generateTopics(pillar: PillarGroup | null = ideasPillar) {
     setGeneratingTopics(true);
     setSearchSlow(false);
     setError(null);
+    setIdeasPillar(pillar);
     try {
       const result = await generateTopicIdeasAction({
-        categoryId: selection.directionId || undefined,
+        categoryId: pillar ? undefined : selection.directionId || undefined,
+        pillarSlug: pillar?.slug,
         language: "en",
       });
       if (result.length === 0) throw new Error("No topic ideas were returned. Try again or choose a direction.");
@@ -183,6 +193,38 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
               <br className="sm:hidden" />
               read next?
             </h1>
+
+            {/* FOUR DOORS, ONE PER PILLAR. Each card asks for ideas from
+                across that pillar, so an editor with no topic in mind has
+                somewhere to start that is narrower than "anything" and wider
+                than one direction. Two per row on a phone, four on a desktop
+                — the row is the pillar doc's own order, 01 to 04.
+
+                Under the headline rather than beside the dock: they are a way
+                to begin, not a setting on the field, and the welcome is where
+                a beginning is offered. */}
+            <div className="mx-auto mt-8 grid w-full max-w-3xl grid-cols-2 gap-3 text-left sm:mt-10 lg:grid-cols-4">
+              {pillars.map((pillar, index) => {
+                const Icon = pillarIcon(pillar.slug);
+                return (
+                  <button
+                    key={pillar.id}
+                    type="button"
+                    onClick={() => void generateTopics(pillar)}
+                    disabled={ideasBusy}
+                    data-pillar={pillar.slug}
+                    style={{ animationDelay: `${index * 60}ms` }}
+                    className="cs-pillar-card motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:fill-mode-both motion-safe:duration-300"
+                    aria-label={`Generate ideas from the ${pillar.name} pillar`}
+                  >
+                    <span aria-hidden className="cs-pillar-card-icon">
+                      <Icon className="size-4" />
+                    </span>
+                    <span className="cs-pillar-card-name">{pillar.name}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
           </div>
 
@@ -336,7 +378,7 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                 {!hasInput ? (
                 <button
                   type="button"
-                  onClick={() => void generateTopics()}
+                  onClick={() => void generateTopics(null)}
                   disabled={ideasBusy}
                   // Markup Wash, not the saturated fill: a middle weight that
                   // gives the orb a ground to sit on, so the two read as one
@@ -421,7 +463,8 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                 </h2>
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                   <p className="text-sm text-ink-2">
-                    {topics.length} ideas across {new Set(topics.map((topic) => topic.directionName)).size} directions.
+                    {topics.length} ideas across {new Set(topics.map((topic) => topic.directionName)).size} directions
+                    {ideasPillar ? ` in ${ideasPillar.name}` : ""}.
                   </p>
                   <div className="flex shrink-0 items-center gap-2">
                     <button type="button" onClick={() => void generateTopics()} disabled={ideasBusy} className="cs-btn !h-9 text-sm">

@@ -8,7 +8,7 @@ import { getBrand } from "@/lib/brand";
 import { getArticleRules } from "@/lib/article-template";
 import { buildSystemPrompt, getModels, runJson } from "@/lib/anthropic";
 import { topicsTask, recencyWindow } from "@/prompts/tasks";
-import { pillarForDirection } from "@/lib/content-pillars";
+import { CONTENT_PILLARS, pillarForDirection } from "@/lib/content-pillars";
 
 /**
  * Topic ideas, with no session check.
@@ -85,19 +85,33 @@ const IDEAS_TIMEOUT_MS = 35_000;
 export async function generateTopicIdeas(input: {
   categoryId?: string;
   categoryName?: string;
+  /** Range across one pillar's directions. Ignored when a direction is given. */
+  pillarSlug?: string;
   language: Language;
 }): Promise<TopicIdea[]> {
   const db = await getDb();
   const [category] = input.categoryId
     ? await db.select().from(categories).where(eq(categories.id, input.categoryId)).limit(1)
     : [];
-  const directions = await loadDirections();
+  const allDirections = await loadDirections();
   const requestedName = category?.name || input.categoryName?.trim();
   const selectedDirection = requestedName
-    ? directions.find((direction) => direction.name.toLowerCase() === requestedName.toLowerCase())
+    ? allDirections.find((direction) => direction.name.toLowerCase() === requestedName.toLowerCase())
     : undefined;
   const categoryName = selectedDirection?.name;
-  const pillar = categoryName ? pillarForDirection(categoryName) : undefined;
+  // A pillar shortcut narrows the open search to that pillar's directions; the
+  // model still picks the direction, but only from that pillar's list. A
+  // direction that is not in the canonical pillar doc stays out of it.
+  const scopedPillar = !categoryName && input.pillarSlug
+    ? CONTENT_PILLARS.find((pillar) => pillar.slug === input.pillarSlug)
+    : undefined;
+  const directions = scopedPillar
+    ? allDirections.filter((direction) => pillarForDirection(direction.name)?.slug === scopedPillar.slug)
+    : allDirections;
+  if (scopedPillar && directions.length === 0) {
+    throw new Error(`No active directions under the ${scopedPillar.name} pillar.`);
+  }
+  const pillar = categoryName ? pillarForDirection(categoryName) : scopedPillar;
   const [brand, articleRules, models] = await Promise.all([getBrand(), getArticleRules(), getModels()]);
   const { today, since } = recencyWindow();
 

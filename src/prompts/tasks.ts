@@ -85,13 +85,19 @@ export function topicsTask(params: {
   researchLive?: boolean;
 }): string {
   const open = !params.categoryName;
+  // Three scopes, widest first: the whole territory, one pillar, one direction.
+  // A pillar is "open" as far as the schema is concerned — the model still
+  // assigns each idea to a direction — but the territory it ranges over is the
+  // pillar's directions only, which `directionNames` has already narrowed to.
   const scopeLine = open
     // "At least four directions" was raised to force variety, and it also
     // forced the model to research four subjects before it could answer. With
     // three ideas requested the two constraints contradict each other, so this
     // asks for distinctness instead of a count — variety without the breadth
     // tax. See the note on the count below.
-    ? `Suggest timely, researchable article ideas from anywhere in Designally's editorial territory in ${marketFor(params.language)}. Make the ideas genuinely distinct from one another rather than variations on one subject.`
+    ? params.pillarName
+      ? `Suggest timely, researchable article ideas from across the "${params.pillarName}" content pillar in ${marketFor(params.language)}${params.pillarPurpose ? ` — ${params.pillarPurpose}` : ""} Spread the ideas across the pillar's directions and make them genuinely distinct from one another rather than variations on one subject.`
+      : `Suggest timely, researchable article ideas from anywhere in Designally's editorial territory in ${marketFor(params.language)}. Make the ideas genuinely distinct from one another rather than variations on one subject.`
     : `Suggest timely, researchable directions for the content direction "${params.categoryName}" in ${marketFor(params.language)}.`;
   const pillarLine = !open && params.pillarName
     ? `\nThis direction lives under the "${params.pillarName}" content pillar${params.pillarPurpose ? ` — ${params.pillarPurpose}` : ""}. Every idea must serve that pillar's intent.`
