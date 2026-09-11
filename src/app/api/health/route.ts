@@ -1,6 +1,7 @@
 import { getDb } from "@/db";
 import { sql } from "drizzle-orm";
 import { checkSchema, expectedMigrationCount, type SchemaCheck } from "@/lib/schema-status";
+import { R2_VARS, probeR2, r2Config } from "@/lib/image/r2";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -163,6 +164,48 @@ async function checkSharp(): Promise<{ ok: boolean; version?: string; error?: st
   }
 }
 
+/**
+ * Where new images go, and whether that store answers.
+ *
+ * PART OF `ok`, for the same reason as sharp: a deployment that cannot store an
+ * image cannot make one. Local disk passes only off Vercel — on a serverless
+ * host `saveImage` refuses it outright, so calling it healthy there would be
+ * reporting the failure as fine.
+ *
+ * Cached for a minute, like the other outbound checks.
+ */
+type StorageCheck = ProviderCheck & { backend: "r2" | "local" | "none"; bucket?: string; publicUrl?: string };
+let storageCache: { at: number; result: StorageCheck } | null = null;
+
+async function checkImageStorage(): Promise<StorageCheck> {
+  let config: ReturnType<typeof r2Config>;
+  try {
+    config = r2Config();
+  } catch (error) {
+    // Partly configured, or a malformed R2_PUBLIC_URL. Names variables, never values.
+    return { ok: false, backend: "r2", note: error instanceof Error ? error.message : "misconfigured" };
+  }
+  if (!config) {
+    return process.env.VERCEL
+      ? { ok: false, backend: "none", note: `not configured, so every image upload fails. Set ${R2_VARS.join(", ")}.` }
+      : { ok: true, backend: "local", note: "./data/images" };
+  }
+  if (storageCache && Date.now() - storageCache.at < CHECK_TTL_MS) {
+    const cached = storageCache.result;
+    return { ...cached, note: cached.note ? `${cached.note} (cached)` : "cached" };
+  }
+  const result: StorageCheck = {
+    ...(await probeR2()),
+    backend: "r2",
+    // Both public already: the bucket name is useless without the token, and
+    // the domain is in every image URL this app hands out.
+    bucket: config.bucket,
+    publicUrl: config.publicUrl,
+  };
+  storageCache = { at: Date.now(), result };
+  return result;
+}
+
 export async function GET() {
   const started = Date.now();
 
@@ -182,31 +225,29 @@ export async function GET() {
     CRON_SECRET: Boolean(process.env.CRON_SECRET),
     HUB_BASE_URL: Boolean(process.env.HUB_BASE_URL),
     HUB_API_KEY: Boolean(process.env.HUB_API_KEY),
+    // Where images are written — all five or none. `imageStorage` below says
+    // which store new images actually go to, and whether it answered.
+    R2_ACCOUNT_ID: Boolean(process.env.R2_ACCOUNT_ID),
+    R2_ACCESS_KEY_ID: Boolean(process.env.R2_ACCESS_KEY_ID),
+    R2_SECRET_ACCESS_KEY: Boolean(process.env.R2_SECRET_ACCESS_KEY),
+    R2_BUCKET_NAME: Boolean(process.env.R2_BUCKET_NAME),
+    R2_PUBLIC_URL: Boolean(process.env.R2_PUBLIC_URL),
+    // Read-only now: only images stored before the move to R2 are fetched from
+    // Supabase. Without these, those older images stop loading and nothing
+    // else changes.
     SUPABASE_URL: Boolean(process.env.SUPABASE_URL),
+    SUPABASE_SERVICE_ROLE_KEY: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
     // Not a secret, and the single most useful thing to know when the schema
     // is behind: it says whether this deployment applies migrations at all.
     SKIP_DB_MIGRATE: process.env.SKIP_DB_MIGRATE === "1",
-    /* THE ONE THAT DECIDES WHERE IMAGES LIVE, and the reason this line exists.
-       `saveImage` uses Supabase Storage only when BOTH the URL and this key are
-       set; with either missing it silently writes to `data/images/` on the
-       local filesystem. That is fine when self-hosted and fatal on Vercel,
-       where the filesystem is per-invocation: an image generated in one request
-       is gone by the time publishing looks for it. Ten days of articles reached
-       the Hub with no cover and nothing anywhere said why — this endpoint
-       listed SUPABASE_URL and not this, so it looked configured. */
-    SUPABASE_SERVICE_ROLE_KEY: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
   };
 
-  /* Not an env boolean but the conclusion drawn from two of them, because
-     "which of these is missing" is a worse question than "where do images
-     actually go". `local` on a serverless host means covers cannot survive
-     between generating and publishing. */
-  const imageStorage =
-    process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
-      ? `supabase:${process.env.SUPABASE_STORAGE_BUCKET || "content-studio-images"}`
-      : "local (ephemeral on Vercel — covers will not reach the Hub)";
-
-  const [anthropic, hub, sharp] = await Promise.all([checkAnthropic(), checkHub(), checkSharp()]);
+  const [anthropic, hub, sharp, imageStorage] = await Promise.all([
+    checkAnthropic(),
+    checkHub(),
+    checkSharp(),
+    checkImageStorage(),
+  ]);
 
   let database: { ok: boolean; ms?: number; error?: string };
   let schema: SchemaCheck = { ok: null, expected: expectedMigrationCount, note: "not checked" };
@@ -241,7 +282,8 @@ export async function GET() {
       env.AUTH_GOOGLE_ID &&
       env.AUTH_SECRET &&
       anthropic.ok !== false &&
-      sharp.ok,
+      sharp.ok &&
+      imageStorage.ok !== false,
     commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "local",
     branch: process.env.VERCEL_GIT_COMMIT_REF ?? null,
     environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? null,
@@ -260,6 +302,7 @@ export async function GET() {
     hub,
     env,
     missing,
+    // PART OF `ok` — see `checkImageStorage`.
     imageStorage,
     tookMs: Date.now() - started,
   };

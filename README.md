@@ -109,10 +109,12 @@ used for usage logging.
    AUTH_SECRET=$(openssl rand -hex 32)
    ENCRYPTION_KEY=$(openssl rand -hex 32)
    ANTHROPIC_API_KEY=sk-ant-...
-   # optional image storage in Supabase (else images are stored on disk)
-   SUPABASE_URL=https://<ref>.supabase.co
-   SUPABASE_SERVICE_ROLE_KEY=...
-   SUPABASE_STORAGE_BUCKET=content-studio-images
+   # image storage in Cloudflare R2 — required on Vercel, else images go to disk
+   R2_ACCOUNT_ID=...
+   R2_ACCESS_KEY_ID=...
+   R2_SECRET_ACCESS_KEY=...
+   R2_BUCKET_NAME=...
+   R2_PUBLIC_URL=https://images.example.com
    ```
 
 3. **Apply the schema.** On Vercel this happens for you: the `vercel-build`
@@ -135,12 +137,15 @@ used for usage logging.
    names any migration the database is missing and returns 503 while it is
    behind — check it after a deploy that changed the schema.
 
-4. **(Optional) Image storage.** Create a **public** Storage bucket named
-   `content-studio-images` (or your `SUPABASE_STORAGE_BUCKET`). Without Supabase
-   Storage configured, generated images are written to `./data/images` and
-   served by the app.
+4. **Image storage.** Create an R2 bucket, connect a custom domain to it
+   (that domain, with no path, is `R2_PUBLIC_URL`), and make an "Object Read &
+   Write" API token scoped to it. Add the same hostname to the Hub's
+   `MEDIA_FETCH_HOSTS`, or it refuses to fetch covers. Without R2, images are
+   written to `./data/images` — fine self-hosted, refused on Vercel. Images
+   stored before the move to R2 still read from Supabase Storage while
+   `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are set.
 
-The app uses the standard Node runtime and Supabase only — no Vercel-exclusive
+The app uses the standard Node runtime, Postgres and S3-compatible storage only — no Vercel-exclusive
 features (Edge-only APIs, KV, Blob) — so it runs unchanged on Vercel now and on a
 self-hosted server later.
 

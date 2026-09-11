@@ -340,9 +340,13 @@ There is no webhook or outbound event system beyond the Hub publish. `publishToH
 | `ANTHROPIC_API_KEY` | yes | All text generation. Without it, generation routes return `503`. |
 | `HUB_BASE_URL` | for publishing | Hub origin, no trailing slash. |
 | `HUB_API_KEY` | for publishing | A Hub `users` API key (the "Content Generator" user). |
-| `SUPABASE_URL` | optional | Enables Supabase Storage for generated images. |
-| `SUPABASE_SERVICE_ROLE_KEY` | optional | Paired with the above. |
-| `SUPABASE_STORAGE_BUCKET` | optional | Defaults to `content-studio-images`. Bucket should be public, or adapt `/api/images`. |
+| `R2_ACCOUNT_ID` | on Vercel | Cloudflare account that owns the bucket. The five `R2_*` go together: none → images on local disk (refused on Vercel); some → an error naming the rest. |
+| `R2_ACCESS_KEY_ID` | on Vercel | R2 API token, "Object Read & Write", scoped to the bucket. |
+| `R2_SECRET_ACCESS_KEY` | on Vercel | Paired with the above. |
+| `R2_BUCKET_NAME` | on Vercel | The bucket images are written to. |
+| `R2_PUBLIC_URL` | on Vercel | The bucket's custom domain, **no path**. Stored rows are this plus the key. Must also be in the Hub's `MEDIA_FETCH_HOSTS`. |
+| `SUPABASE_URL` | legacy | Read-only: loads images stored before the move to R2. Nothing is uploaded to or deleted from Supabase. |
+| `SUPABASE_SERVICE_ROLE_KEY` | legacy | Paired with the above. |
 | `CRON_SECRET` | for the autopilot | Shared secret for `/api/cron/autopilot`. `openssl rand -hex 32`. Unset → the endpoint answers `503` and the autopilot cannot run at all. Setting it starts nothing on its own; routines are created and switched on in the Routines tab. |
 | `SKIP_DB_MIGRATE` | recommended in prod | `1` stops every cold start running the migrator. See §10. |
 | `DB_FORCE_TRANSACTION_POOLER` | rarely | `1` rewrites a Supabase pooler URL `:5432` → `:6543`. **Off by default deliberately — see §11.** |

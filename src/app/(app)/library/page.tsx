@@ -2,7 +2,7 @@ import Link from "next/link";
 import { and, eq, desc, asc, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
 import { projects, categories, images } from "@/db/schema";
-import { createSignedImageUrls } from "@/lib/image/storage";
+import { fetchableImageUrls } from "@/lib/image/storage";
 import { PageHeading } from "@/components/page-heading";
 import { EmptyState } from "@/components/empty-state";
 import { FilterBar } from "./filter-bar";
@@ -88,18 +88,19 @@ export default async function LibraryPage({
     }
   }
 
-  // One batched signing request lets the browser load every card image straight
-  // from Supabase Storage. Without it, each card hits /api/images/[id], and a
-  // full grid means ~27 serverless invocations each opening a DB connection.
-  const signedUrlByPath = await createSignedImageUrls([
+  // The browser loads every card image straight from storage — R2's public
+  // domain, or a signed URL for a Supabase-era image. Without it, each card
+  // hits /api/images/[id], and a full grid means ~27 serverless invocations
+  // each opening a DB connection.
+  const urlByPath = await fetchableImageUrls([
     ...latestImagePathByProject.values(),
   ]);
   const imageUrlByProject = new Map<string, string>();
   for (const [projectId, imageId] of latestImageByProject) {
     const storagePath = latestImagePathByProject.get(projectId);
-    const signed = storagePath ? signedUrlByPath.get(storagePath) : undefined;
-    // Fall back to the API route for legacy `local:` images or if signing failed.
-    imageUrlByProject.set(projectId, signed ?? `/api/images/${imageId}`);
+    const direct = storagePath ? urlByPath.get(storagePath) : undefined;
+    // Fall back to the API route for `local:` images or if signing failed.
+    imageUrlByProject.set(projectId, direct ?? `/api/images/${imageId}`);
   }
 
   const sort = [

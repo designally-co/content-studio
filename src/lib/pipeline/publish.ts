@@ -10,7 +10,7 @@ import {
   uploadImageToHubByUrl,
 } from "@/lib/hub";
 import { publishMetadata } from "@/lib/publish-meta";
-import { createSignedImageUrls, resolveImage } from "@/lib/image/storage";
+import { fetchableImageUrls, resolveImage } from "@/lib/image/storage";
 import { sweepPublishedReferences } from "@/lib/image/sweep-references";
 import { stripTitleHeading } from "@/lib/markdown";
 import { splitSourcesSection } from "@/lib/outline";
@@ -124,24 +124,27 @@ export async function publishToHubCore(
          request body over 4.5MB at the edge — a 413 before the Hub's route or
          auth runs, with no error body to report — and generated covers now
          exceed it, which is why ten days of articles published with no image.
-         A signed URL is a few hundred bytes, and the Hub fetches the file
-         itself, so size stops being a factor. `local:` paths have no URL to
-         sign and fall through to the upload below, which is fine: that is the
-         self-hosted case, where the 4.5MB ceiling does not exist either. */
-      const signed = chosen.storagePath.startsWith("supabase:")
-        ? (await createSignedImageUrls([chosen.storagePath], 600)).get(chosen.storagePath)
-        : undefined;
+         A URL is a few hundred bytes, and the Hub fetches the file itself, so
+         size stops being a factor.
 
-      if (signed) {
-        /* FROM THE STORED PATH, NOT THE SIGNED URL. This read the extension out
-           of the URL — and a signed URL ends in a JWT, whose segments are
-           separated by dots and can begin with any base64url characters. A
-           token segment starting "png" would have made `.png` appear in a URL
-           pointing at a WebP, and the Hub would have been handed a filename
-           that disagreed with the bytes. The path is what was written. */
+         An R2 cover is sent as its public URL, which the Hub will only fetch
+         if the R2 domain is listed in its MEDIA_FETCH_HOSTS — otherwise its
+         refusal comes back as the cover warning, naming the variable. A
+         Supabase-era cover gets a ten-minute signed URL. `local:` paths have
+         no URL and fall through to the upload below, which is fine: that is
+         the self-hosted case, where the 4.5MB ceiling does not exist either. */
+      const fetchable = (await fetchableImageUrls([chosen.storagePath], 600)).get(chosen.storagePath);
+
+      if (fetchable) {
+        /* FROM THE STORED PATH, NOT THE URL. This read the extension out of a
+           signed URL — which ends in a JWT, whose segments are separated by
+           dots and can begin with any base64url characters. A token segment
+           starting "png" would have made `.png` appear in a URL pointing at a
+           WebP, and the Hub would have been handed a filename that disagreed
+           with the bytes. The path is what was written. */
         const ext = extensionOf(chosen.storagePath);
         coverMediaId = await uploadImageToHubByUrl({
-          url: signed,
+          url: fetchable,
           filename: `${projectId}-cover.${ext}`,
           alt: title,
         });
@@ -149,20 +152,15 @@ export async function publishToHubCore(
         const resolved = await resolveImage(chosen.storagePath);
         if (!resolved) {
           /* The single most useful thing this function can say. `resolveImage`
-             returns null when the bytes cannot be fetched — and the storage
-             BACKEND is the usual reason: with SUPABASE_SERVICE_ROLE_KEY unset,
-             images are written to the local filesystem, which on Vercel is
-             per-invocation. The image is generated in one request and gone by
-             the time this one looks for it, silently, in production only. */
+             returns null when the bytes cannot be fetched — a `local:` file
+             that is not on this machine, or a Supabase-era file whose
+             credentials are no longer set. */
           const backend = chosen.storagePath.startsWith("supabase:")
             ? "Supabase Storage"
             : "the local filesystem";
           coverWarning =
             `The cover image could not be read from ${backend} ` +
-            `(${chosen.storagePath.slice(0, 60)}), so the article was published without it.` +
-            (chosen.storagePath.startsWith("local:")
-              ? " Images are being stored on local disk, which does not persist on Vercel — set SUPABASE_SERVICE_ROLE_KEY."
-              : "");
+            `(${chosen.storagePath.slice(0, 60)}), so the article was published without it.`;
         } else {
           const ext = resolved.mimeType.includes("png")
             ? "png"
