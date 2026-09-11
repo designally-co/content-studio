@@ -37,7 +37,7 @@ Data flows **one way**: Studio → Hub. The Hub never calls the Studio.
 | Database | Postgres (`postgres` 3.4.9) or embedded PGlite | 3.4.9 / 0.5.4 |
 | LLM | `@anthropic-ai/sdk` | ^0.111.0 |
 | Sessions | `jose` (JWT, HS256) | ^6.2.3 |
-| Images | `sharp` (logo compositing), Fal.ai (generation) | ^0.35.3 |
+| Images | `sharp` (resize and WebP re-encode), Fal.ai (generation), Cloudflare R2 (storage) | ^0.35.3 |
 | Validation | `zod` | ^4.4.3 |
 
 Build output is `output: "standalone"`, so it runs equally on Vercel and in a plain Node container. Vercel region is pinned to `sin1` (Singapore) in `vercel.json`.
@@ -121,7 +121,7 @@ The first account created through the first-run flow is given `role: "admin"`.
 
 **`refinements`** — append-only history for a draft. Each row is `{user_message, result_md}`. Regeneration and AI revision both snapshot the previous body here first (`"Version before regeneration"`, `"Version before AI revision: …"`), which is what makes history restorable.
 
-**`images`** — `provider`, `model`, `prompt`, `aspect_ratio`, `width`/`height`, `variation_no`, `reference_ids_json`, `storage_path`, `cost_usd`, `position` (article image slot, null = companion), `branding_json` (per-image logo overlay; null = unbranded).
+**`images`** — `provider`, `model`, `prompt`, `aspect_ratio`, `width`/`height`, `variation_no`, `reference_ids_json`, `storage_path`, `cost_usd`, `position` (article image slot, null = companion), `branding_json` (vestigial: logo overlays were retired, always null on new rows).
 
 **`image_references`** — user-uploaded source images that guide generation.
 
@@ -172,7 +172,7 @@ Route handlers under `/api` call `getSessionUser()` directly and return a bare `
 |---|---|---|
 | 1–3 | **Draft & edit** (prepare) | Project created. `prepareSimpleArticleAction` runs the research plan. |
 | 4–5 | **Draft & edit** (drafts) | Draft streamed, then refined conversationally. |
-| 6 | **Generate images** / **Publish** | Images generated and branded; article published to the Hub. |
+| 6 | **Generate images** / **Publish** | Images generated, resized to WebP and stored in R2; article published to the Hub. |
 
 ### Stage detail
 
@@ -184,7 +184,7 @@ Route handlers under `/api` call `getSessionUser()` directly and return a bare `
 
 **Refine** (`POST /api/pipeline/[id]/refine`) — rebuilds the exchange as a real conversation: up to `MAX_HISTORY = 8` prior instruction/result turns are replayed as user/assistant messages with a **cache breakpoint on the latest draft**, so prompt caching serves the large prior drafts at ~0.1× instead of re-billing the whole article every turn. Writes two `refinements` rows (the pre-revision snapshot and the result) and updates the draft.
 
-**Images** (`image-actions.ts`) — a visual brief and per-image prompts are generated on the drafting tier, then Fal.ai renders them. `sharp` composites the brand logo per `branding_json`. Originals are never modified; the branded version is rendered on request.
+**Images** (`image-actions.ts`) — a visual brief and per-image prompts are generated on the drafting tier, then Fal.ai renders them. Each result is resized to at most 1600px wide and re-encoded to WebP with `sharp` before it is stored in R2; the provider's original is not kept. Logo overlays were retired, so nothing is composited onto an image.
 
 **Publish** (`publish-actions.ts`) — see §8.1.
 
