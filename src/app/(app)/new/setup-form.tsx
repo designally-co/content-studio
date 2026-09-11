@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { LoaderCircle, Maximize2, Minimize2, RefreshCw, Send, Sparkle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeading } from "@/components/page-heading";
-import { PageBar, PAGE_ACTION_BUTTON } from "@/components/page-bar";
+import { PageBar, PAGE_ACTION_BUTTON_QUIET } from "@/components/page-bar";
 import { AccentOrb } from "@/components/accent-orb";
 import OrbitingCirclesGlobe from "@/components/ui/orbiting-circles-02";
 import { createProjectAction, inferArticleSetupAction } from "./actions";
@@ -175,7 +175,9 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                 disabled={ideasBusy}
                 aria-label="Regenerate ideas"
                 title="Regenerate ideas"
-                className={PAGE_ACTION_BUTTON}
+                /* The quiet disc, like Library's search: another set of ideas
+                   commits nothing, and the accent is for the press that does. */
+                className={PAGE_ACTION_BUTTON_QUIET}
               >
                 <RefreshCw aria-hidden className="size-5" />
               </button>

@@ -439,6 +439,39 @@ function ImagePanel({
   const [sheetLift, setSheetLift] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
+  /* THE ROOM THE PICTURE HAS, MEASURED. On a phone the stage is a clipped
+     box, the dock takes what it needs from the bottom and the title from the
+     top, and the picture gets what is left — which the constant cap below
+     knows nothing about. A square capped at 460 was 342 tall on a 390 phone
+     and centred in a slot half that, so it ran over the title above and
+     under the dock below. The slot is observed and its height handed down as
+     the cap instead; the dock growing (a long prompt, a reference row) makes
+     the picture smaller, never the other way round. Above `lg` the page
+     grows and the constant is the cap again. */
+  const featureAreaRef = useRef<HTMLDivElement>(null);
+  const [featureRoom, setFeatureRoom] = useState<number | null>(null);
+  useEffect(() => {
+    const area = featureAreaRef.current;
+    if (!area) return;
+    const wide = window.matchMedia("(min-width: 64rem)");
+    const measure = () => {
+      if (wide.matches) {
+        setFeatureRoom(null);
+        return;
+      }
+      const styles = getComputedStyle(area);
+      const room = area.clientHeight - parseFloat(styles.paddingTop) - parseFloat(styles.paddingBottom);
+      setFeatureRoom(Math.max(0, Math.floor(room)));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(area);
+    wide.addEventListener("change", measure);
+    return () => {
+      observer.disconnect();
+      wide.removeEventListener("change", measure);
+    };
+  }, []);
   const selectedOption = useMemo(
     () => options.find((option) => option.optionId === optionId) ?? options[0],
     [optionId, options]
@@ -768,12 +801,13 @@ function ImagePanel({
           {/* The picture takes the room that is left, centred in it, so the
               dock stays on the floor of the stage whether there is one image or
               none. */}
-          <div className="flex min-h-0 flex-1 items-center justify-center py-6">
+          <div ref={featureAreaRef} className="flex min-h-0 flex-1 items-center justify-center py-6">
             {featured ? (
               <GeneratedImage
                 key={featured.id}
                 img={featured}
                 feature
+                maxHeight={featureRoom ?? undefined}
                 selected
                 onSelect={() => chooseCover(featured.id)}
                 onDeleted={() => setImgs((current) => current.filter((item) => item.id !== featured.id))}
@@ -1009,7 +1043,14 @@ function ImagePanel({
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="Describe the image, or auto-draft one from the article…"
-              className={`cs-dock-input ${promptNeedsExpansion ? "cs-dock-input--scrollable pr-12" : ""} ${promptExpanded ? "max-h-none" : "max-h-40"}`}
+              /* EXPANDED IS NOT UNBOUNDED ON A PHONE. The stage there is a
+                 clipped box the height of the screen, and an auto-drafted
+                 prompt let fully out ran past the top of it — taking the
+                 collapse control with it, so the field could not be closed
+                 again. 40dvh leaves the title and the picture their share on
+                 the shortest phone; the field scrolls inside that. Above `lg`
+                 the page grows with it and no cap is needed. */
+              className={`cs-dock-input ${promptNeedsExpansion ? "cs-dock-input--scrollable pr-12" : ""} ${promptExpanded ? "max-h-[40dvh] lg:max-h-none" : "max-h-40"}`}
             />
           </div>
           {promptNeedsExpansion && (
@@ -1022,7 +1063,7 @@ function ImagePanel({
                   const field = promptRef.current;
                   if (!field) return;
                   field.style.height = "auto";
-                  field.style.height = `${nextExpanded ? field.scrollHeight : Math.min(field.scrollHeight, 320)}px`;
+                  field.style.height = `${nextExpanded ? field.scrollHeight : Math.min(field.scrollHeight, PROMPT_COLLAPSED_MAX)}px`;
                   field.focus();
                 });
               }}
@@ -1191,10 +1232,13 @@ function ImagePanel({
   );
 }
 
-function GeneratedImage({ img, feature = false, selected, onSelect, onDeleted }: {
+function GeneratedImage({ img, feature = false, maxHeight, selected, onSelect, onDeleted }: {
   img: GeneratedImageView;
   /** The only image: shown large, but capped so a square cannot run away. */
   feature?: boolean;
+  /** The room the featured image actually has, when the stage is clipped
+   *  to the screen. Lowers the cap; never raises it. */
+  maxHeight?: number;
   /** True when this image is the one that will reach the Hub. */
   selected: boolean;
   onSelect: () => void;
@@ -1221,7 +1265,7 @@ function GeneratedImage({ img, feature = false, selected, onSelect, onDeleted }:
 
   return (
     <figure
-      style={feature ? { maxWidth: Math.round(FEATURE_MAX_HEIGHT * ratio) } : undefined}
+      style={feature ? { maxWidth: Math.round(Math.min(FEATURE_MAX_HEIGHT, maxHeight ?? FEATURE_MAX_HEIGHT) * ratio) } : undefined}
       /* THE FEATURED IMAGE WEARS NO RING. The accent ring answers "which of
          these is chosen", which is a question a grid asks and a single picture
          cannot: the one in the middle of the plate is there BECAUSE it is
