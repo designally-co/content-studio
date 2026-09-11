@@ -668,8 +668,9 @@
 }
 
 /* ---- pillar cards (the composer's four doors) ----
-   A soft wash rather than a plate: no hairline, no shadow, a tint that fades
-   toward white so the four read as one row of colour rather than four boxes.
+   A soft wash inside the dock's hairline: no shadow, a tint that fades toward
+   white so the four read as one row of colour rather than four boxes, and the
+   same 1px line the dock draws so the two sit together.
    Each pillar takes one of the system's tints, so a card's colour is the same
    one its ideas will carry later. The icon sits in a white square, which is
    what keeps a line icon legible on a wash of any hue.
@@ -680,6 +681,9 @@
 .cs-pillar-card {
   --pillar-tint: var(--surface-deep);
   display: flex;
+  /* The dock's own hairline, so the cards and the field below them read as
+     the same family of object: a wash inside a line, not a wash alone. */
+  border: 1px solid var(--dock-border);
   flex-direction: column;
   justify-content: space-between;
   align-items: flex-start;
