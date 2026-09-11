@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, LoaderCircle, Maximize2, Minimize2, RefreshCw, Send, Sparkle } from "lucide-react";
+import { LoaderCircle, Maximize2, Minimize2, RefreshCw, Send, Sparkle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeading } from "@/components/page-heading";
 import { PageBar, PAGE_ACTION_BUTTON } from "@/components/page-bar";
@@ -206,20 +206,23 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
           {/* One card per idea, and the title is the control — the same shape
               Routines uses: a stretched pseudo-element under the whole card,
               so the accessible name is the idea rather than a card's worth of
-              text. `Recommended` sits below the title rather than above it: a
-              label above a heading is a kicker, and the title has to lead. */}
+              text.
+
+              THE RECOMMENDATION IS THE LINE, NOT A WORD. The lead idea draws
+              its hairline in the accent instead of carrying a "Recommended"
+              tag: the same 1px, one colour off, which is enough to pick it
+              out of a column without adding a label to read. No arrow: on a
+              card that is entirely a target it was saying what the card's
+              shape already says. The direction is a chip, the one the
+              publish stage uses, under the text. */}
           {topics.map((topic, index) => {
             const lead = index === 0;
-            const meta = [
-              lead ? "Recommended" : null,
-              topic.directionName,
-              topic.researchSources?.map((source) => source.name).join(", ") || null,
-            ].filter(Boolean);
+            const sources = topic.researchSources?.map((source) => source.name).join(", ") || null;
             return (
               <section
                 key={`${topic.title}-${index}`}
                 style={{ animationDelay: `${Math.min(index, 7) * 45}ms` }}
-                className="group relative rounded-2xl border border-line bg-surface p-3.5 transition-shadow duration-(--duration-base) ease-(--ease-out) hover:shadow-[var(--shadow-card)] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:fill-mode-both motion-safe:duration-300 sm:p-5"
+                className={`relative rounded-2xl border bg-surface p-3.5 transition-shadow duration-(--duration-base) ease-(--ease-out) hover:shadow-[var(--shadow-card)] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:fill-mode-both motion-safe:duration-300 sm:p-5 ${lead ? "border-accent" : "border-line"}`}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
@@ -241,21 +244,13 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
                     {lead && topic.whyTimely && (
                       <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-2">{topic.whyTimely}</p>
                     )}
-                    {meta.length > 0 && (
-                      <p className="mt-3 text-xs font-semibold text-ink-3">
-                        {meta.map((part, partIndex) => (
-                          <span key={part as string}>
-                            {partIndex > 0 && <span aria-hidden className="px-1.5 text-line-strong">/</span>}
-                            <span className={partIndex === 0 && lead ? "text-accent-ink" : undefined}>{part}</span>
-                          </span>
-                        ))}
-                      </p>
-                    )}
+                    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                      <span className="inline-flex items-center rounded-full bg-sunken px-2.5 py-1 text-xs font-semibold text-ink-2">
+                        {topic.directionName}
+                      </span>
+                      {sources && <span className="text-xs font-semibold text-ink-3">{sources}</span>}
+                    </div>
                   </div>
-                  <ArrowRight
-                    aria-hidden
-                    className="mt-1 size-5 shrink-0 text-ink-3 transition-transform duration-(--duration-base) ease-(--ease-out) group-hover:translate-x-1 group-hover:text-accent-press"
-                  />
                 </div>
               </section>
             );
