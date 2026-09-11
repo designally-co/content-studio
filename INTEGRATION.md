@@ -207,7 +207,6 @@ All routes are `runtime = "nodejs"`, `dynamic = "force-dynamic"`, and require a 
 | POST | `/api/pipeline/{projectId}/draft` | — | `application/x-ndjson` stream |
 | POST | `/api/pipeline/{projectId}/refine` | `{"message": "…"}` | `application/x-ndjson` stream |
 | GET | `/api/images/{imageId}` | — | image bytes, `private, max-age=31536000, immutable` |
-| GET | `/api/images/{imageId}/branded` | — | image bytes with the logo composited |
 | GET | `/api/image-references/{id}` | — | image bytes |
 | GET | `/api/brand-logo` | — | the brand logo bytes |
 | GET | `/api/brand-image/{brandId}` | — | legacy brand avatar bytes |
@@ -400,7 +399,7 @@ Things that will cost you time if you do not know them.
 
 **Connection pool.** `max: 3`, `idle_timeout: 20` per instance, because each serverless worker creates its own client and `postgres-js` defaults to 10 — a handful of concurrent workers otherwise exhaust the pooler with `EMAXCONNSESSION`.
 
-**Generated images are private.** `/api/images/[id]` requires a session, so image URLs are not usable in an external context. The Hub publish path works because bytes are uploaded into the Hub's own media library, not linked.
+**Generated images are public.** Every image is stored in Cloudflare R2 and served from its custom domain (`R2_PUBLIC_URL`), so its URL works anywhere — the Library and the Hub load images straight from there. Keys are random UUIDs, so an image is unguessable, not secret. `/api/images/[id]` still exists behind a session, as the fallback for `local:` images in development. Publishing hands the Hub the R2 URL, and the Hub copies the file into its own media library.
 
 **Server action body limit** is raised to `3mb` (`next.config.ts`) for brand logo uploads against a 2MB cap.
 

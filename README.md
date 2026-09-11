@@ -99,13 +99,15 @@ used for usage logging.
 
 ## Production with Supabase
 
-1. **Create a Supabase project.** Copy the **pooled** connection string
-   (Project → Database → Connection string → *Transaction pooler*, port 6543).
+1. **Create a Supabase project.** Copy the **Session pooler** connection string
+   (the project's **Connect** button → *Session pooler*, port 5432). Not the
+   transaction pooler on 6543: this app runs on session mode on purpose — see
+   §11 of `INTEGRATION.md`.
 
 2. **Set environment variables** (see `.env.example`):
 
    ```bash
-   DATABASE_URL=postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres
+   DATABASE_URL=postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
    AUTH_SECRET=$(openssl rand -hex 32)
    ENCRYPTION_KEY=$(openssl rand -hex 32)
    ANTHROPIC_API_KEY=sk-ant-...
