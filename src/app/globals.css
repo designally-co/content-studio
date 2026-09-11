@@ -1261,6 +1261,35 @@ main:has(.cs-create-page),
       overflow-x: clip;
     }
   }
+
+  /*
+   * A PAGE THAT FITS THE SCREEN DOES NOT SCROLL ON A PHONE.
+   *
+   * The composer and the sign-in door are sized to the viewport exactly, so
+   * there is nothing below the fold — but a document that is merely "not
+   * taller than the screen" can still be dragged: it bounces, the browser
+   * chrome collapses and grows back, and a horizontal pull turns into a
+   * back gesture. All of that reads as a page that is loose in its frame,
+   * where the layout is meant to sit still the way an app's does.
+   *
+   * A page says so with `data-fits-viewport`, and the root and body stop
+   * being scrollable while it is on screen. The attribute is on the page,
+   * not the route: Create carries it while the composer is up and drops it
+   * the moment the list of ideas arrives, which is taller than the screen
+   * by design and has to scroll. `overscroll-behavior: none` is the other
+   * half, or a locked page still rubber-bands on iOS.
+   *
+   * Phones only. On a desktop the same pages centre in a window whose height
+   * is anybody's guess, and clipping a short window would cut them off.
+   */
+  @media (max-width: 1023px) {
+    html:has([data-fits-viewport]),
+    html:has([data-fits-viewport]) body {
+      height: 100%;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+  }
   h1,
   h2,
   h3,

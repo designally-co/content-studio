@@ -59,10 +59,26 @@ export const metadata: Metadata = {
   description: "Internal AI-powered content generation for the Designally team",
 };
 
+/* THE SCREEN IS THE SCREEN. On iOS, tapping any field set below 16px makes
+   Safari zoom the page in on it — the "magnifier" — and the layout then has
+   to be pinched back before the rest of it can be seen. This app sets its
+   fields at the body size on purpose, so the zoom is switched off at the
+   viewport instead: `maximumScale: 1` is what Safari checks before it zooms
+   on focus, and `userScalable: false` says the same thing to the browsers
+   that read that field. The layout is already responsive; it does not need
+   the browser's help.
+
+   `resizes-content` asks a browser that supports it (Chrome on Android) to
+   shrink the layout to the space above the keyboard, so a dock anchored to
+   the foot of the screen rises with the keyboard the way an app's does. iOS
+   ignores it and pans instead, which is the best it offers. */
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({

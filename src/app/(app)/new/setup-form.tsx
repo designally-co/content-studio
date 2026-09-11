@@ -129,6 +129,11 @@ export function SetupForm({ pillars, anthropicReady }: { pillars: PillarGroup[];
          was a term in the offset. Flex does the same arithmetic without being
          told the number. */
       className="mx-auto flex min-h-[calc(100svh-3rem)] w-full max-w-7xl flex-col px-3 pb-6 sm:px-6 sm:pb-20 lg:min-h-svh lg:px-12 lg:pb-24 xl:px-16"
+      /* The composer and the search stage fill the screen exactly, so on a
+         phone the page is locked in its frame while either is up (see the
+         rule in globals.css). The list of ideas is taller than the screen by
+         design, and the lock lifts the moment it arrives. */
+      data-fits-viewport={topics.length === 0 ? "" : undefined}
     >
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col">
         {showComposer && (
